@@ -1,5 +1,7 @@
 # Ideias de expansão do Plantão
 
+> **Plantão é um nome provisório (WIP).** O nome oficial do app ainda vai ser decidido com o grupo.
+
 Backlog de ideias, sem compromisso de ordem (exceto onde indicado). Cada item diz o que é, por que importa e o que já se sabe sobre como fazer.
 Conceito e arquitetura originais: [doc "Plantão: infraestrutura e como evitar o vazio"](https://claude.ai/artifact/24PH3QwV6B6enMrD5Vv6x1).
 
