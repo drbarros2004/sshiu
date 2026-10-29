@@ -21,23 +21,18 @@ import (
 )
 
 func main() {
-	flag.BoolVar(&rooms.Demo, "demo", false, "comprime o tempo (sprint de 25 min vira 1 min) e enche a sala pública de bots")
+	flag.BoolVar(&rooms.Demo, "demo", false, "liga a sala demo, com bots, e a tarefa de 1 min")
 	port := flag.String("port", "23234", "porta SSH")
 	flag.Parse()
 
 	if err := store.Open("plantao.db"); err != nil {
 		log.Fatal("sqlite", "err", err)
 	}
-	if rooms.Demo {
-		rooms.SeedBots()
-	}
-	rooms.Open(rooms.PublicCode, "sala pública", []int{9, 14, 20, 22})
-	private, err := store.Rooms()
-	if err != nil {
+	if err := rooms.Load(); err != nil {
 		log.Fatal("salas", "err", err)
 	}
-	for _, r := range private {
-		rooms.Open(r.Code, r.Name, r.Slots)
+	if rooms.Demo {
+		rooms.SeedBots()
 	}
 
 	s, err := wish.NewServer(
@@ -60,7 +55,7 @@ func main() {
 	if err != nil {
 		log.Fatal("porta ocupada? talvez o Plantão já esteja rodando", "err", err)
 	}
-	log.Info("Plantão no ar: ssh localhost -p "+*port, "demo", rooms.Demo, "salas", len(private)+1)
+	log.Info("Plantão no ar: ssh localhost -p "+*port, "demo", rooms.Demo)
 	log.Fatal(s.Serve(ln))
 }
 

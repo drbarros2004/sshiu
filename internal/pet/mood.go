@@ -1,4 +1,4 @@
-// Package pet é o bichinho de cada pessoa (humor, energia, streak e os sprites).
+// Package pet é o bichinho de cada usuário (humor, energia, streak e os sprites).
 // "pet" é um nome provisório: troque aqui, no pacote e nos comentários quando o nome definitivo sair.
 package pet
 
@@ -8,21 +8,51 @@ import "time"
 
 type Result string
 
+// Resultado de uma tarefa (CONTEXT.md).
 const (
-	Done      Result = "done"      // ficou até o fim e cumpriu o Lock
-	NotDone   Result = "not_done"  // ficou até o fim, mas não cumpriu
-	Abandoned Result = "abandoned" // saiu no meio do foco
-	Missed    Result = "missed"    // estava na fila e faltou
+	Done        Result = "done"        // cumprida ("feito")
+	NotDone     Result = "not_done"    // trocada ou parada
+	Interrupted Result = "interrupted" // desconectou e não voltou a tempo: equivale a parar
 )
 
 const (
 	EnergyStart    = 50.0 // energia de quem acabou de chegar (0..100)
-	decayPerDay    = 8.0  // perda por dia inteiro sem nenhum sprint
+	decayPerDay    = 8.0  // perda por dia inteiro sem focar
 	streakBonus    = 2.0  // bônus por dia de streak...
 	streakBonusMax = 10.0 // ...até este teto
 )
 
-var delta = map[Result]float64{Done: 15, NotDone: 4, Abandoned: -15, Missed: -10}
+// A energia vem dos minutos focados de verdade, não do tempo declarado (docs/regras.md).
+const (
+	energyPer30Min   = 8.0  // 30 min de foco devolvem um dia parado
+	doneBonus        = 3.0  // tarefa cumprida...
+	doneBonusMinutes = 10.0 // ...com pelo menos estes minutos focados
+	streakMinutes    = 15.0 // minutos focados no dia para o dia contar no streak
+)
+
+// Focus soma ao pet uma tarefa encerrada: os minutos que contaram e se foi cumprida.
+func (p *Pet) Focus(minutes float64, done bool, now time.Time) {
+	e := p.decayed(now) + minutes*energyPer30Min/30
+	if done && minutes >= doneBonusMinutes {
+		e += doneBonus
+	}
+	p.Energy, p.LastActive = clamp(e), now
+	if p.Today != day(now) {
+		p.Today, p.TodayMin = day(now), 0
+	}
+	p.TodayMin += minutes
+	if p.TodayMin < streakMinutes {
+		return
+	}
+	switch p.StreakDay {
+	case day(now):
+	case day(now.AddDate(0, 0, -1)):
+		p.Streak++
+	default:
+		p.Streak = 1
+	}
+	p.StreakDay = day(now)
+}
 
 type Mood int
 
@@ -50,6 +80,8 @@ type Pet struct {
 	LastActive time.Time
 	Streak     int
 	StreakDay  string // último dia que contou pro streak (YYYY-MM-DD)
+	Today      string // dia de TodayMin (YYYY-MM-DD)
+	TodayMin   float64
 }
 
 // EnergyAt é o que o pet mostra agora: energia com decaimento + bônus do streak.
@@ -62,22 +94,6 @@ func (p Pet) StreakAt(now time.Time) int {
 		return p.Streak
 	}
 	return 0
-}
-
-func (p *Pet) Apply(r Result, now time.Time) {
-	p.Energy = clamp(p.decayed(now) + delta[r])
-	p.LastActive = now
-	if r != Done && r != NotDone { // só quem ficou até o fim conta pro streak
-		return
-	}
-	switch p.StreakDay {
-	case day(now):
-	case day(now.AddDate(0, 0, -1)):
-		p.Streak++
-	default:
-		p.Streak = 1
-	}
-	p.StreakDay = day(now)
 }
 
 func (p Pet) decayed(now time.Time) float64 {

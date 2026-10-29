@@ -1,235 +1,302 @@
 package tui
 
-// Aba "sala": lobby, Lock, foco, check-out e chat do intervalo da sala que você está vendo.
+// Aba "sala": o seu foco em cima, um card por membro e os eventos com as reações embaixo
+// (o layout A do protótipo, ver IDEIAS.md).
 
 import (
 	"fmt"
 	"plantao/internal/pet"
 	"plantao/internal/rooms"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
 
-func (m model) chatOpen() bool {
-	me := rooms.Find(m.snap.Room, m.id)
-	return m.tab == tabRoom && me != nil && m.snap.Phase == rooms.Break && me.Result != ""
+var reactionGlyphs = [rooms.Reactions]string{"👏", "🔥", "💪", "☕"}
+
+const shownEvents = 6
+
+// minuteChoices: os tempos declarados que dá para escolher (na demo, 1 min para a plateia ver o fluxo).
+func minuteChoices() []int {
+	if rooms.Demo {
+		return []int{1, 10, 15, 25, 45, 60}
+	}
+	return []int{10, 15, 25, 45, 60}
+}
+
+func (m model) events() []rooms.Event {
+	ev := m.w.Rooms[m.room].Events
+	return ev[:min(len(ev), shownEvents)]
+}
+
+func (m model) selIndex() int {
+	return max(0, slices.IndexFunc(m.events(), func(e rooms.Event) bool { return e.ID == m.sel }))
 }
 
 func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if m.picking {
+	if m.picking || m.room == "" {
 		return m.pickerKey(msg)
 	}
-	k, s, id, code := msg.String(), m.snap, m.id, m.room
-	me := rooms.Find(s.Room, id)
-	h := func(f func(*rooms.Room)) tea.Cmd { // efeito na sala atual
-		return act(func() {
-			if r := rooms.Get(code); r != nil {
-				f(r)
-			}
-		})
-	}
+	k, id, code := msg.String(), m.id, m.room
+	m.notice = "" // o aviso de "entrou na sala" some na primeira tecla
+	me := m.me()
+	focusing := me.Status == rooms.Focusing
+	expired := focusing && me.Focus.Expired(m.now)
 	var cmd tea.Cmd
 	switch {
 	case m.entering:
 		switch k {
 		case "enter":
-			lock := strings.TrimSpace(m.in.Value())
-			if lock == "" {
-				m.err = "escreva a primeira ação concreta"
+			if strings.TrimSpace(m.in.Value()) == "" {
+				m.err = "escreva a próxima coisa concreta que você vai fazer"
 				return m, nil
 			}
-			nick := m.nick
-			m.entering, m.err = false, ""
-			return m, act(func() { rooms.JoinQueue(code, id, nick, lock) })
+			m.entering, m.choosing, m.cont, m.err = false, true, false, ""
 		case "esc":
 			m.entering, m.err = false, ""
+		default:
+			m.in, cmd = m.in.Update(msg)
+		}
+		return m, cmd
+	case m.choosing:
+		choices := minuteChoices()
+		m.mins = min(m.mins, len(choices)-1)
+		switch k {
+		case "left":
+			m.mins = max(0, m.mins-1)
+		case "right":
+			m.mins = min(len(choices)-1, m.mins+1)
+		case "esc":
+			m.choosing = false
+		case "enter":
+			m.choosing = false
+			task, mins := strings.TrimSpace(m.in.Value()), choices[m.mins]
+			if m.cont {
+				return m, act(func() { rooms.Continue(id, mins) })
+			}
+			return m, act(func() { rooms.Start(id, task, mins) })
+		}
+		return m, nil
+	}
+	switch k {
+	case "up", "down":
+		ev := m.events()
+		if len(ev) == 0 {
 			return m, nil
 		}
-		m.in, cmd = m.in.Update(msg)
-		return m, cmd
-	case me != nil && s.Phase == rooms.Break && me.Result == "": // check-out
-		switch k {
-		case "s":
-			return m, h(func(r *rooms.Room) { r.Checkout(id, pet.Done) })
-		case "n":
-			return m, h(func(r *rooms.Room) { r.Checkout(id, pet.NotDone) })
+		i := m.selIndex()
+		if k == "up" {
+			i = max(0, i-1)
+		} else {
+			i = min(len(ev)-1, i+1)
 		}
-	case m.chatOpen():
-		if k == "enter" {
-			text := strings.TrimSpace(m.chat.Value())
-			m.chat.Reset()
-			return m, h(func(r *rooms.Room) { r.Say(id, text) })
+		m.sel = ev[i].ID
+	case "1", "2", "3", "4":
+		if ev := m.events(); len(ev) > 0 {
+			eid, r := ev[m.selIndex()].ID, int(k[0]-'1')
+			return m, act(func() { rooms.React(id, code, eid, r) })
 		}
-		m.chat, cmd = m.chat.Update(msg)
-		return m, cmd
-	case me != nil && s.Phase == rooms.Focus && me.Result == "": // focando
-		if m.confirm && k == "s" {
-			m.confirm = false
-			return m, h(func(r *rooms.Room) { r.Abandon(id) })
+	case "s":
+		return m.openPicker()
+	case "enter":
+		if !focusing {
+			m.entering, m.in = true, newInput("ex.: fazer o exercício 1 da lista 3", 80)
 		}
-		m.confirm = k == "x"
-	default: // lobby
-		switch k {
-		case "enter":
-			if rooms.Find(s.Queue, id) == nil {
-				m.entering, m.in = true, newInput("ex.: terminar a lista 3 de Cálculo", 80)
-			}
-		case "c":
-			return m, h(func(r *rooms.Room) { r.Cancel(id) })
-		case "s":
-			return m.openPicker()
+	case "f":
+		if focusing {
+			return m, act(func() { rooms.Finish(id, pet.Done) })
+		}
+	case "t": // encerra como não cumprida, sem evento: ninguém é exposto por trocar
+		if focusing {
+			m.entering, m.in = true, newInput("ex.: fazer o exercício 1 da lista 3", 80)
+			return m, act(func() { rooms.Finish(id, pet.NotDone) })
+		}
+	case "p":
+		if focusing {
+			return m, act(func() { rooms.Finish(id, pet.NotDone) })
+		}
+	case "c":
+		if expired {
+			m.choosing, m.cont = true, true
+		}
+	case "j":
+		if focusing && !expired {
+			return m.openGarden(false)
 		}
 	}
 	return m, nil
 }
 
 func (m model) roomHelp() string {
-	s := m.snap
-	me := rooms.Find(s.Room, m.id)
+	me := m.me()
+	focusing := me.Status == rooms.Focusing
 	switch {
 	case m.picking && m.form != formNone:
 		return "enter confirma · esc volta"
-	case m.picking:
-		return "↑/↓ escolhe · enter abre · esc volta"
+	case m.picking || m.room == "":
+		return "↑/↓ escolhe · enter abre" + map[bool]string{true: " · esc volta", false: ""}[m.room != ""]
 	case m.entering:
-		return "enter entra na fila · esc volta"
-	case me != nil && s.Phase == rooms.Break && me.Result == "":
-		return "s cumpri · n não cumpri"
-	case m.chatOpen():
-		return "enter envia · o chat fecha quando o intervalo acaba"
-	case me != nil && s.Phase == rooms.Focus && me.Result == "":
-		return "x abandona (sair do ssh também conta)"
-	case rooms.Find(s.Queue, m.id) != nil:
-		return "c sai da fila (desconectar conta como falta) · s salas"
+		return "enter confirma · esc volta"
+	case m.choosing:
+		return "←/→ escolhe · enter começa · esc volta"
+	case focusing && me.Focus.Expired(m.now):
+		return "c continuar · t trocar · p parar · f feito · ↑/↓ evento · 1-4 reage"
+	case focusing:
+		return "f feito · t trocar · p parar · j modo jardim · ↑/↓ evento · 1-4 reage · s salas"
 	}
-	return "enter entra no próximo sprint · s troca ou cria sala"
+	return "enter começa uma tarefa · ↑/↓ evento · 1-4 reage · s salas"
 }
 
 func (m model) roomView() string {
-	if m.picking {
+	if m.picking || m.room == "" {
 		return m.pickerView()
 	}
-	title := bold.Render(m.snap.Name)
-	if m.room != rooms.PublicCode {
+	s := m.w.Rooms[m.room]
+	title := bold.Render(s.Name)
+	if m.room != rooms.DemoCode {
 		title += m.st.muted.Render(" · código " + m.room)
 	}
 	if m.notice != "" {
 		title += "\n" + m.st.ok.Render(m.notice)
 	}
-	title += "\n\n"
-	if m.entering {
-		return title + bold.Render("Lock:") + " qual a primeira ação que você vai fazer neste sprint?\n\n" + m.in.View()
-	}
-	if me := rooms.Find(m.snap.Room, m.id); me != nil && (m.snap.Phase == rooms.Break || me.Result == "") {
-		return title + m.sprintView(me)
-	}
-	return title + m.lobbyView()
+	return title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s) + "\n\n" + m.feed() + "\n" + m.legend()
 }
 
-func (m model) sprintView(me *rooms.Member) string {
-	s := m.snap
-	var b strings.Builder
-	label, color := "foco", m.st.accent
-	if s.Phase == rooms.Break {
-		label, color = "intervalo", m.st.good
+// focusPanel: o seu foco, conforme o momento.
+func (m model) focusPanel() string {
+	me := m.me()
+	f := me.Focus
+	choice := func(label string) string {
+		return label + "  " + m.st.muted.Render("‹ ") + m.st.title.Render(fmt.Sprintf("%d min", minuteChoices()[min(m.mins, len(minuteChoices())-1)])) + m.st.muted.Render(" ›")
 	}
-	clock := lipgloss.NewStyle().Foreground(color).Render(bigClock(s.Ends.Sub(m.now)))
-	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Center, clock, "  ",
-		bold.Render(label)+"\n"+m.st.muted.Render("sprint das "+s.Start.Format("15:04"))))
-	b.WriteString("\n\n" + m.cards(s.Room, false) + "\n\n")
-
-	if s.Phase == rooms.Focus {
-		b.WriteString(m.st.muted.Render("🔒 chat travado durante o foco"))
-		for _, e := range s.Events {
-			b.WriteString("\n" + m.st.muted.Render(e))
-		}
-		if m.confirm {
-			b.WriteString("\n\n" + m.st.bad.Render("abandonar o sprint? [s] sim · qualquer tecla cancela"))
-		}
-		return b.String()
+	var text string
+	switch {
+	case m.entering:
+		return bold.Render("Qual a próxima coisa concreta que você vai fazer?") + "\n" + m.in.View()
+	case m.choosing && m.cont:
+		return bold.Render(f.Task) + "\n" + choice("Mais quanto tempo?")
+	case m.choosing:
+		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n" + choice("Quanto tempo?")
+	case me.Status != rooms.Focusing:
+		return bold.Render("Você está parado.") + "\n" + m.st.muted.Render("enter começa uma tarefa")
+	case f.Expired(m.now):
+		text = m.st.bad.Render("Tempo esgotado: ") + bold.Render(f.Task) + "\n" +
+			"c continuar · t trocar · p parar · f feito\n" +
+			m.st.muted.Render(fmt.Sprintf("os minutos pararam de contar · %d min focados", int(f.Focused(m.now).Minutes())))
+	default:
+		text = bold.Render(f.Task) + "\n" +
+			m.st.muted.Render(fmt.Sprintf("de %d min · %d min focados", f.Declared, int(f.Focused(m.now).Minutes())))
 	}
-
-	done := 0
-	for _, x := range s.Room {
-		if x.Result == pet.Done {
-			done++
-		}
+	c := m.st.title
+	if f.Expired(m.now) {
+		c = m.st.bad
 	}
-	b.WriteString(bold.Render(fmt.Sprintf("%d/%d cumpriram", done, len(s.Room))) + "\n\n")
-	if me.Result == "" {
-		b.WriteString(m.st.title.Render("check-out:") + " você cumpriu o Lock \"" + me.Lock + "\"?")
-		return b.String()
-	}
-	chat := s.Chat
-	if len(chat) > 8 {
-		chat = chat[len(chat)-8:]
-	}
-	for _, c := range chat {
-		b.WriteString(c + "\n")
-	}
-	b.WriteString("\n" + m.chat.View())
-	return b.String()
+	return lipgloss.JoinHorizontal(lipgloss.Center, c.Render(bigText(mmss(f.Ends.Sub(m.now)))), "   ", text)
 }
 
-func (m model) lobbyView() string {
-	s := m.snap
-	var b strings.Builder
-	b.WriteString("próximo sprint às " + bold.Render(s.Next.Format("15:04")) + "\n\n")
-	b.WriteString(m.st.title.Render(bigClock(s.Next.Sub(m.now))) + "\n\n")
-	if s.Phase != rooms.Lobby {
-		b.WriteString(m.st.muted.Render(fmt.Sprintf("sprint em andamento com %d pessoas", len(s.Room))) + "\n\n")
-	}
-	if len(s.Queue) == 0 {
-		b.WriteString(m.st.muted.Render("ninguém na fila ainda. seja o primeiro."))
-	} else {
-		b.WriteString(bold.Render(fmt.Sprintf("na fila (%d)", len(s.Queue))) + "\n" + m.cards(s.Queue, true))
-	}
+// received: quantas reações cada membro recebeu nos eventos da sala (o contador do card, ADR 0004).
+func received(s rooms.Snapshot) map[string]int {
+	n := map[string]int{}
 	for _, e := range s.Events {
-		b.WriteString("\n" + m.st.muted.Render(e))
+		for _, r := range e.Reacts {
+			n[e.Who] += len(r)
+		}
 	}
-	return b.String()
+	return n
 }
 
-func (m model) cards(ms []*rooms.Member, queued bool) string {
-	per := max(1, (m.width-4)/22)
+func (m model) cards(s rooms.Snapshot) string {
+	var ms []rooms.Member // você primeiro
+	for _, x := range s.Members {
+		if x.ID == m.id {
+			ms = append([]rooms.Member{x}, ms...)
+		} else {
+			ms = append(ms, x)
+		}
+	}
+	got := received(s)
+	per := max(1, (m.width-4)/18)
 	var rows []string
 	for i := 0; i < len(ms); i += per {
 		var row []string
 		for _, x := range ms[i:min(i+per, len(ms))] {
-			row = append(row, m.card(x, queued))
+			row = append(row, m.card(x, got[x.ID]))
 		}
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, row...))
 	}
 	return strings.Join(rows, "\n")
 }
 
-func (m model) card(x *rooms.Member, queued bool) string {
+func (m model) card(x rooms.Member, got int) string {
 	mood := pet.MoodOf(x.Energy)
-	status := resultLabel[x.Result]
-	if x.Result == "" {
-		status = map[rooms.Phase]string{rooms.Focus: "focando…", rooms.Break: "check-out…"}[m.snap.Phase]
-		if queued {
-			status = "na fila"
-		}
-	}
-	switch x.Result {
-	case pet.Done:
-		status = m.st.ok.Render(status)
-	case pet.NotDone, pet.Abandoned:
-		status = m.st.bad.Render(status)
-	}
-	st, name := m.st.card, bold.Render(x.Nick)
+	st, name, task := m.st.card, bold.Render(x.Nick), ""
 	if x.ID == m.id {
-		st = st.BorderForeground(m.st.accent)
+		st, name = st.BorderForeground(m.st.accent), bold.Render("você")
 	}
-	if m.isFriend(x.ID) {
-		name = m.st.sel.Render("★ ") + name
+	if x.Status == rooms.Focusing {
+		task = x.Focus.Task
+	}
+	reacts := " "
+	switch {
+	case got == 1:
+		reacts = m.st.muted.Render("1 reação")
+	case got > 1:
+		reacts = m.st.muted.Render(fmt.Sprintf("%d reações", got))
 	}
 	return st.Render(lipgloss.JoinVertical(lipgloss.Center,
 		pet.Render(mood, m.tick, m.pixel),
 		name+" "+m.st.muted.Render(pet.MoodName[mood]),
-		m.st.lock.Render(x.Lock),
-		status))
+		m.st.task.Render(task),
+		m.status(x),
+		reacts))
+}
+
+// feed: os eventos mais novos, com as reações numa coluna só, em ordem fixa.
+func (m model) feed() string {
+	ev := m.events()
+	if len(ev) == 0 {
+		return m.st.muted.Render("nada por aqui ainda: quando alguém começar ou cumprir uma tarefa, aparece aqui")
+	}
+	text := func(e rooms.Event) string {
+		nick := e.Nick
+		if e.Who == m.id {
+			nick = "você"
+		}
+		return m.st.muted.Render(e.At.Format("15:04")) + " " + bold.Render(nick) + " " + e.Verb + " \"" + e.Task + "\""
+	}
+	col := 0
+	for _, e := range ev {
+		col = max(col, lipgloss.Width(text(e)))
+	}
+	var b strings.Builder
+	sel := m.selIndex()
+	for i, e := range ev {
+		mark := "  "
+		if i == sel {
+			mark = m.st.title.Render("> ")
+		}
+		line := lipgloss.NewStyle().Width(col).Render(text(e))
+		for k, who := range e.Reacts { // ordem fixa 1-4: quem tem zero sai e os seguintes andam para a esquerda
+			if len(who) == 0 {
+				continue
+			}
+			r := fmt.Sprintf("%s %d", reactionGlyphs[k], len(who)) // o espaço protege o número de emoji mais largos que 2 colunas
+			if slices.Contains(who, m.id) {
+				r = m.st.title.Render(r)
+			}
+			line += "  " + r
+		}
+		b.WriteString(mark + line + "\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func (m model) legend() string {
+	var ks []string
+	for k, g := range reactionGlyphs {
+		ks = append(ks, fmt.Sprintf("%d %s", k+1, g))
+	}
+	return m.st.muted.Render("reagir ao evento selecionado: ") + strings.Join(ks, "  ")
 }
