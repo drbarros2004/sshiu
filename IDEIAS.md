@@ -19,7 +19,7 @@ Decidido no grill de 28/10/2026; o código ainda segue o modelo antigo. Cada par
 
 ### Modo jardim (tela de descanso durante o foco)
 - **O quê:** o relógio sobre um wallpaper ASCII animado, em tela cheia. Liga por tecla ou depois de 30 s sem tecla, só durante o foco. Qualquer tecla volta sem executar nada; o fim do foco desliga.
-- **Wallpapers:** 3 a 5, adaptados de projetos MIT/Apache e creditados em `CREDITS.md` ([ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md)). Cada pessoa escolhe o seu na aba visual; quem não escolheu ganha um sorteado a cada tarefa.
+- **Wallpapers:** 3 a 5, adaptados de projetos MIT/Apache e creditados em `CREDITS.md` ([ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md)). Cada usuário escolhe o seu na aba visual; quem não escolheu ganha um sorteado a cada tarefa.
 - **Em aberto:** o que mais aparece na tela (a tarefa? os pets da sala?). Decidir olhando o protótipo.
 
 ## Próximas candidatas
@@ -35,17 +35,17 @@ Decidido no grill de 28/10/2026; o código ainda segue o modelo antigo. Cada par
   - Substitui o "hook de git" do doc original.
 
 ### Gerenciar salas
-- Trocar o código, remover um membro, passar a sala para outra pessoa. Fora do MVP: no MVP ninguém tem poderes especiais.
+- Trocar o código, remover um membro, passar a sala para outro usuário. Fora do MVP: no MVP ninguém tem poderes especiais.
 - Trocar o código dá algum trabalho: hoje o código é a chave da sala no banco.
 
 ### Histórico, stats e gráficos
 - Uma aba de histórico com taxa de tarefas cumpridas, streak por semana e filtro por sala.
-- **Gráficos por pessoa:** streak, tempo focado por dia ou semana e outras agregações no tempo.
-- **Gráficos da sala:** os mesmos agregados para a sala inteira, mais o pico de pessoas focando ao mesmo tempo e quanto tempo esse pico durou.
+- **Gráficos por usuário:** streak, tempo focado por dia ou semana e outras agregações no tempo.
+- **Gráficos da sala:** os mesmos agregados para a sala inteira, mais o pico de usuários focando ao mesmo tempo e quanto tempo esse pico durou.
 - Exige guardar a sala e quando cada tarefa começou e parou, não só o resultado.
 
 ### Vários pets (10 a 15 no MVP)
-- **O quê:** em vez de um pet só, cada pessoa escolhe o seu entre vários, cada um com os próprios humores.
+- **O quê:** em vez de um pet só, cada usuário escolhe o seu entre vários, cada um com os próprios humores.
 - **Por quê:** personalização. Pelo ritmo em que os sprites atuais saíram, 10 a 15 pets parece viável para o MVP.
 
 ### Leaderboard da sala
@@ -63,7 +63,7 @@ Decidido no grill de 28/10/2026; o código ainda segue o modelo antigo. Cada par
 - Um horário opcional e configurável da sala para focar todo mundo junto, sem ser o único jeito de focar ([ADR 0002](docs/adr/0002-foco-individual-sem-horario-marcado.md)).
 
 ### Recompensas coletivas da sala
-- **O quê:** além do objetivo de cada pessoa (deixar o pet feliz), a sala tem metas e recompensas em conjunto. Ainda não se sabe quais.
+- **O quê:** além do objetivo de cada usuário (deixar o pet feliz), a sala tem metas e recompensas em conjunto. Ainda não se sabe quais.
 - **Por quê:** a turma foca junto; a recompensa também pode ser junto.
 
 ### Moeda e loja
@@ -92,7 +92,7 @@ Decidido no grill de 28/10/2026; o código ainda segue o modelo antigo. Cada par
 > Pensar com calma e fazer por último. **Não** moldar o desenvolvimento atual em função disso (otimização prematura).
 
 - **Ideia:** facilitar o "te fazer voltar":
-  - Notificações ("3 pessoas da sua sala estão focando agora").
+  - Notificações ("3 usuários da sua sala estão focando agora").
   - Sincronizar com o foco: ao começar uma tarefa, o celular entra em modo foco ou bloqueia apps.
 - **Restrição:** não complicar. O núcleo continua sendo o terminal.
 - **O que já ajuda sem esforço extra:** o servidor já concentra tudo (salas, status); um app seria mais um cliente, como o web.

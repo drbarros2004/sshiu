@@ -46,8 +46,8 @@ Estas regras pertencem ao modelo de sprint em horário marcado, substituído pel
 |---|---|---|
 | Energia por minuto focado | a definir | A energia vem do tempo focado de verdade, não do tempo declarado: declarar 60 min e marcar "feito" no minuto 1 não rende. |
 | Bônus por tarefa cumprida | a definir, só a partir de 10 min focados | Terminar cedo é bom e ganha o bônus; uma tarefa de 5 min rende só os minutos, para o bônus não virar máquina de pontos. |
-| Tempo esgotado sem resposta | os minutos param de contar | Estar ausente nunca rende mais do que o tempo que a própria pessoa declarou. |
-| Trocar, parar, desconectar | sem penalidade | Os minutos já contaram; punir faria as pessoas declararem tempos folgados ou deixarem o terminal aberto. |
+| Tempo esgotado sem resposta | os minutos param de contar | Estar ausente nunca rende mais do que o tempo que o próprio usuário declarou. |
+| Trocar, parar, desconectar | sem penalidade | Os minutos já contaram; punir faria os usuários declararem tempos folgados ou deixarem o terminal aberto. |
 | Tolerância de reconexão | 2 min | Conexão instável não interrompe a tarefa. |
 | Streak | a definir quanto foco faz o dia contar | |
 | Modo jardim | liga depois de 30 s sem tecla, só durante o foco | |

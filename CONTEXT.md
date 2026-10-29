@@ -2,22 +2,22 @@
 
 > "Plantão" é um nome provisório, assim como "pet".
 
-App de foco acessado por SSH, para uma turma estudar junto: cada pessoa diz a próxima coisa concreta que vai fazer, foca por um tempo e cuida de um pet que reflete o próprio foco, à vista da sala.
+App de foco acessado por SSH, para uma turma estudar junto: cada usuário diz a próxima coisa concreta que vai fazer, foca por um tempo e cuida de um pet que reflete o próprio foco, à vista da sala.
 
 ## Linguagem
 
 ### Gente e salas
 
-**Pessoa**:
-Quem usa o app, identificada pela chave SSH com que se conecta.
-_Evite_: conta, login, usuário
+**Usuário**:
+Quem usa o app, identificado pela chave SSH com que se conecta.
+_Evite_: pessoa, conta, login
 
 **Apelido**:
-O nome único e público de uma pessoa, escolhido no primeiro acesso.
+O nome único e público de um usuário, escolhido no primeiro acesso.
 _Evite_: nick, username
 
 **Sala**:
-Um grupo fechado de pessoas que focam e se veem juntas. Toda sala é privada.
+Um grupo fechado de usuários que focam e se veem juntos. Toda sala é privada.
 _Evite_: canal, grupo, servidor, hub
 
 **Código**:
@@ -25,7 +25,7 @@ O convite de uma sala: quem tem o código entra, sem aprovação.
 _Evite_: senha, link
 
 **Membro**:
-Uma pessoa que entrou numa sala e ainda não saiu. Nenhum membro tem poderes especiais; a sala deixa de existir quando o último sai.
+Um usuário que entrou numa sala e ainda não saiu. Nenhum membro tem poderes especiais; a sala deixa de existir quando o último sai.
 _Evite_: dono, admin, participante
 
 **Sala demo**:
@@ -34,15 +34,15 @@ A sala com bots que existe só no modo de demonstração, para mostrar o app che
 ### Foco
 
 **Tarefa**:
-A próxima coisa concreta que a pessoa vai fazer, com um tempo declarado. Concreta: "fazer o exercício 1 da lista 3", não "estudar Cálculo".
+A próxima coisa concreta que o usuário vai fazer, com um tempo declarado. Concreta: "fazer o exercício 1 da lista 3", não "estudar Cálculo".
 _Evite_: Lock, meta, objetivo, sprint
 
 **Tempo declarado**:
-Quanto a pessoa diz que a tarefa vai levar, escolhido por ela ao começar.
+Quanto o usuário diz que a tarefa vai levar, escolhido por ele ao começar.
 _Evite_: duração do sprint
 
 **Foco**:
-O período em que a pessoa está com uma tarefa em andamento.
+O período em que o usuário está com uma tarefa em andamento.
 _Evite_: sessão, pomodoro
 
 **Minutos focados**:
@@ -59,7 +59,7 @@ As escolhas quando o tempo declarado esgota: dar mais tempo à mesma tarefa, enc
 Como uma tarefa terminou: cumprida, não cumprida (trocada ou parada) ou interrompida.
 
 **Interrompida**:
-Tarefa encerrada porque a pessoa desconectou e não voltou a tempo. Não é punição: equivale a parar.
+Tarefa encerrada porque o usuário desconectou e não voltou a tempo. Não é punição: equivale a parar.
 _Evite_: abandono, falta, desistência
 
 **Modo jardim**:
@@ -69,7 +69,7 @@ _Evite_: screensaver, modo zen
 ### O pet
 
 **Pet**:
-A criatura de cada pessoa, cujo humor reflete o foco recente dela.
+A criatura de cada usuário, cujo humor reflete o foco recente dele.
 _Evite_: Broto, bonequinho, criatura, mascote
 
 **Energia**:
@@ -80,7 +80,7 @@ O estado visível do pet, derivado da energia: murcho, cansado, normal, bem ou r
 _Evite_: estado, mood
 
 **Streak**:
-Dias seguidos em que a pessoa focou.
+Dias seguidos em que o usuário focou.
 _Evite_: sequência, ofensiva
 
 ### Na sala
