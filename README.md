@@ -30,4 +30,8 @@ Para usar outra porta, passe `-port`. Para rodar os testes, use `go test ./...`.
 
 ## Mais
 
-- [`IDEIAS.md`](IDEIAS.md): o backlog de ideias e a dívida técnica conhecida.
+- [`IDEIAS.md`](IDEIAS.md): o backlog, o que está em andamento e a dívida técnica conhecida.
+- [`CONTEXT.md`](CONTEXT.md): o vocabulário do app.
+- [`docs/adr/`](docs/adr/): as decisões de arquitetura e o porquê de cada uma.
+- [`docs/regras.md`](docs/regras.md): as regras numéricas, com links para o código.
+- [`AGENTS.md`](AGENTS.md): instruções para agentes de código.
