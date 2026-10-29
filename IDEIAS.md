@@ -15,13 +15,15 @@ Decidido no grill de 28/10/2026; o código ainda segue o modelo antigo. Cada par
 - **Sem chat, só reações** ([ADR 0004](docs/adr/0004-sem-chat-so-reacoes.md)).
 - **Tela da sala: painel + cards**, escolhida no protótipo de 28/10/2026 (guardado no branch `prototype/sala`). Seu foco no topo (relógio, tarefa, "feito"), um card por membro (pet, status, tarefa e o contador de reações recebidas) e os eventos embaixo. As reações ficam numa coluna só, em ordem fixa (👏 🔥 💪 ☕ por enquanto): a que tem zero some e as seguintes andam para a esquerda. Em aberto: as teclas 1-4 das reações são as mesmas que hoje trocam de aba.
 - **"Lock" vira "tarefa"** na interface, mantendo a ideia de ação concreta no texto da pergunta.
-- **Abas:** sala · perfil · visual (a aba "tema" vira "visual" e reúne tema, wallpaper e, depois, a escolha do pet).
+- **Abas:** sala · perfil · visual (a aba "tema" vira "visual" e reúne tema, o modo jardim (wallpaper e o que aparece por cima) e, depois, a escolha do pet).
 - **Bots da demo:** os mesmos 5, com os mesmos humores iniciais, seguindo o modelo novo (tarefas espalhadas, perfis diferentes) e reagindo a quem está na sala. Tarefas de cerca de 1 min.
 
 ### Modo jardim (tela de descanso durante o foco)
-- **O quê:** o relógio sobre um wallpaper ASCII animado, em tela cheia. Liga por tecla ou depois de 30 s sem tecla, só durante o foco. Qualquer tecla volta sem executar nada; o fim do foco desliga.
-- **Wallpapers:** 3 a 5, adaptados de projetos MIT/Apache e creditados em `CREDITS.md` ([ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md)). Cada usuário escolhe o seu na aba visual; quem não escolheu ganha um sorteado a cada tarefa.
-- **Em aberto:** o que mais aparece na tela (a tarefa? os pets da sala?). Decidir olhando o protótipo.
+- **O quê:** um wallpaper ASCII animado em tela cheia, com o relógio e outras informações por cima, se o usuário quiser. Liga por tecla ou depois de 30 s sem tecla, só durante o foco. Qualquer tecla volta sem executar nada; o fim do foco desliga.
+- **Wallpapers:** 6, escolhidos no protótipo de 29/10/2026 (branch `prototype/jardim`): céu noturno, chuva lenta e lâmpada de lava, escritos do zero com base em projetos MIT/Apache e creditados em `CREDITS.md` ([ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md)); café, árvore com folhas caindo e estrada à noite, desenhos nossos. A neve ficou de fora. Tudo com pouco movimento e cores apagadas, sem clarões nem nada que se acumule na tela. Cada usuário escolhe o seu na aba visual; quem não escolheu ganha um sorteado a cada tarefa.
+- **O que aparece por cima** é escolhido na aba visual, junto do wallpaper (no modo jardim, qualquer tecla continua saindo): o relógio (mm:ss, só os minutos ou nenhum), a tarefa e quem mais da sala está focando. O relógio só com os minutos existe porque os segundos mudando são o único movimento rápido da tela.
+- **Caixa:** o texto fica sobre uma caixa vazia, que abre um buraco no wallpaper; sem ela, a lava, a árvore e o vapor passam por trás e atrapalham a leitura.
+- **Padrões** de quem nunca mexeu na aba visual: wallpaper sorteado a cada tarefa, relógio só com os minutos, tarefa e sala ligadas (quem chega vê o que o modo jardim oferece e desliga o que achar demais).
 
 ## Próximas candidatas
 

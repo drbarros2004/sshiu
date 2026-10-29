@@ -51,5 +51,6 @@ Estas regras pertencem ao modelo de sprint em horário marcado, substituído pel
 | Tolerância de reconexão | 2 min | Conexão instável não interrompe a tarefa. |
 | Streak | a definir quanto foco faz o dia contar | |
 | Modo jardim | liga depois de 30 s sem tecla, só durante o foco | |
+| Quadros do modo jardim | 8 por segundo | Movimento suave. Medido no protótipo: de 2 a 24 KB/s e de 4 a 6% de um núcleo por usuário; 5 fps gasta uns 40% menos CPU. |
 | Reações | umas 4, uma tecla cada | |
 | Tarefa na demo | cerca de 1 min | Dá para a plateia entender o fluxo. |
