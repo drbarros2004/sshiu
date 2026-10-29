@@ -11,7 +11,7 @@ App de foco por SSH em Go (Wish v2 + Bubble Tea v2 + Lip Gloss v2, SQLite via `m
 
 - Responda em português. Código (identificadores, arquivos, pastas) em inglês; comentários e texto da interface em português.
 - Pacotes em `internal/`, com dependência numa direção só: `tui` → `rooms` → `store` → `pet`. `main.go` sobe o servidor.
-- Commit e push só com o OK do usuário.
+- Commits seguem o [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`), com a descrição em inglês. Commit e push só com o OK do usuário.
 
 ## Rodar e verificar
 
