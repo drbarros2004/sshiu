@@ -44,13 +44,13 @@ Estas regras pertencem ao modelo de sprint em horário marcado, substituído pel
 
 | Regra | Valor | Por quê |
 |---|---|---|
-| Energia por minuto focado | a definir | A energia vem do tempo focado de verdade, não do tempo declarado: declarar 60 min e marcar "feito" no minuto 1 não rende. |
-| Bônus por tarefa cumprida | a definir, só a partir de 10 min focados | Terminar cedo é bom e ganha o bônus; uma tarefa de 5 min rende só os minutos, para o bônus não virar máquina de pontos. |
+| Energia por minuto focado | 8 a cada 30 min (≈ 0,27 por minuto) | 30 min de foco devolvem o que um dia parado tira. A energia vem do tempo focado de verdade, não do tempo declarado: declarar 60 min e marcar "feito" no minuto 1 não rende. |
+| Bônus por tarefa cumprida | +3, só a partir de 10 min focados | Vale uns 10 min de foco: recompensa clara sem fazer várias tarefas curtas renderem mais que uma longa. Terminar cedo é bom e ganha o bônus; uma tarefa de 5 min rende só os minutos, para o bônus não virar máquina de pontos. |
 | Tempo esgotado sem resposta | os minutos param de contar | Estar ausente nunca rende mais do que o tempo que o próprio usuário declarou. |
 | Trocar, parar, desconectar | sem penalidade | Os minutos já contaram; punir faria os usuários declararem tempos folgados ou deixarem o terminal aberto. |
 | Tolerância de reconexão | 2 min | Conexão instável não interrompe a tarefa. |
-| Streak | a definir quanto foco faz o dia contar | |
+| Streak | o dia conta a partir de 15 min focados | Pouco o bastante para um dia corrido, mais que abrir e fechar o app. |
 | Modo jardim | liga depois de 30 s sem tecla, só durante o foco | |
 | Quadros do modo jardim | 8 por segundo | Movimento suave. Medido no protótipo: de 2 a 24 KB/s e de 4 a 6% de um núcleo por usuário; 5 fps gasta uns 40% menos CPU. |
-| Reações | umas 4, uma tecla cada | |
+| Reações | 4 (👏 🔥 💪 ☕), teclas 1 a 4 | As abas deixam o 1-4 e passam para a/d (esquerda/direita), além do tab. |
 | Tarefa na demo | cerca de 1 min | Dá para a plateia entender o fluxo. |
