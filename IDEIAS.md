@@ -13,6 +13,7 @@ Decidido no grill de 28/10/2026; o código ainda segue o modelo antigo. Cada par
 - **Energia por minuto focado**, com bônus por tarefa cumprida ([regras](docs/regras.md#decidido-ainda-não-implementado)).
 - **Só salas privadas** ([ADR 0003](docs/adr/0003-so-salas-privadas.md)): sai a sala pública e a aba amigos. Primeiro acesso vira um menu (entrar com código ou criar sala); com `-demo`, a sala demo aparece no menu. A tela da sala lista todos os membros com o status de cada um. Membros podem sair; a sala some quando o último sai.
 - **Sem chat, só reações** ([ADR 0004](docs/adr/0004-sem-chat-so-reacoes.md)).
+- **Tela da sala: painel + cards**, escolhida no protótipo de 28/10/2026 (guardado no branch `prototype/sala`). Seu foco no topo (relógio, tarefa, "feito"), um card por membro (pet, status, tarefa e o contador de reações recebidas) e os eventos embaixo. As reações ficam numa coluna só, em ordem fixa (👏 🔥 💪 ☕ por enquanto): a que tem zero some e as seguintes andam para a esquerda. Em aberto: as teclas 1-4 das reações são as mesmas que hoje trocam de aba.
 - **"Lock" vira "tarefa"** na interface, mantendo a ideia de ação concreta no texto da pergunta.
 - **Abas:** sala · perfil · visual (a aba "tema" vira "visual" e reúne tema, wallpaper e, depois, a escolha do pet).
 - **Bots da demo:** os mesmos 5, com os mesmos humores iniciais, seguindo o modelo novo (tarefas espalhadas, perfis diferentes) e reagindo a quem está na sala. Tarefas de cerca de 1 min.
