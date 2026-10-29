@@ -1,374 +1,381 @@
 package rooms
 
-// Salas em memória: cada uma tem fila, sprint atual, chat e o relógio que troca as fases.
-// A pública existe sempre (com bots na demo); as privadas vêm do SQLite e se entra por código.
+// Foco individual e salas, em memória (ADR 0002 a 0004). Cada usuário tem no máximo uma tarefa em
+// andamento, vista por todas as salas de que é membro; cada sala tem seus membros e seus eventos,
+// com as reações. O banco guarda os membros e as tarefas encerradas; eventos e reações vivem só aqui.
 // As telas não recebem eventos: cada sessão lê um retrato (World) a cada tick.
 
 import (
+	"errors"
 	"fmt"
-	"maps"
-	"math/rand/v2"
 	"plantao/internal/pet"
 	"plantao/internal/store"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
 	"charm.land/log/v2"
 )
 
-const PublicCode = "publica"
-
-var (
-	Demo     bool // tempo comprimido (flag -demo)
-	roomsMu  sync.Mutex
-	rooms    = map[string]*Room{} // por código
-	onlineMu sync.Mutex
-	online   = map[string]int{} // sessões abertas por usuário
+const (
+	DemoCode       = "demo"
+	Reactions      = 4               // quantas reações existem (as teclas 1 a 4)
+	reconnectGrace = 2 * time.Minute // conexão instável não interrompe a tarefa
+	maxEvents      = 20
 )
 
-type Phase int
+var Demo bool // flag -demo: a sala demo, com bots
+
+// ponytail: um lock só para salas e usuários, que dá para uma turma; um lock por sala se houver muitas.
+// ponytail: foco e eventos só em memória, e um restart perde as tarefas em andamento; gravar a tarefa aberta no banco quando houver deploy.
+var (
+	mu        sync.Mutex
+	rooms     = map[string]*room{} // por código
+	users     = map[string]*user{} // quem é membro de alguma sala ou está conectado
+	lastEvent int
+)
+
+type Status int
 
 const (
-	Lobby Phase = iota // esperando o próximo sprint
-	Focus
-	Break // check-out + chat
+	Offline Status = iota
+	Idle           // conectado, sem tarefa: "parado"
+	Focusing
 )
 
-type timing struct {
-	focus, pause time.Duration
-	next         func(after time.Time) time.Time // início do próximo sprint
+// Focus é a tarefa em andamento. Os minutos contam até o fim do tempo declarado: estar ausente
+// nunca rende mais do que o tempo que o próprio usuário declarou.
+type Focus struct {
+	Task                  string
+	Start, SegStart, Ends time.Time // SegStart: início do trecho que está contando (muda ao continuar)
+	Declared              int       // minutos declarados, somando os de "continuar"
+	Counted               time.Duration
 }
 
-func newTiming(slots []int) timing {
-	if Demo {
-		return timing{time.Minute, 40 * time.Second, func(t time.Time) time.Time { return t.Add(20 * time.Second) }}
+func (f Focus) Expired(now time.Time) bool { return !now.Before(f.Ends) }
+
+// Focused: os minutos que contaram até now (param no fim do tempo declarado).
+func (f Focus) Focused(now time.Time) time.Duration {
+	if now.After(f.Ends) {
+		now = f.Ends
 	}
-	return timing{25 * time.Minute, 5 * time.Minute, func(t time.Time) time.Time { return nextSlot(slots, t) }}
+	return f.Counted + max(0, now.Sub(f.SegStart))
 }
 
-// nextSlot: o primeiro horário cheio (slots em ordem crescente) a partir de after.
-func nextSlot(slots []int, after time.Time) time.Time {
-	y, mo, d := after.Date()
-	for _, h := range slots {
-		if t := time.Date(y, mo, d, h, 0, 0, 0, after.Location()); !t.Before(after) {
-			return t
-		}
+type user struct {
+	id, nick string
+	energy   float64
+	focus    *Focus
+	online   int       // sessões abertas
+	gone     time.Time // quando a última sessão fechou
+	bot      *bot
+}
+
+func (u *user) status() Status {
+	switch {
+	case u.focus != nil:
+		return Focusing
+	case u.online > 0:
+		return Idle
 	}
-	return time.Date(y, mo, d+1, slots[0], 0, 0, 0, after.Location())
+	return Offline
 }
 
-type Member struct {
-	ID, Nick, Lock string
-	Energy         float64
-	bot            *bot
-	Result         pet.Result // "" enquanto foca ou aguarda o check-out
+type Event struct {
+	ID                    int
+	Who, Nick, Verb, Task string
+	At                    time.Time
+	Reacts                [Reactions][]string // quem reagiu, por tipo
 }
 
-type Room struct {
+type room struct {
 	code, name string
-	mu         sync.Mutex
-	t          timing
-	phase      Phase
-	ends       time.Time // fim da fase atual (no lobby: início do sprint)
-	start      time.Time // início do sprint atual
-	queue      []*Member // fila do próximo sprint
-	room       []*Member // sprint atual
-	chat       []string
-	events     []string // atividade da sala
+	members    []string
+	events     []*Event // mais novo primeiro
 }
 
-// Open liga a sala em memória (uma vez só) e devolve ela.
-func Open(code, name string, slots []int) *Room {
-	roomsMu.Lock()
-	defer roomsMu.Unlock()
-	if h := rooms[code]; h != nil {
-		return h
-	}
-	h := &Room{code: code, name: name, t: newTiming(slots)}
-	h.ends = h.t.next(time.Now())
-	rooms[code] = h
-	h.botsJoin()
-	go h.run()
-	return h
-}
-
-func Get(code string) *Room {
-	roomsMu.Lock()
-	defer roomsMu.Unlock()
-	return rooms[code]
-}
-
-func allRooms() []*Room {
-	roomsMu.Lock()
-	defer roomsMu.Unlock()
-	return slices.Collect(maps.Values(rooms))
-}
-
-// JoinQueue entra na fila de uma sala e sai de qualquer outra: uma fila por pessoa.
-func JoinQueue(code, id, nick, lock string) {
-	for _, h := range allRooms() {
-		if h.code != code {
-			h.Cancel(id)
-		}
-	}
-	if h := Get(code); h != nil {
-		h.join(id, nick, lock, nil)
-	}
-}
-
-func Connect(id string) {
-	onlineMu.Lock()
-	defer onlineMu.Unlock()
-	online[id]++
-}
-
-// Disconnect: quando a última sessão da pessoa fecha, ela sai de todas as salas.
-func Disconnect(id string) {
-	onlineMu.Lock()
-	online[id]--
-	last := online[id] <= 0
-	if last {
-		delete(online, id)
-	}
-	onlineMu.Unlock()
-	if last {
-		for _, h := range allRooms() {
-			h.leave(id)
-		}
-	}
-}
-
-func (h *Room) run() {
-	for {
-		h.mu.Lock()
-		wait := time.Until(h.ends)
-		h.mu.Unlock()
-		time.Sleep(wait)
-		h.advance()
-	}
-}
-
-func (h *Room) advance() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	now := time.Now()
-	switch h.phase {
-	case Lobby:
-		h.phase, h.start, h.ends = Focus, now, now.Add(h.t.focus)
-		h.room, h.queue, h.events = h.queue, nil, nil
-		h.event(fmt.Sprintf("sprint começou com %d pessoas", len(h.room)))
-		for _, m := range h.room {
-			if m.bot != nil && rand.Float64() < m.bot.pQuit {
-				time.AfterFunc(rand.N(h.t.focus), func() { h.Abandon(m.ID) })
-			}
-		}
-	case Focus:
-		h.phase, h.ends = Break, now.Add(h.t.pause)
-		h.event("fim do foco: check-out e chat abertos")
-		for _, m := range h.room {
-			if m.bot != nil && m.Result == "" {
-				h.botBreak(m)
-			}
-		}
-	case Break:
-		for _, m := range h.room {
-			if m.Result == "" { // não respondeu o check-out
-				h.finish(m, pet.NotDone)
-			}
-		}
-		h.phase, h.ends = Lobby, h.t.next(now)
-		h.room, h.chat = nil, nil
-		h.botsJoin()
-	}
-}
-
-// nextStart é o início do próximo sprint, em qualquer fase.
-func (h *Room) nextStart() time.Time {
-	switch h.phase {
-	case Focus:
-		return h.t.next(h.ends.Add(h.t.pause))
-	case Break:
-		return h.t.next(h.ends)
-	}
-	return h.ends
-}
-
-func (h *Room) event(s string) {
-	h.events = append(h.events, time.Now().Format("15:04")+"  "+s)
-	if len(h.events) > 5 {
-		h.events = h.events[1:]
-	}
-}
-
-// finish fecha a participação de m, grava no SQLite e atualiza o pet na hora.
-func (h *Room) finish(m *Member, r pet.Result) {
-	m.Result = r
-	p, err := store.Record(m.ID, h.start, m.Lock, r)
+// Load sobe as salas do banco, com os membros. Chamado uma vez, ao ligar o servidor.
+func Load() error {
+	rs, err := store.Rooms()
 	if err != nil {
-		log.Error("record", "err", err)
-		return
+		return err
 	}
-	m.Energy = p.EnergyAt(time.Now())
-}
-
-func Find(ms []*Member, id string) *Member {
-	if i := slices.IndexFunc(ms, func(m *Member) bool { return m.ID == id }); i >= 0 {
-		return ms[i]
+	mu.Lock()
+	defer mu.Unlock()
+	for _, r := range rs {
+		ids, err := store.RoomMembers(r.Code)
+		if err != nil {
+			return err
+		}
+		rooms[r.Code] = &room{code: r.Code, name: r.Name, members: ids}
+		for _, id := range ids {
+			load(id)
+		}
 	}
 	return nil
 }
 
-func (h *Room) join(id, nick, lock string, b *bot) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if Find(h.queue, id) != nil {
-		return
+// load devolve o usuário em memória, lendo do banco na primeira vez. Chame com mu travado.
+func load(id string) *user {
+	if u := users[id]; u != nil {
+		return u
 	}
-	_, p, _, err := store.GetUser(id)
+	nick, p, _, err := store.GetUser(id)
 	if err != nil {
 		log.Error("getUser", "err", err)
 	}
-	h.queue = append(h.queue, &Member{ID: id, Nick: nick, Lock: lock, bot: b, Energy: p.EnergyAt(time.Now())})
-	h.event(nick + " entrou na fila")
+	u := &user{id: id, nick: nick, energy: p.EnergyAt(time.Now())}
+	users[id] = u
+	return u
 }
 
-func (h *Room) Cancel(id string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.queue = slices.DeleteFunc(h.queue, func(m *Member) bool { return m.ID == id })
+func Connect(id string) {
+	mu.Lock()
+	defer mu.Unlock()
+	load(id).online++
 }
 
-func (h *Room) Abandon(id string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if m := Find(h.room, id); h.phase == Focus && m != nil && m.Result == "" {
-		h.finish(m, pet.Abandoned)
-		h.event(m.Nick + " abandonou o sprint")
+// Disconnect: quando a última sessão fecha, a tarefa espera a tolerância de reconexão e,
+// se o usuário não voltar, é interrompida com os minutos até a desconexão.
+func Disconnect(id string) {
+	mu.Lock()
+	defer mu.Unlock()
+	u := load(id)
+	if u.online--; u.online > 0 {
+		return
+	}
+	u.gone = time.Now()
+	if f := u.focus; f != nil {
+		time.AfterFunc(reconnectGrace, func() {
+			mu.Lock()
+			defer mu.Unlock()
+			if u.online == 0 && u.focus == f {
+				finish(u, pet.Interrupted, u.gone)
+			}
+		})
 	}
 }
 
-func (h *Room) Checkout(id string, r pet.Result) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if m := Find(h.room, id); h.phase == Break && m != nil && m.Result == "" {
-		h.finish(m, r)
+// Created: o usuário acabou de ser criado no primeiro acesso (antes disso, load não achou ninguém).
+func Created(id string) {
+	mu.Lock()
+	defer mu.Unlock()
+	nick, p, _, err := store.GetUser(id)
+	if err != nil {
+		log.Error("getUser", "err", err)
+	}
+	u := load(id)
+	u.nick, u.energy = nick, p.EnergyAt(time.Now())
+}
+
+// Start começa uma tarefa, se não há outra em andamento.
+func Start(id, task string, minutes int) {
+	mu.Lock()
+	defer mu.Unlock()
+	start(load(id), task, minutes, time.Duration(minutes)*time.Minute)
+}
+
+func start(u *user, task string, minutes int, d time.Duration) {
+	if u.focus != nil {
+		return
+	}
+	now := time.Now()
+	u.focus = &Focus{Task: task, Start: now, SegStart: now, Ends: now.Add(d), Declared: minutes}
+	event(u, "começou", task)
+}
+
+// Continue dá mais tempo à tarefa cujo tempo declarado esgotou.
+func Continue(id string, minutes int) {
+	mu.Lock()
+	defer mu.Unlock()
+	now := time.Now()
+	if f := load(id).focus; f != nil && f.Expired(now) {
+		f.Counted, f.SegStart = f.Focused(now), now
+		f.Ends, f.Declared = now.Add(time.Duration(minutes)*time.Minute), f.Declared+minutes
 	}
 }
 
-func (h *Room) Say(id, text string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if m := Find(h.room, id); h.phase == Break && m != nil && text != "" {
-		h.chat = append(h.chat, m.Nick+": "+text)
+// Finish encerra a tarefa em andamento: feito (Done), trocar ou parar (NotDone).
+func Finish(id string, r pet.Result) {
+	mu.Lock()
+	defer mu.Unlock()
+	if u := load(id); u.focus != nil {
+		finish(u, r, time.Now())
 	}
 }
 
-// leave: quem estava na fila faltou; quem estava focando abandonou.
-func (h *Room) leave(id string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if m := Find(h.queue, id); m != nil {
-		h.queue = slices.DeleteFunc(h.queue, func(x *Member) bool { return x == m })
-		if _, err := store.Record(id, h.nextStart(), m.Lock, pet.Missed); err != nil {
-			log.Error("record", "err", err)
+// finish grava a tarefa e atualiza o pet na hora. Chame com mu travado.
+func finish(u *user, r pet.Result, at time.Time) {
+	f := u.focus
+	u.focus = nil
+	p, err := store.RecordTask(u.id, store.TaskRow{Start: f.Start, End: at, Task: f.Task, DeclaredMin: f.Declared, Focused: f.Focused(at), Result: r})
+	if err != nil {
+		log.Error("recordTask", "err", err)
+		return
+	}
+	u.energy = p.EnergyAt(at)
+	if r == pet.Done {
+		event(u, "cumpriu", f.Task)
+	}
+}
+
+// event aparece em todas as salas de que u é membro. Chame com mu travado.
+func event(u *user, verb, task string) {
+	for _, r := range rooms {
+		if !slices.Contains(r.members, u.id) {
+			continue
 		}
-		h.event(m.Nick + " saiu da fila (falta)")
+		lastEvent++
+		e := &Event{ID: lastEvent, Who: u.id, Nick: u.nick, Verb: verb, Task: task, At: time.Now()}
+		r.events = append([]*Event{e}, r.events...)
+		if len(r.events) > maxEvents {
+			r.events = r.events[:maxEvents]
+		}
+		if r.code == DemoCode {
+			botsReactTo(r, e)
+		}
 	}
-	if m := Find(h.room, id); h.phase == Focus && m != nil && m.Result == "" {
-		h.finish(m, pet.Abandoned)
-		h.event(m.Nick + " saiu no meio do foco")
+}
+
+// React liga ou desliga a reação k de id a um evento. Ninguém reage ao próprio evento.
+func React(id, code string, eventID, k int) {
+	mu.Lock()
+	defer mu.Unlock()
+	react(id, code, eventID, k)
+}
+
+func react(id, code string, eventID, k int) {
+	r := rooms[code]
+	if r == nil || k < 0 || k >= Reactions || !slices.Contains(r.members, id) {
+		return
 	}
+	for _, e := range r.events {
+		if e.ID != eventID || e.Who == id {
+			continue
+		}
+		if i := slices.Index(e.Reacts[k], id); i >= 0 {
+			e.Reacts[k] = slices.Delete(e.Reacts[k], i, i+1)
+		} else {
+			e.Reacts[k] = append(e.Reacts[k], id)
+		}
+	}
+}
+
+// Create cria uma sala com id dentro e devolve o código.
+func Create(id, name string) (string, error) {
+	r, err := store.CreateRoom(id, name)
+	if err != nil {
+		return "", err
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	rooms[r.Code] = &room{code: r.Code, name: r.Name, members: []string{id}}
+	load(id)
+	return r.Code, nil
+}
+
+// Join põe id na sala do código (a demo só existe em memória).
+func Join(id, code string) error {
+	if code != DemoCode {
+		if err := store.JoinRoom(id, code); err != nil {
+			return err
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	r := rooms[code]
+	if r == nil {
+		return fmt.Errorf("nenhuma sala com o código %q", code)
+	}
+	if !slices.Contains(r.members, id) {
+		r.members = append(r.members, id)
+	}
+	load(id)
+	return nil
+}
+
+// Leave tira id da sala; a sala some quando o último membro sai (ADR 0003).
+func Leave(id, code string) error {
+	if code == DemoCode {
+		return errors.New("a sala demo não tem saída: ela some quando o servidor desliga")
+	}
+	if err := store.LeaveRoom(id, code); err != nil {
+		return err
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if r := rooms[code]; r != nil {
+		r.members = slices.DeleteFunc(r.members, func(m string) bool { return m == id })
+		if len(r.members) == 0 {
+			delete(rooms, code)
+		}
+	}
+	return nil
+}
+
+// --- o retrato ---
+
+// Member: um usuário como as telas o veem. Focus só vale com Status == Focusing.
+type Member struct {
+	ID, Nick string
+	Energy   float64
+	Status   Status
+	Focus    Focus
 }
 
 type Snapshot struct {
-	Code, Name   string
-	Phase        Phase
-	Ends, Start  time.Time
-	Next         time.Time
-	Queue, Room  []*Member // cópias: seguras para ler fora do lock
-	Chat, Events []string
+	Code, Name string
+	Members    []Member
+	Events     []Event // cópias: seguras para ler fora do lock
 }
 
-func (h *Room) snapshot() Snapshot {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	cp := func(ms []*Member) (out []*Member) {
-		for _, m := range ms {
-			c := *m
-			out = append(out, &c)
-		}
-		return out
-	}
-	return Snapshot{h.code, h.name, h.phase, h.ends, h.start, h.nextStart(), cp(h.queue), cp(h.room),
-		slices.Clone(h.chat), slices.Clone(h.events)}
-}
-
-// World: o retrato de todas as salas e de quem está online, que cada sessão recebe no tick.
+// World: todas as salas e todos os usuários conhecidos, que cada sessão recebe no tick.
 type World struct {
-	Rooms  map[string]Snapshot // por código
-	Online map[string]bool
+	Rooms map[string]Snapshot
+	Users map[string]Member
+}
+
+func member(u *user) Member {
+	m := Member{ID: u.id, Nick: u.nick, Energy: u.energy, Status: u.status()}
+	if u.focus != nil {
+		m.Focus = *u.focus
+	}
+	return m
 }
 
 func SnapshotWorld() World {
-	w := World{Rooms: map[string]Snapshot{}, Online: map[string]bool{}}
-	for _, h := range allRooms() {
-		w.Rooms[h.code] = h.snapshot()
+	mu.Lock()
+	defer mu.Unlock()
+	w := World{Rooms: map[string]Snapshot{}, Users: map[string]Member{}}
+	for id, u := range users {
+		w.Users[id] = member(u)
 	}
-	onlineMu.Lock()
-	for id := range online {
-		w.Online[id] = true
+	for code, r := range rooms {
+		s := Snapshot{Code: code, Name: r.name}
+		for _, id := range r.members {
+			s.Members = append(s.Members, w.Users[id])
+		}
+		for _, e := range r.events {
+			c := *e
+			for k := range c.Reacts {
+				c.Reacts[k] = slices.Clone(e.Reacts[k])
+			}
+			s.Events = append(s.Events, c)
+		}
+		w.Rooms[code] = s
 	}
-	onlineMu.Unlock()
 	return w
 }
 
-// --- bots da demo (só na sala pública) ---
-
-type bot struct {
-	nick         string
-	energy       float64 // humor inicial, para a sala ter todos os estados
-	pDone, pQuit float64
-	locks        []string
-}
-
-var bots = []*bot{
-	{"ana", 92, 0.9, 0, []string{"terminar a lista 3 de Cálculo", "revisar a prova de Álgebra"}},
-	{"bruno", 68, 0.7, 0, []string{"revisar o PR do login", "escrever os testes do parser"}},
-	{"caio", 48, 0.5, 0.05, []string{"ler o cap. 4 de Sistemas Operacionais", "resumir o artigo de IHC"}},
-	{"duda", 27, 0.35, 0.2, []string{"começar o relatório de Física", "configurar o Docker do projeto"}},
-	{"edu", 8, 0.15, 0.4, []string{"instalar o ambiente do TCC", "abrir o projeto do TCC"}},
-}
-
-var botLines = []string{"alguém mais travou no exercício 4?", "café e volta", "fechei o PR, finalmente",
-	"bora pro próximo", "esse rendeu", "minha cabeça fritou", "alguém tem o link da lista?"}
-
-func SeedBots() {
-	for _, b := range bots {
-		if err := store.PutUser("bot:"+b.nick, b.nick, b.energy); err != nil {
-			log.Fatal("seed bots", "err", err)
+// MyRooms: os códigos das salas de que id é membro, em ordem de nome.
+func (w World) MyRooms(id string) []string {
+	var out []string
+	for code, s := range w.Rooms {
+		if slices.ContainsFunc(s.Members, func(m Member) bool { return m.ID == id }) {
+			out = append(out, code)
 		}
 	}
-}
-
-// botsJoin espalha a entrada dos bots pela contagem regressiva, para a fila ir enchendo.
-func (h *Room) botsJoin() {
-	if !Demo || h.code != PublicCode {
-		return
-	}
-	window := time.Until(h.ends) * 8 / 10
-	for _, b := range bots {
-		time.AfterFunc(rand.N(window+1), func() { h.join("bot:"+b.nick, b.nick, b.locks[rand.N(len(b.locks))], b) })
-	}
-}
-
-func (h *Room) botBreak(m *Member) {
-	r := pet.NotDone
-	if rand.Float64() < m.bot.pDone {
-		r = pet.Done
-	}
-	time.AfterFunc(time.Second+rand.N(5*time.Second), func() { h.Checkout(m.ID, r) })
-	if rand.N(2) == 0 {
-		time.AfterFunc(3*time.Second+rand.N(h.t.pause/2), func() { h.Say(m.ID, botLines[rand.N(len(botLines))]) })
-	}
+	slices.SortFunc(out, func(a, b string) int { return strings.Compare(w.Rooms[a].Name+a, w.Rooms[b].Name+b) })
+	return out
 }

@@ -1,6 +1,6 @@
 package pet
 
-// O pet: uma bolinha com um broto na cabeça. Floresce quando a pessoa foca, murcha quando some.
+// O pet: uma bolinha com um broto na cabeça. Floresce quando o usuário foca, murcha quando some.
 // Dois quadros por estado; o quadro 2 é a "inspiração" da respiração.
 // A arte ASCII abaixo é o plano B para terminais com poucas cores.
 

@@ -1,38 +1,171 @@
-// PROTÓTIPO DESCARTÁVEL: o modo jardim (a tela de descanso do foco), para escolher os wallpapers,
-// o ritmo e o que aparece por cima vendo rodar por SSH. Nada toca no banco nem em internal/tui.
+package tui
+
+// Modo jardim: a tela de descanso do foco. Um wallpaper animado em tela cheia, com o relógio, a
+// tarefa e quem mais está focando por cima, conforme a aba visual (IDEIAS.md, docs/regras.md).
+// Liga com j ou depois de 30 s sem tecla, só durante o foco; qualquer tecla volta sem executar nada.
 //
-//	go build -o <rascunho>/proto-jardim.exe ./prototype/jardim   (e rode dentro de <rascunho>)
-//	ssh -p 23235 localhost
-//
-// w troca o wallpaper (a neve saiu: não ficou entre os escolhidos) · c troca o relógio (mm:ss, só os minutos, nenhum)
-// o troca o que mais aparece (tarefa, sala) · f troca os quadros por segundo
-// b liga/desliga a caixa atrás do relógio · h esconde a barra do protótipo · q sai
-//
-// Wallpapers escritos do zero, inspirados em projetos MIT/Apache (ADR 0005):
-// céu noturno (ascii-splash, bruh.animate),
-// chuva (Terminal Rain), lâmpada de lava (lavat). Café, árvore e estrada são desenhos nossos.
-package main
+// Wallpapers escritos do zero (ADR 0005, créditos em CREDITS.md): céu noturno, chuva e lâmpada de
+// lava inspirados em projetos MIT/Apache; café, árvore e estrada são desenhos nossos.
 
 import (
-	"flag"
 	"fmt"
-	"io"
 	"math"
 	"math/rand/v2"
-	"net"
-	"runtime"
+	"plantao/internal/rooms"
+	"plantao/internal/store"
+	"slices"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"charm.land/log/v2"
-	"charm.land/ssh"
-	"charm.land/wish/v2"
-	"charm.land/wish/v2/activeterm"
-	"charm.land/wish/v2/bubbletea"
-	"github.com/charmbracelet/colorprofile"
 )
+
+const (
+	gardenFPS  = 8                // docs/regras.md
+	gardenIdle = 30 * time.Second // sem tecla durante o foco: liga sozinho
+)
+
+// wallpapers: o id fica no banco; o nome aparece na aba visual.
+type wallpaper struct {
+	id, name string
+	new      func() scene
+}
+
+var wallpapers = []wallpaper{
+	{"sky", "céu noturno", func() scene { return &sky{} }},
+	{"rain", "chuva lenta", func() scene { return &rain{} }},
+	{"lava", "lâmpada de lava", func() scene { return &lava{} }},
+	{"coffee", "café", func() scene { return &coffee{} }},
+	{"tree", "árvore", func() scene { return &tree{} }},
+	{"road", "estrada à noite", func() scene { return &road{} }},
+}
+
+var clockModes = []string{"mm:ss", "só os minutos", "nenhum"}
+
+// garden: o modo jardim ligado. É ponteiro no modelo porque as cenas guardam estado (as partículas).
+type garden struct {
+	scene       scene
+	start, last time.Time
+	gen         int  // descarta ticks de um jardim anterior
+	preview     bool // aberto pela aba visual: fica ligado sem tarefa
+	frame       string
+}
+
+type gardenTickMsg struct {
+	t   time.Time
+	gen int
+}
+
+func gardenTick(gen int) tea.Cmd {
+	return tea.Tick(time.Second/gardenFPS, func(t time.Time) tea.Msg { return gardenTickMsg{t, gen} })
+}
+
+// wallpaperFor: o escolhido, ou um sorteado por tarefa (o mesmo durante toda a tarefa).
+func wallpaperFor(g store.Garden, f rooms.Focus) int {
+	if i := slices.IndexFunc(wallpapers, func(w wallpaper) bool { return w.id == g.Wallpaper }); i >= 0 {
+		return i
+	}
+	return int(f.Start.UnixNano()/int64(time.Millisecond)) % len(wallpapers)
+}
+
+// openGarden liga o modo jardim (preview: aberto pela aba visual, mesmo sem tarefa).
+func (m model) openGarden(preview bool) (model, tea.Cmd) {
+	gen := 1
+	if m.garden != nil {
+		gen = m.garden.gen + 1
+	}
+	i := wallpaperFor(m.vis, m.me().Focus)
+	m.garden = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen, preview: preview}
+	m.garden.render(m)
+	return m, gardenTick(gen)
+}
+
+// othersFocusing: quem mais está focando agora, nas suas salas, sem repetir.
+func (m model) othersFocusing() []string {
+	var nicks []string
+	for _, code := range m.w.MyRooms(m.id) {
+		for _, x := range m.w.Rooms[code].Members {
+			if x.ID != m.id && x.Status == rooms.Focusing && !slices.Contains(nicks, x.Nick) {
+				nicks = append(nicks, x.Nick)
+			}
+		}
+	}
+	return nicks
+}
+
+// focusingLine: "ana, bruno e duda também estão focando".
+func focusingLine(nicks []string) string {
+	switch {
+	case len(nicks) == 0:
+		return "ninguém mais está focando agora"
+	case len(nicks) > 4:
+		nicks = append(nicks[:3:3], fmt.Sprintf("mais %d", len(nicks)-3))
+	}
+	s := nicks[len(nicks)-1]
+	if len(nicks) > 1 {
+		s = strings.Join(nicks[:len(nicks)-1], ", ") + " e " + s
+	}
+	if len(nicks) == 1 {
+		return s + " também está focando"
+	}
+	return s + " também estão focando"
+}
+
+// render avança a cena até agora e monta o quadro, com o texto por cima numa caixa.
+func (g *garden) render(m model) {
+	t, dt := m.now.Sub(g.start).Seconds(), min(m.now.Sub(g.last).Seconds(), 0.5)
+	g.last = m.now
+	w, h := max(m.width, 20), max(m.height, 10)
+	c := newCanvas(w, h)
+	g.scene.draw(c, t, dt)
+
+	me := m.me()
+	var lines, cols []string
+	add := func(text, col string) { // um bloco, separado do anterior por uma linha vazia
+		if len(lines) > 0 {
+			lines, cols = append(lines, ""), append(cols, "")
+		}
+		for _, l := range strings.Split(text, "\n") {
+			lines, cols = append(lines, l), append(cols, col)
+		}
+	}
+	if g.preview {
+		add("prévia de "+wallpapers[wallpaperFor(m.vis, me.Focus)].name+" · qualquer tecla volta", "244")
+	}
+	if me.Status == rooms.Focusing {
+		left := me.Focus.Ends.Sub(m.now)
+		switch m.vis.Clock {
+		case 0:
+			add(bigText(mmss(left)), "208")
+		case 1: // só os minutos: o número muda uma vez por minuto
+			add(bigText(fmt.Sprint(int(math.Ceil(max(left, 0).Minutes())))), "208")
+			lines, cols = append(lines, "min"), append(cols, "208")
+		}
+		if m.vis.Task {
+			add(me.Focus.Task, "252")
+		}
+		if m.vis.Room {
+			add(focusingLine(m.othersFocusing()), "244")
+		}
+	}
+	wd := 0
+	for _, l := range lines {
+		wd = max(wd, len([]rune(l)))
+	}
+	y0 := (h - len(lines)) / 2
+	if len(lines) > 0 { // a caixa: o texto não briga com o wallpaper
+		for y := y0 - 1; y <= y0+len(lines); y++ {
+			for x := (w-wd)/2 - 3; x < (w+wd)/2+3; x++ {
+				c.set(x, y, ' ', "")
+			}
+		}
+	}
+	for i, l := range lines {
+		c.text((w-len([]rune(l)))/2, y0+i, l, cols[i])
+	}
+	g.frame = c.String()
+}
 
 // --- a tela é uma grade de células: as cenas e o relógio desenham nela ---
 
@@ -113,8 +246,6 @@ func (c *canvas) String() string {
 type scene interface {
 	draw(c *canvas, t, dt float64)
 }
-
-func pick[T any](xs ...T) T { return xs[rand.N(len(xs))] }
 
 // Céu noturno: estrelas paradas piscando devagar e, de vez em quando, uma estrela cadente.
 type sky struct {
@@ -372,7 +503,7 @@ func (s *road) draw(c *canvas, t, dt float64) {
 		u := float64(x) + t*1.5
 		top := base - 3 - int(3+2*math.Sin(u*0.05)+1.5*math.Sin(u*0.13))
 		for y := top; y < base; y++ {
-			c.set(x, y, '░', "236")
+			c.set(x, y, '░', "238")
 		}
 	}
 	for x := range c.w { // postes: velocidade média
@@ -390,198 +521,4 @@ func (s *road) draw(c *canvas, t, dt float64) {
 			c.set(x, base+2, '━', "178")
 		}
 	}
-}
-
-// --- o modelo ---
-
-var (
-	sceneNames = []string{"céu noturno", "chuva lenta", "lâmpada de lava", "café", "árvore", "estrada"}
-	overlays   = []string{"nada", "tarefa", "tarefa + sala"}
-	clocks     = []string{"mm:ss", "só minutos", "sem relógio"}
-	fpsSteps   = []int{3, 5, 8, 12}
-)
-
-type tickMsg time.Time
-
-type model struct {
-	w, h, scene, overlay, fps int
-	clock                     int // índice em clocks
-	box, hideBar              bool
-	scenes                    []scene
-	start, last               time.Time
-	frame                     string // o quadro atual, montado no Update
-}
-
-func newModel() *model {
-	now := time.Now()
-	return &model{w: 80, h: 24, fps: 2, box: true, scenes: []scene{&sky{}, &rain{}, &lava{}, &coffee{}, &tree{}, &road{}}, start: now, last: now}
-}
-
-func (m *model) tick() tea.Cmd {
-	return tea.Tick(time.Second/time.Duration(fpsSteps[m.fps]), func(t time.Time) tea.Msg { return tickMsg(t) })
-}
-
-func (m *model) Init() tea.Cmd { return m.tick() }
-
-func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.w, m.h = msg.Width, msg.Height
-	case tickMsg:
-		m.render()
-		return m, m.tick()
-	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		case "w":
-			m.scene = (m.scene + 1) % len(m.scenes)
-		case "o":
-			m.overlay = (m.overlay + 1) % len(overlays)
-		case "c":
-			m.clock = (m.clock + 1) % len(clocks)
-		case "f":
-			m.fps = (m.fps + 1) % len(fpsSteps)
-		case "b":
-			m.box = !m.box
-		case "h":
-			m.hideBar = !m.hideBar
-		}
-		m.render()
-	}
-	return m, nil
-}
-
-func (m *model) View() tea.View {
-	v := tea.NewView(m.frame)
-	v.AltScreen = true
-	return v
-}
-
-// render avança a cena até agora e monta o quadro, com o relógio por cima.
-func (m *model) render() {
-	now := time.Now()
-	t, dt := now.Sub(m.start).Seconds(), min(now.Sub(m.last).Seconds(), 0.5)
-	m.last = now
-	c := newCanvas(m.w, m.h)
-	m.scenes[m.scene].draw(c, t, dt)
-
-	left := 25*time.Minute - now.Sub(m.start)
-	var lines, cols []string
-	add := func(text, col string) { // um bloco, separado do anterior por uma linha vazia
-		if len(lines) > 0 {
-			lines, cols = append(lines, ""), append(cols, "")
-		}
-		for _, l := range strings.Split(text, "\n") {
-			lines, cols = append(lines, l), append(cols, col)
-		}
-	}
-	switch m.clock {
-	case 0:
-		add(bigText(mmss(left)), "208")
-	case 1: // só os minutos: o número muda uma vez por minuto
-		add(bigText(fmt.Sprint(int(math.Ceil(max(left, 0).Minutes())))), "208")
-		lines, cols = append(lines, "min"), append(cols, "208")
-	}
-	if m.overlay >= 1 {
-		add("fazer o exercício 1 da lista 3", "252")
-	}
-	if m.overlay >= 2 {
-		add("ana, bruno e duda também estão focando", "244")
-	}
-	wd := 0
-	for _, l := range lines {
-		wd = max(wd, len([]rune(l)))
-	}
-	y0 := (m.h - len(lines)) / 2
-	if m.box && len(lines) > 0 {
-		for y := y0 - 1; y <= y0+len(lines); y++ {
-			for x := (m.w-wd)/2 - 3; x < (m.w+wd)/2+3; x++ {
-				c.set(x, y, ' ', "")
-			}
-		}
-	}
-	for i, l := range lines {
-		if l != "" {
-			c.text((m.w-len([]rune(l)))/2, y0+i, l, cols[i])
-		}
-	}
-	if !m.hideBar {
-		box := map[bool]string{true: "sim", false: "não"}[m.box]
-		c.text(1, m.h-1, fmt.Sprintf(" PROTÓTIPO · w %s · c %s · o %s · f %d fps · b caixa: %s · h esconde · q sai ",
-			sceneNames[m.scene], clocks[m.clock], overlays[m.overlay], fpsSteps[m.fps], box), "208")
-	}
-	m.frame = c.String()
-}
-
-// --- relógio (cópia de internal/tui) ---
-
-func mmss(d time.Duration) string {
-	d = max(d, 0).Round(time.Second)
-	return fmt.Sprintf("%02d:%02d", int(d.Minutes()), int(d.Seconds())%60)
-}
-
-var digits = [10][3]string{
-	{"█▀█", "█ █", "▀▀▀"}, {"▀█ ", " █ ", "▀▀▀"}, {"▀▀█", "█▀▀", "▀▀▀"}, {"▀▀█", " ▀█", "▀▀▀"}, {"█ █", "▀▀█", "  ▀"},
-	{"█▀▀", "▀▀█", "▀▀▀"}, {"█▀▀", "█▀█", "▀▀▀"}, {"▀▀█", "  █", "  ▀"}, {"█▀█", "█▀█", "▀▀▀"}, {"█▀█", "▀▀█", "▀▀▀"},
-}
-
-func bigText(s string) string {
-	var rows [3]string
-	for _, c := range s {
-		for i := range rows {
-			if c == ':' {
-				rows[i] += [3]string{"  ", "▀ ", "▀ "}[i]
-			} else {
-				rows[i] += digits[c-'0'][i] + " "
-			}
-		}
-	}
-	return strings.Join(rows[:], "\n")
-}
-
-// --- servidor (cópia enxuta de main.go, com os contornos do Windows) ---
-
-func main() {
-	port := flag.String("port", "23235", "porta SSH")
-	flag.Parse()
-	s, err := wish.NewServer(
-		wish.WithAddress(net.JoinHostPort("localhost", *port)),
-		wish.WithHostKeyPath(".ssh/proto_host_key"),
-		wish.WithPublicKeyAuth(func(ssh.Context, ssh.PublicKey) bool { return true }),
-		wish.WithMiddleware(bubbletea.MiddlewareWithProgramHandler(programHandler), activeterm.Middleware()),
-	)
-	if err != nil {
-		log.Fatal("wish", "err", err)
-	}
-	log.Info("protótipo do modo jardim: ssh localhost -p " + *port)
-	log.Fatal(s.ListenAndServe())
-}
-
-func programHandler(s ssh.Session) *tea.Program {
-	opts := bubbletea.MakeOptions(s)
-	if runtime.GOOS == "windows" {
-		pty, _, _ := s.Pty()
-		opts = append(opts,
-			tea.WithColorProfile(colorprofile.Env(append(s.Environ(), "TERM="+pty.Term))),
-			tea.WithOutput(lfWriter{s}))
-	}
-	return tea.NewProgram(newModel(), opts...)
-}
-
-type lfWriter struct{ io.Writer }
-
-func (w lfWriter) Write(p []byte) (int, error) {
-	b := make([]byte, 0, len(p)+8)
-	for i, c := range p {
-		if c == '\n' && (i == 0 || p[i-1] != '\r') {
-			b = append(b, "\x1bD"...)
-		} else {
-			b = append(b, c)
-		}
-	}
-	if _, err := w.Writer.Write(b); err != nil {
-		return 0, err
-	}
-	return len(p), nil
 }

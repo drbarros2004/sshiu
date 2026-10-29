@@ -6,10 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"plantao/internal/pet"
-	"slices"
-	"sort"
-	"strconv"
-	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -17,6 +13,7 @@ import (
 
 var db *sql.DB
 
+// As tabelas sprints e friends, do modelo antigo, ficam nos bancos que já as têm, sem uso.
 const schema = `
 CREATE TABLE IF NOT EXISTS users (
 	id          TEXT PRIMARY KEY, -- fingerprint da chave SSH
@@ -26,28 +23,26 @@ CREATE TABLE IF NOT EXISTS users (
 	streak      INTEGER NOT NULL DEFAULT 0,
 	streak_day  TEXT NOT NULL DEFAULT ''
 );
-CREATE TABLE IF NOT EXISTS sprints (
-	id         INTEGER PRIMARY KEY,
-	user_id    TEXT NOT NULL REFERENCES users(id),
-	started_at INTEGER NOT NULL,
-	lock       TEXT NOT NULL,
-	result     TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS tasks ( -- uma por tarefa encerrada
+	id           INTEGER PRIMARY KEY,
+	user_id      TEXT NOT NULL REFERENCES users(id),
+	started_at   INTEGER NOT NULL,
+	ended_at     INTEGER NOT NULL,
+	task         TEXT NOT NULL,
+	declared_min INTEGER NOT NULL, -- tempo declarado (com o que foi dado ao continuar)
+	focused_sec  INTEGER NOT NULL, -- o que de fato contou
+	result       TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS rooms (
 	code  TEXT PRIMARY KEY, -- o convite: quem tem o código entra
 	name  TEXT NOT NULL,
-	owner TEXT NOT NULL REFERENCES users(id),
-	slots TEXT NOT NULL     -- horas dos sprints, ex. "9,14,20"
+	owner TEXT NOT NULL REFERENCES users(id), -- quem criou; sem poderes no MVP (ADR 0003)
+	slots TEXT NOT NULL DEFAULT ''           -- do modelo antigo, sem uso
 );
 CREATE TABLE IF NOT EXISTS room_members (
 	code    TEXT NOT NULL REFERENCES rooms(code),
 	user_id TEXT NOT NULL REFERENCES users(id),
 	PRIMARY KEY (code, user_id)
-);
-CREATE TABLE IF NOT EXISTS friends ( -- "seguir", mão única, como no GitHub
-	user_id   TEXT NOT NULL REFERENCES users(id),
-	friend_id TEXT NOT NULL REFERENCES users(id),
-	PRIMARY KEY (user_id, friend_id)
 );`
 
 // Open abre o banco (criando as tabelas se preciso) e o guarda para o resto do pacote.
@@ -62,13 +57,37 @@ func Open(path string) error {
 	}
 	// ponytail: migração ingênua (o erro "duplicate column" é esperado após a 1ª vez); goose/migrate quando houver várias.
 	d.Exec(`ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT ''`)
+	d.Exec(`ALTER TABLE users ADD COLUMN today TEXT NOT NULL DEFAULT ''`)
+	d.Exec(`ALTER TABLE users ADD COLUMN today_min REAL NOT NULL DEFAULT 0`)
+	d.Exec(`ALTER TABLE users ADD COLUMN garden_wallpaper TEXT NOT NULL DEFAULT ''`)
+	d.Exec(`ALTER TABLE users ADD COLUMN garden_clock INTEGER NOT NULL DEFAULT 1`)
+	d.Exec(`ALTER TABLE users ADD COLUMN garden_task INTEGER NOT NULL DEFAULT 1`)
+	d.Exec(`ALTER TABLE users ADD COLUMN garden_room INTEGER NOT NULL DEFAULT 1`)
 	db = d
 	return nil
 }
 
-// Rooms lista todas as salas privadas.
-func Rooms() ([]RoomRow, error) {
-	return queryRooms(`SELECT code, name, owner, slots FROM rooms`)
+// Garden: o que o usuário escolheu para o modo jardim na aba visual.
+type Garden struct {
+	Wallpaper  string // "" = sorteado a cada tarefa
+	Clock      int    // 0 mm:ss, 1 só os minutos, 2 nenhum
+	Task, Room bool   // mostrar a tarefa e quem mais está focando
+}
+
+// DefaultGarden: os padrões de quem nunca mexeu na aba visual (IDEIAS.md).
+var DefaultGarden = Garden{Clock: 1, Task: true, Room: true}
+
+func GetGarden(id string) Garden {
+	g := DefaultGarden
+	db.QueryRow(`SELECT garden_wallpaper, garden_clock, garden_task, garden_room FROM users WHERE id = ?`, id).
+		Scan(&g.Wallpaper, &g.Clock, &g.Task, &g.Room) // sem usuário ainda: os padrões
+	return g
+}
+
+func SetGarden(id string, g Garden) error {
+	_, err := db.Exec(`UPDATE users SET garden_wallpaper = ?, garden_clock = ?, garden_task = ?, garden_room = ? WHERE id = ?`,
+		g.Wallpaper, g.Clock, g.Task, g.Room, id)
+	return err
 }
 
 func Theme(id string) (t string) {
@@ -83,7 +102,7 @@ func SetTheme(id, t string) error {
 
 func scanUser(row *sql.Row) (nick string, p pet.Pet, ok bool, err error) {
 	var last int64
-	err = row.Scan(&nick, &p.Energy, &last, &p.Streak, &p.StreakDay)
+	err = row.Scan(&nick, &p.Energy, &last, &p.Streak, &p.StreakDay, &p.Today, &p.TodayMin)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", pet.Pet{}, false, nil
 	}
@@ -91,7 +110,7 @@ func scanUser(row *sql.Row) (nick string, p pet.Pet, ok bool, err error) {
 	return nick, p, err == nil, err
 }
 
-const selectUser = `SELECT nick, energy, last_active, streak, streak_day FROM users WHERE id = ?`
+const selectUser = `SELECT nick, energy, last_active, streak, streak_day, today, today_min FROM users WHERE id = ?`
 
 func GetUser(id string) (string, pet.Pet, bool, error) {
 	return scanUser(db.QueryRow(selectUser, id))
@@ -105,8 +124,16 @@ func PutUser(id, nick string, energy float64) error {
 	return err
 }
 
-// Record guarda o resultado do sprint e atualiza o humor do pet.
-func Record(id string, start time.Time, lock string, r pet.Result) (pet.Pet, error) {
+type TaskRow struct {
+	Start, End  time.Time
+	Task        string
+	DeclaredMin int
+	Focused     time.Duration
+	Result      pet.Result
+}
+
+// RecordTask guarda uma tarefa encerrada e soma os minutos focados ao pet.
+func RecordTask(id string, t TaskRow) (pet.Pet, error) {
 	tx, err := db.Begin()
 	if err != nil {
 		return pet.Pet{}, err
@@ -116,95 +143,42 @@ func Record(id string, start time.Time, lock string, r pet.Result) (pet.Pet, err
 	if err != nil {
 		return pet.Pet{}, err
 	}
-	now := time.Now()
-	p.Apply(r, now)
-	if _, err = tx.Exec(`UPDATE users SET energy = ?, last_active = ?, streak = ?, streak_day = ? WHERE id = ?`,
-		p.Energy, now.Unix(), p.Streak, p.StreakDay, id); err != nil {
+	p.Focus(t.Focused.Minutes(), t.Result == pet.Done, t.End)
+	if _, err = tx.Exec(`UPDATE users SET energy = ?, last_active = ?, streak = ?, streak_day = ?, today = ?, today_min = ? WHERE id = ?`,
+		p.Energy, p.LastActive.Unix(), p.Streak, p.StreakDay, p.Today, p.TodayMin, id); err != nil {
 		return pet.Pet{}, err
 	}
-	if _, err = tx.Exec(`INSERT INTO sprints (user_id, started_at, lock, result) VALUES (?, ?, ?, ?)`,
-		id, start.Unix(), lock, r); err != nil {
+	if _, err = tx.Exec(`INSERT INTO tasks (user_id, started_at, ended_at, task, declared_min, focused_sec, result) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		id, t.Start.Unix(), t.End.Unix(), t.Task, t.DeclaredMin, int(t.Focused.Seconds()), t.Result); err != nil {
 		return pet.Pet{}, err
 	}
 	return p, tx.Commit()
 }
 
-type SprintRow struct {
-	At     time.Time
-	Lock   string
-	Result pet.Result
-}
-
-func History(id string) ([]SprintRow, error) {
-	rows, err := db.Query(`SELECT started_at, lock, result FROM sprints WHERE user_id = ? ORDER BY id DESC LIMIT 8`, id)
+// Tasks: as últimas tarefas do usuário, da mais nova para a mais velha.
+func Tasks(id string) ([]TaskRow, error) {
+	rows, err := db.Query(`SELECT started_at, ended_at, task, declared_min, focused_sec, result FROM tasks
+		WHERE user_id = ? ORDER BY id DESC LIMIT 8`, id)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []SprintRow
+	var out []TaskRow
 	for rows.Next() {
-		var r SprintRow
-		var at int64
-		if err := rows.Scan(&at, &r.Lock, &r.Result); err != nil {
+		var r TaskRow
+		var start, end, sec int64
+		if err := rows.Scan(&start, &end, &r.Task, &r.DeclaredMin, &sec, &r.Result); err != nil {
 			return nil, err
 		}
-		r.At = time.Unix(at, 0)
+		r.Start, r.End, r.Focused = time.Unix(start, 0), time.Unix(end, 0), time.Duration(sec)*time.Second
 		out = append(out, r)
 	}
 	return out, rows.Err()
 }
 
-type Friend struct {
-	ID, Nick string
-	Pet      pet.Pet
-}
+type RoomRow struct{ Code, Name string }
 
-func FriendsOf(id string) ([]Friend, error) {
-	rows, err := db.Query(`SELECT u.id, u.nick, u.energy, u.last_active, u.streak, u.streak_day
-		FROM friends f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? ORDER BY u.nick`, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []Friend
-	for rows.Next() {
-		var f Friend
-		var last int64
-		if err := rows.Scan(&f.ID, &f.Nick, &f.Pet.Energy, &last, &f.Pet.Streak, &f.Pet.StreakDay); err != nil {
-			return nil, err
-		}
-		f.Pet.LastActive = time.Unix(last, 0)
-		out = append(out, f)
-	}
-	return out, rows.Err()
-}
-
-func AddFriend(id, nick string) error {
-	var fid string
-	err := db.QueryRow(`SELECT id FROM users WHERE nick = ?`, nick).Scan(&fid)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		return fmt.Errorf("ninguém com o apelido %q", nick)
-	case err != nil:
-		return err
-	case fid == id:
-		return errors.New("você já é seu próprio amigo :)")
-	}
-	_, err = db.Exec(`INSERT OR IGNORE INTO friends (user_id, friend_id) VALUES (?, ?)`, id, fid)
-	return err
-}
-
-func RemoveFriend(id, fid string) error {
-	_, err := db.Exec(`DELETE FROM friends WHERE user_id = ? AND friend_id = ?`, id, fid)
-	return err
-}
-
-type RoomRow struct {
-	Code, Name, Owner string
-	Slots             []int
-}
-
-// newCode: 6 letras sem as ambíguas (0/o, 1/l/i), fácil de ditar para um amigo.
+// newCode: 6 letras sem as ambíguas (0/o, 1/l/i), fácil de ditar para um colega.
 func newCode() string {
 	const alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
 	b := make([]byte, 6)
@@ -215,14 +189,49 @@ func newCode() string {
 	return string(b)
 }
 
-func CreateRoom(owner, name string, slots []int) (RoomRow, error) {
-	r := RoomRow{newCode(), name, owner, slots}
+// Rooms lista todas as salas.
+func Rooms() ([]RoomRow, error) {
+	rows, err := db.Query(`SELECT code, name FROM rooms`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []RoomRow
+	for rows.Next() {
+		var r RoomRow
+		if err := rows.Scan(&r.Code, &r.Name); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+func RoomMembers(code string) ([]string, error) {
+	rows, err := db.Query(`SELECT user_id FROM room_members WHERE code = ?`, code)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+func CreateRoom(owner, name string) (RoomRow, error) {
+	r := RoomRow{newCode(), name}
 	tx, err := db.Begin()
 	if err != nil {
 		return r, err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`INSERT INTO rooms (code, name, owner, slots) VALUES (?, ?, ?, ?)`, r.Code, name, owner, FormatSlots(slots)); err != nil {
+	if _, err := tx.Exec(`INSERT INTO rooms (code, name, owner, slots) VALUES (?, ?, ?, '')`, r.Code, name, owner); err != nil {
 		return r, err
 	}
 	if _, err := tx.Exec(`INSERT INTO room_members (code, user_id) VALUES (?, ?)`, r.Code, owner); err != nil {
@@ -231,64 +240,30 @@ func CreateRoom(owner, name string, slots []int) (RoomRow, error) {
 	return r, tx.Commit()
 }
 
-func JoinRoom(user, code string) (RoomRow, error) {
-	rs, err := queryRooms(`SELECT code, name, owner, slots FROM rooms WHERE code = ?`, code)
+func JoinRoom(user, code string) error {
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM rooms WHERE code = ?`, code).Scan(&n); err != nil {
+		return err
+	}
+	if n == 0 {
+		return fmt.Errorf("nenhuma sala com o código %q", code)
+	}
+	_, err := db.Exec(`INSERT OR IGNORE INTO room_members (code, user_id) VALUES (?, ?)`, code, user)
+	return err
+}
+
+// LeaveRoom tira o usuário da sala e apaga a sala se ele era o último membro.
+func LeaveRoom(user, code string) error {
+	tx, err := db.Begin()
 	if err != nil {
-		return RoomRow{}, err
+		return err
 	}
-	if len(rs) == 0 {
-		return RoomRow{}, fmt.Errorf("nenhuma sala com o código %q", code)
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM room_members WHERE code = ? AND user_id = ?`, code, user); err != nil {
+		return err
 	}
-	_, err = db.Exec(`INSERT OR IGNORE INTO room_members (code, user_id) VALUES (?, ?)`, code, user)
-	return rs[0], err
-}
-
-func MyRooms(user string) ([]RoomRow, error) {
-	return queryRooms(`SELECT r.code, r.name, r.owner, r.slots FROM room_members m JOIN rooms r ON r.code = m.code
-		WHERE m.user_id = ? ORDER BY r.name`, user)
-}
-
-func queryRooms(q string, args ...any) ([]RoomRow, error) {
-	rows, err := db.Query(q, args...)
-	if err != nil {
-		return nil, err
+	if _, err := tx.Exec(`DELETE FROM rooms WHERE code = ? AND NOT EXISTS (SELECT 1 FROM room_members WHERE code = ?)`, code, code); err != nil {
+		return err
 	}
-	defer rows.Close()
-	var out []RoomRow
-	for rows.Next() {
-		var r RoomRow
-		var slots string
-		if err := rows.Scan(&r.Code, &r.Name, &r.Owner, &slots); err != nil {
-			return nil, err
-		}
-		if r.Slots, err = ParseSlots(slots); err != nil {
-			return nil, err
-		}
-		out = append(out, r)
-	}
-	return out, rows.Err()
-}
-
-// ParseSlots lê "9, 14,20" como [9 14 20].
-func ParseSlots(s string) ([]int, error) {
-	var out []int
-	for _, f := range strings.Split(s, ",") {
-		h, err := strconv.Atoi(strings.TrimSpace(f))
-		if err != nil || h < 0 || h > 23 {
-			return nil, fmt.Errorf("horário inválido %q: use horas de 0 a 23 separadas por vírgula", strings.TrimSpace(f))
-		}
-		if !slices.Contains(out, h) {
-			out = append(out, h)
-		}
-	}
-	sort.Ints(out)
-	return out, nil
-}
-
-func FormatSlots(slots []int) string {
-	var s []string
-	for _, h := range slots {
-		s = append(s, strconv.Itoa(h))
-	}
-	return strings.Join(s, ",")
+	return tx.Commit()
 }

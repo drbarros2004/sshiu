@@ -5,7 +5,7 @@ App de foco por SSH em Go (Wish v2 + Bubble Tea v2 + Lip Gloss v2, SQLite via `m
 - **Vocabulário**: use os termos de [`CONTEXT.md`](CONTEXT.md) na conversa, nos comentários e na interface.
 - **Decisões**: antes de mexer em identidade, no modelo de foco, nas salas, em chat/reações ou em arte de terceiros, leia o ADR correspondente em [`docs/adr/`](docs/adr/).
 - **Números**: toda regra numérica (energia, tempos, limites) fica em [`docs/regras.md`](docs/regras.md), com link para o código. Mudou um número, mude lá também; regra que não cabe lá de forma simples complicou cedo demais.
-- **Backlog**: [`IDEIAS.md`](IDEIAS.md). A seção "Em andamento" diz o que já foi decidido e o código ainda não tem: hoje o código ainda segue o modelo antigo de sprint em horário marcado. Ideia nova vai para lá.
+- **Backlog**: [`IDEIAS.md`](IDEIAS.md). Ideia nova vai para lá, e a dívida técnica conhecida também.
 
 ## Convenções
 

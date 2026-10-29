@@ -1,11 +1,12 @@
 package tui
 
-// Seletor de salas (dentro da aba "sala"): trocar de sala, criar uma privada ou entrar com código.
+// Menu de salas (dentro da aba "sala"): trocar de sala, criar uma, entrar com código ou sair.
+// Quem não está em nenhuma sala cai aqui direto (ADR 0003).
 
 import (
 	"fmt"
 	"plantao/internal/rooms"
-	"plantao/internal/store"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -16,25 +17,31 @@ type form int
 const (
 	formNone  form = iota
 	formName       // nome da sala nova
-	formSlots      // horários da sala nova
 	formCode       // código para entrar
+	formLeave      // confirmando a saída
 )
 
-func (m model) pickerItems() []store.RoomRow {
-	items := append([]store.RoomRow{{Code: rooms.PublicCode, Name: "sala pública"}}, m.myRooms...)
-	return append(items, store.RoomRow{Code: "+", Name: "criar sala"}, store.RoomRow{Code: "#", Name: "entrar com código"})
+type pickerItem struct{ code, name string } // code "+": criar, "#": entrar com código, "-": sair
+
+func (m model) pickerItems() []pickerItem {
+	var items []pickerItem
+	mine := m.w.MyRooms(m.id)
+	for _, code := range mine {
+		items = append(items, pickerItem{code, m.w.Rooms[code].Name})
+	}
+	if rooms.Demo && !slices.Contains(mine, rooms.DemoCode) {
+		items = append(items, pickerItem{rooms.DemoCode, "sala demo"})
+	}
+	items = append(items, pickerItem{"+", "criar sala"}, pickerItem{"#", "entrar com código"})
+	if m.room != "" && m.room != rooms.DemoCode {
+		items = append(items, pickerItem{"-", "sair de " + m.w.Rooms[m.room].Name})
+	}
+	return items
 }
 
 func (m model) openPicker() (tea.Model, tea.Cmd) {
-	m.picking, m.notice, m.err = true, "", ""
-	id := m.id
-	return m, func() tea.Msg {
-		rs, err := store.MyRooms(id)
-		if err != nil {
-			return errMsg{err}
-		}
-		return roomsMsg(rs)
-	}
+	m.picking, m.notice, m.err, m.pcur = true, "", "", 0
+	return m, nil
 }
 
 func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -47,9 +54,12 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "enter":
 			return m.submitForm()
 		}
-		var cmd tea.Cmd
-		m.in, cmd = m.in.Update(msg)
-		return m, cmd
+		if m.form != formLeave {
+			var cmd tea.Cmd
+			m.in, cmd = m.in.Update(msg)
+			return m, cmd
+		}
+		return m, nil
 	}
 	items := m.pickerItems()
 	switch k {
@@ -60,17 +70,30 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "esc", "s":
 		m.picking = false
 	case "enter":
-		switch it := items[min(m.pcur, len(items)-1)]; it.Code {
+		switch it := items[min(m.pcur, len(items)-1)]; it.code {
 		case "+":
 			m.form, m.in = formName, newInput("ex.: Turma de Cálculo", 30)
 		case "#":
 			m.form, m.in = formCode, newInput("6 letras", 6)
+		case "-":
+			m.form = formLeave
+		case rooms.DemoCode:
+			return m, m.join(rooms.DemoCode)
 		default:
-			m.room, m.picking = it.Code, false
-			m.setWorld(m.w)
+			m.room, m.picking = it.code, false
 		}
 	}
 	return m, nil
+}
+
+func (m model) join(code string) tea.Cmd {
+	id := m.id
+	return func() tea.Msg {
+		if err := rooms.Join(id, code); err != nil {
+			return errMsg{err}
+		}
+		return roomMsg{code, false, rooms.SnapshotWorld()}
+	}
 }
 
 func (m model) submitForm() (tea.Model, tea.Cmd) {
@@ -81,68 +104,57 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 			m.err = "dê um nome para a sala"
 			return m, nil
 		}
-		m.draft, m.form, m.err = v, formSlots, ""
-		m.in = newInput("9,14,20,22 (enter usa esses)", 40)
-		return m, nil
-	case formSlots:
-		if v == "" {
-			v = "9,14,20,22"
-		}
-		slots, err := store.ParseSlots(v)
-		if err != nil {
-			m.err = err.Error()
-			return m, nil
-		}
-		name := m.draft
 		return m, func() tea.Msg {
-			r, err := store.CreateRoom(id, name, slots)
+			code, err := rooms.Create(id, v)
 			if err != nil {
 				return errMsg{err}
 			}
-			rooms.Open(r.Code, r.Name, r.Slots)
-			return roomMsg{r, true, rooms.SnapshotWorld()}
+			return roomMsg{code, true, rooms.SnapshotWorld()}
 		}
 	case formCode:
-		code := strings.ToLower(v)
+		return m, m.join(strings.ToLower(v))
+	case formLeave:
+		code := m.room
+		m.form, m.picking, m.room = formNone, false, ""
 		return m, func() tea.Msg {
-			r, err := store.JoinRoom(id, code)
-			if err != nil {
+			if err := rooms.Leave(id, code); err != nil {
 				return errMsg{err}
 			}
-			rooms.Open(r.Code, r.Name, r.Slots)
-			return roomMsg{r, false, rooms.SnapshotWorld()}
+			return worldMsg(rooms.SnapshotWorld())
 		}
 	}
 	return m, nil
 }
 
 func (m model) pickerView() string {
-	var b strings.Builder
 	switch m.form {
 	case formName:
 		return bold.Render("Criar sala") + "\n\nNome:\n" + m.in.View()
-	case formSlots:
-		return bold.Render("Criar sala: "+m.draft) + "\n\nEm que horas começam os sprints? " +
-			m.st.muted.Render("(25 min de foco + 5 de intervalo; na demo o relógio é comprimido)") + "\n" + m.in.View()
 	case formCode:
 		return bold.Render("Entrar com código") + "\n\n" + m.in.View()
+	case formLeave:
+		return bold.Render("Sair de "+m.w.Rooms[m.room].Name+"?") + "\n\n" +
+			m.st.muted.Render("Para voltar, você vai precisar do código de novo. Se você for o último, a sala some.")
+	}
+	var b strings.Builder
+	if m.room == "" {
+		b.WriteString("Você ainda não está em nenhuma sala. Crie uma e passe o código para os colegas, ou entre com o código de alguém.\n\n")
 	}
 	b.WriteString(bold.Render("Salas") + "\n\n")
 	for i, it := range m.pickerItems() {
-		cursor, name := "  ", fmt.Sprintf("%-24s", it.Name)
-		if it.Code == "+" || it.Code == "#" {
-			name = fmt.Sprintf("%-24s", map[string]string{"+": "+ ", "#": "# "}[it.Code]+it.Name)
+		cursor, name := "  ", it.name
+		switch it.code {
+		case "+", "#", "-":
+			name = it.code + " " + name
 		}
+		name = fmt.Sprintf("%-28s", name)
 		if i == m.pcur {
 			cursor, name = m.st.sel.Render("▸ "), m.st.sel.Render(name)
 		}
 		line := cursor + name
-		if s, ok := m.w.Rooms[it.Code]; ok {
-			line += m.st.muted.Render(m.roomStatus(s))
-			if it.Code != rooms.PublicCode {
-				line += m.st.muted.Render(" · código " + it.Code)
-			}
-			if it.Code == m.room {
+		if s, ok := m.w.Rooms[it.code]; ok {
+			line += m.st.muted.Render(roomSummary(s))
+			if it.code == m.room {
 				line += m.st.ok.Render("  ← você está aqui")
 			}
 		}
@@ -151,13 +163,17 @@ func (m model) pickerView() string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// roomStatus resume uma sala numa linha: fase, tempo e quantas pessoas.
-func (m model) roomStatus(s rooms.Snapshot) string {
-	switch s.Phase {
-	case rooms.Focus:
-		return fmt.Sprintf("foco · %s · %d na sala", mmss(s.Ends.Sub(m.now)), len(s.Room))
-	case rooms.Break:
-		return fmt.Sprintf("intervalo · %s · %d na sala", mmss(s.Ends.Sub(m.now)), len(s.Room))
+// roomSummary resume uma sala numa linha: quantos estão focando agora.
+func roomSummary(s rooms.Snapshot) string {
+	n := 0
+	for _, x := range s.Members {
+		if x.Status == rooms.Focusing {
+			n++
+		}
 	}
-	return fmt.Sprintf("próximo %s · %d na fila", s.Next.Format("15:04"), len(s.Queue))
+	members := fmt.Sprintf("%d membros", len(s.Members))
+	if len(s.Members) == 1 {
+		members = "1 membro"
+	}
+	return fmt.Sprintf("%s · %d focando", members, n)
 }
