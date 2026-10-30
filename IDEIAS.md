@@ -63,6 +63,12 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **A chave do servidor nunca muda:** o cliente SSH guarda a chave do servidor na primeira conexão. Se ela mudar (servidor recriado, `.ssh/` apagado, outra máquina no mesmo endereço), todo usuário recebe o aviso "REMOTE HOST IDENTIFICATION HAS CHANGED" e a conexão é recusada. Guardar a chave do servidor com backup e levá-la junto em qualquer migração.
 - **Quando:** sem pressa, mas o grupo precisa conseguir entrar e se ver antes da apresentação. Depende do nome do app (o domínio).
 
+### Telas de tamanhos diferentes
+- **O quê:** testar o app em tamanhos de terminal diferentes e ver que adaptações cabem. Já foi testado em tela cheia num notebook e em parte da tela de um monitor maior.
+- **Por quê:** alguém pode querer deixar o app numa janela menor, num canto da tela (1/4 dela, por exemplo), enquanto trabalha em outra coisa.
+- **Cuidado:** a princípio, sem malabarismos por causa disso; o primeiro passo é ver o que quebra.
+- **Referência:** [Learning Go by Building a TUI - Full Screen & Responsive Layout](https://www.youtube.com/watch?v=Db7YmM-ZnoA) (Proomptly), layout responsivo com Bubble Tea.
+
 ### Cara de app de dev
 - **O quê:** elementos visuais que dev reconhece de cara, em algum lugar do app. Exemplo: o estilo do `git diff`, com `+` em verde e `-` em vermelho.
 - **Onde:** ainda não decidido.
@@ -83,13 +89,27 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **O quê:** um wallpaper do modo jardim no estilo "brainrot": a tela dividida com um vídeo de Subway Surfers ou de corte de sabão, como nos cortes de vídeo que prendem a atenção. Só de piada, pensado para a demo.
 - **Como dá para fazer:** sem nada especial (nem Lua, nem protocolo de imagem do terminal). O mesmo truque do pet em pixel art: cada caractere `▀` mostra 2 pixels, um na cor da frente e outro no fundo. Os quadros do vídeo seriam convertidos antes (ffmpeg, em baixa resolução), embutidos no binário com `go:embed` e tocados no ritmo do modo jardim.
 - **Cuidados:**
-  - **Licença:** o gameplay de Subway Surfers e os vídeos de corte de sabão têm dono, e o [ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md) só aceita arte MIT/Apache/CC0. Saídas: uma paródia nossa (um bonequinho correndo em 3 trilhos, desviando de trens, desenhada por código) ou um vídeo de banco gratuito, como o Pixabay, o que pede mudar o ADR.
-  - **Peso:** vídeo muda a tela inteira a cada quadro. Num quadrado pequeno ao lado do relógio, deve custar algumas vezes a chuva (a mais pesada hoje, uns 24 KB/s). Medir no protótipo.
+  - **Licença:** resolvida. Os dois vídeos do protótipo (Subway Surfers e Minecraft parkour) são sem copyright, conferido pelo usuário. Ao embutir os quadros, atualizar o [ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md), que hoje só aceita arte MIT/Apache/CC0, e o `CREDITS.md`.
+  - **Peso:** medido no protótipo ([PR #4](https://github.com/drbarros2004/ssh-focus-app/pull/4)): ~380 KB/s por usuário, 8× a chuva. Fica como está até a [passada de performance](#passada-de-performance).
 
 ### Tela "sobre"
 - **O quê:** um FAQ com perguntas e respostas sérias, misturadas com piadinhas. Tom de exemplo: "a focus app for real developers (or vibe-coders)".
 
 ## Mais adiante
+
+### Passada de performance
+- **O quê:** uma rodada só de performance, perto do fim do projeto. Até aqui ninguém pensou nisso.
+- **Medido em 30/10/2026** (servidor de teste, 160×50 e 200×50):
+
+  | | banda por usuário | CPU por usuário (5 juntos) |
+  |---|---|---|
+  | brainrot | ~380 KB/s (~1,4 GB por hora de foco) | ~6% de um núcleo |
+  | chuva lenta | ~48 KB/s | ~3,5% de um núcleo |
+  | sala, sem modo jardim | ~90 KB/s | — |
+
+  Os quadros do brainrot ocupam ~60 MB de memória, fixos, não por usuário. O gargalo é a banda: 20 pessoas no brainrot mandam uns 60 Mbit/s.
+- **Por onde começar:** o brainrot a 4 fps (metade da banda); por que dois vídeos custam 3× um só (117 KB/s), e não 2×; por que a sala parada manda 90 KB/s; e o custo de desenhar o modo jardim em si, que já é a maior parte da CPU da chuva.
+- **Como medir:** o harness em duas rodadas com durações diferentes (5 s e 35 s), diferença dos bytes recebidos e do `TotalProcessorTime` do servidor ÷ 30 s; para CPU, vários usuários ao mesmo tempo, porque um só fica no ruído.
 
 ### Sessões marcadas
 - Um horário opcional e configurável da sala para focar todo mundo junto, sem ser o único jeito de focar ([ADR 0002](docs/adr/0002-foco-individual-sem-horario-marcado.md)).
