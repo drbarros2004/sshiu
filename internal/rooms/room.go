@@ -21,6 +21,7 @@ import (
 const (
 	DemoCode       = "demo"
 	Reactions      = 4               // quantas reações existem (as teclas 1 a 4)
+	MaxMembers     = 10              // teto de membros por sala (docs/regras.md)
 	reconnectGrace = 2 * time.Minute // conexão instável não interrompe a tarefa
 	maxEvents      = 20
 )
@@ -275,22 +276,27 @@ func Create(id, name string) (string, error) {
 	return r.Code, nil
 }
 
-// Join põe id na sala do código (a demo só existe em memória).
+// Join põe id na sala do código, até o teto de membros (a demo só existe em memória).
+// O teto é conferido antes de gravar: o banco nunca ganha um membro que a sala recusa.
 func Join(id, code string) error {
-	if code != DemoCode {
-		if err := store.JoinRoom(id, code); err != nil {
-			return err
-		}
-	}
 	mu.Lock()
 	defer mu.Unlock()
 	r := rooms[code]
 	if r == nil {
 		return fmt.Errorf("nenhuma sala com o código %q", code)
 	}
-	if !slices.Contains(r.members, id) {
-		r.members = append(r.members, id)
+	if slices.Contains(r.members, id) {
+		return nil
 	}
+	if len(r.members) >= MaxMembers {
+		return fmt.Errorf("%s já está cheia (%d membros)", r.name, MaxMembers)
+	}
+	if code != DemoCode {
+		if err := store.JoinRoom(id, code); err != nil {
+			return err
+		}
+	}
+	r.members = append(r.members, id)
 	load(id)
 	return nil
 }

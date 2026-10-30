@@ -171,9 +171,5 @@ func roomSummary(s rooms.Snapshot) string {
 			n++
 		}
 	}
-	members := fmt.Sprintf("%d membros", len(s.Members))
-	if len(s.Members) == 1 {
-		members = "1 membro"
-	}
-	return fmt.Sprintf("%s · %d focando", members, n)
+	return fmt.Sprintf("%d/%d membros · %d focando", len(s.Members), rooms.MaxMembers, n)
 }
