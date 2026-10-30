@@ -112,6 +112,7 @@ func act(f func()) tea.Cmd {
 
 type model struct {
 	id, nick      string // nick vazio = primeiro acesso
+	invite        string // o "ssh ..." com que um colega chega a este servidor
 	w             rooms.World
 	room          string // código da sala que você está vendo ("" = nenhuma: o menu de salas)
 	now           time.Time
@@ -159,8 +160,9 @@ func (m *model) setWorld(w rooms.World) {
 	}
 }
 
-func New(id string) model {
-	m := model{id: id, width: 80, height: 24, now: time.Now(), lastKey: time.Now(), mins: slices.Index(minuteChoices(), 25)}
+func New(id, invite string) model {
+	m := model{id: id, invite: invite, width: 80, height: 24, now: time.Now(), lastKey: time.Now(),
+		mins: slices.Index(minuteChoices(), 25)}
 	m.setWorld(rooms.SnapshotWorld())
 	nick, _, ok, err := store.GetUser(id)
 	if err != nil {

@@ -206,7 +206,20 @@ func (m model) roomView() string {
 	if m.solo() {
 		return title + "\n\n" + m.soloView()
 	}
-	return title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s) + "\n\n" + m.feed() + "\n" + m.legend()
+	below := m.feed() + "\n" + m.legend()
+	if len(s.Members) == 1 && m.room != rooms.DemoCode { // sozinho numa sala de mais: o convite vale mais que o feed vazio
+		below = m.invitePanel(s)
+	}
+	return title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s) + "\n\n" + below
+}
+
+// invitePanel: a sala recém-criada é a tela mais vazia do app, e o que falta nela é gente.
+// Enquanto você é o único membro, o código ocupa o lugar do feed.
+func (m model) invitePanel(s rooms.Snapshot) string {
+	return bold.Render("Você é o primeiro aqui.") + "\n" +
+		m.st.muted.Render("Passe este comando para a turma:") + "\n\n  " +
+		m.st.title.Render(m.invite+" "+s.Code) + "\n\n" +
+		m.st.muted.Render(fmt.Sprintf("cabem %d pessoas · quem já tem conta entra pelo código %s em s → entrar com código", s.Max, s.Code))
 }
 
 // soloView: o painel do foco à esquerda e o modo jardim à direita (ADR 0006). O jardim anda só

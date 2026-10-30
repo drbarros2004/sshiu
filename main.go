@@ -85,7 +85,20 @@ func programHandler(s ssh.Session) *tea.Program {
 			tea.WithColorProfile(colorprofile.Env(append(s.Environ(), "TERM="+pty.Term))),
 			tea.WithOutput(lfWriter{s}))
 	}
-	return tea.NewProgram(tui.New(id), opts...)
+	return tea.NewProgram(tui.New(id, sshCommand(s)), opts...)
+}
+
+// sshCommand: o comando com que um colega chega a este servidor, tirado do endereço em que esta
+// sessão chegou. Assim o convite da sala serve tanto em localhost quanto no servidor de verdade.
+func sshCommand(s ssh.Session) string {
+	host, port, err := net.SplitHostPort(s.LocalAddr().String())
+	if err != nil {
+		return "ssh <servidor>"
+	}
+	if port == "22" {
+		return "ssh " + host
+	}
+	return "ssh -p " + port + " " + host
 }
 
 // lfWriter: no Windows o renderer do Bubble Tea supõe que "\n" desce mantendo a coluna, mas a
