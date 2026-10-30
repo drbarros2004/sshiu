@@ -164,6 +164,8 @@ func (m model) roomHelp() string {
 	switch {
 	case m.inPicker() && m.form == formSize:
 		return "←/→ escolhe · enter cria · esc volta"
+	case m.inPicker() && m.form == formJoin:
+		return "enter entra · esc volta"
 	case m.inPicker() && m.form != formNone:
 		return "enter confirma · esc volta"
 	case m.inPicker():

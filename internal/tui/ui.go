@@ -140,6 +140,7 @@ type model struct {
 	size     int             // tamanho escolhido para a sala nova
 	pcur     int             // item selecionado no menu
 	form     form            // formulário de sala em andamento
+	joining  string          // código da sala na prévia, esperando o enter
 	pet      pet.Pet         // perfil, carregado ao abrir a aba
 	tasks    []store.TaskRow
 	days     map[string]float64 // minutos focados por dia (uns 40 dias)

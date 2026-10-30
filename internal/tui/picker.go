@@ -19,6 +19,7 @@ const (
 	formName       // nome da sala nova
 	formSize       // quantas pessoas cabem nela
 	formCode       // código para entrar
+	formJoin       // a sala do código, antes de entrar
 	formLeave      // confirmando a saída
 )
 
@@ -64,7 +65,7 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if m.form != formLeave {
+		if m.form != formLeave && m.form != formJoin {
 			var cmd tea.Cmd
 			m.in, cmd = m.in.Update(msg)
 			return m, cmd
@@ -126,7 +127,19 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 			return roomMsg{code, true, rooms.SnapshotWorld()}
 		}
 	case formCode:
-		return m, m.join(strings.ToLower(v))
+		code := strings.ToLower(v)
+		if code == "" {
+			m.err = "digite o código que o colega te passou"
+			return m, nil
+		}
+		if _, ok := m.w.Rooms[code]; !ok {
+			m.err = "nenhuma sala com o código " + code
+			return m, nil
+		}
+		m.form, m.joining, m.err = formJoin, code, ""
+		return m, nil
+	case formJoin:
+		return m, m.join(m.joining)
 	case formLeave:
 		code := m.room
 		m.form, m.picking, m.room = formNone, false, ""
@@ -154,6 +167,10 @@ func (m model) pickerView() string {
 			"\n" + m.st.muted.Render(hint)
 	case formCode:
 		return bold.Render("Entrar com código") + "\n\n" + m.in.View()
+	case formJoin: // a sala tem nome e tamanho: dá para ver onde você está entrando
+		s := m.w.Rooms[m.joining]
+		return bold.Render("Entrar em "+s.Name+"?") + "\n\n" +
+			m.st.muted.Render("código "+m.joining+" · "+roomSummary(s))
 	case formLeave:
 		return bold.Render("Sair de "+m.w.Rooms[m.room].Name+"?") + "\n\n" +
 			m.st.muted.Render("Para voltar, você vai precisar do código de novo. Se você for o último, a sala some.")
