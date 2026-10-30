@@ -1,11 +1,12 @@
 package tui
 
-// PROTÓTIPO: o wallpaper de piada "para desenvolvedores de verdade" (IDEIAS.md). Um vídeo num lado da
-// tela, o relógio e a tarefa do outro, como nos cortes com a tela dividida.
+// PROTÓTIPO: o wallpaper de piada "para desenvolvedores de verdade" (IDEIAS.md). Dois vídeos, um em cada
+// borda, e o relógio e a tarefa no meio, como nos cortes com a tela dividida, só que em dobro.
 // ponytail: os quadros vêm de PLANTAO_VIDEOS (uma pasta por vídeo, PNGs feitos com o ffmpeg), fora do
-// git, até a licença estar decidida; embutir com go:embed se o wallpaper ficar.
+// git, até a licença estar decidida; embutir com go:embed se o wallpaper ficar. Vertical, como no
+// celular: o centro do vídeo 16:9 cortado em 9:16, 54 colunas × 48 linhas no tamanho cheio.
 //
-//	ffmpeg -i subway.mp4 -vf "fps=8,scale=96:54:flags=area" <PLANTAO_VIDEOS>/subway/%04d.png
+//	ffmpeg -i subway.mp4 -vf "fps=8,crop=ih*9/16:ih,scale=54:96:flags=area" <PLANTAO_VIDEOS>/subway/%04d.png
 
 import (
 	"fmt"
@@ -29,6 +30,7 @@ func init() {
 		log.Error("vídeos", "err", err)
 		return
 	}
+	var clips []*clip
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
@@ -38,9 +40,15 @@ func init() {
 			log.Error("vídeo", "nome", e.Name(), "err", err)
 			continue
 		}
-		wallpapers = append(wallpapers, wallpaper{"video:" + e.Name(), e.Name() + " (para devs de verdade)", func() scene { return c }})
+		clips = append(clips, c)
 		log.Info("vídeo carregado", "nome", e.Name(), "quadros", len(c.sizes[0].frames))
 	}
+	if len(clips) < 2 {
+		log.Error("brainrot precisa de dois vídeos", "achados", len(clips))
+		return
+	}
+	b := brainrot{clips[0], clips[1]} // os dois primeiros em ordem alfabética: minecraft à esquerda, subway à direita
+	wallpapers = append(wallpapers, wallpaper{"brainrot", "brainrot (para devs de verdade)", func() scene { return b }})
 }
 
 // clip: o vídeo em alguns tamanhos, do maior ao menor; na tela entra o maior que couber.
@@ -133,35 +141,33 @@ func xterm256(c color.Color) int {
 	return 16 + 36*level(r) + 6*level(g) + level(b)
 }
 
-// size: o maior tamanho que cabe em 60% da largura (o resto é do texto) e na altura da tela.
-func (s *clip) size(w, h int) clipSize {
+// size: o maior tamanho que cabe em maxW × maxH células.
+func (s *clip) size(maxW, maxH int) clipSize {
 	for _, z := range s.sizes {
-		if z.w <= w*6/10 && z.h <= h-2 {
+		if z.w <= maxW && z.h <= maxH {
 			return z
 		}
 	}
 	return s.sizes[len(s.sizes)-1]
 }
 
-// x0: o vídeo fica no quarto esquerdo da tela, encostando na margem se não couber.
-func x0(z clipSize, w int) int { return max(2, w/4-z.w/2) }
-
-// textCenter: o meio do espaço à direita do vídeo.
-func (s *clip) textCenter(w, h int) int {
-	z := s.size(w, h)
-	return (x0(z, w) + z.w + w) / 2
-}
-
-func (s *clip) draw(c *canvas, t, dt float64) {
-	z := s.size(c.w, c.h)
+// put: o quadro do instante t, com a borda esquerda em x e centrado na altura.
+func (z clipSize) put(c *canvas, t float64, x int) {
 	f := z.frames[int(t*gardenFPS)%len(z.frames)]
-	x, y0 := x0(z, c.w), (c.h-len(f))/2
-	if c.raw == nil {
-		c.raw = map[int]rawSeg{}
-	}
+	y0 := (c.h - len(f)) / 2
 	for i, row := range f {
-		if y := y0 + i; y >= 0 && y < c.h && x+z.w <= c.w {
-			c.raw[y] = rawSeg{x, z.w, row}
+		if y := y0 + i; y >= 0 && y < c.h && x >= 0 && x+z.w <= c.w {
+			c.raw[y] = append(c.raw[y], rawSeg{x, z.w, row})
 		}
 	}
+}
+
+// brainrot: um vídeo em cada borda e o texto no meio. Estímulo demais, de propósito: é a piada.
+type brainrot struct{ l, r *clip }
+
+func (d brainrot) draw(c *canvas, t, dt float64) {
+	maxW := (c.w-48)/2 - 2 // 48 colunas no meio para o relógio, a tarefa e quem mais está focando
+	l, r := d.l.size(maxW, c.h-2), d.r.size(maxW, c.h-2)
+	l.put(c, t, 2)
+	r.put(c, t, c.w-2-r.w)
 }

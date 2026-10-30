@@ -153,12 +153,9 @@ func (g *garden) render(m model) {
 	for _, l := range lines {
 		wd = max(wd, len([]rune(l)))
 	}
-	y0, cx := (h-len(lines))/2, w/2
-	if a, ok := g.scene.(interface{ textCenter(w, h int) int }); ok { // o vídeo fica de um lado, o texto do outro
-		cx = a.textCenter(w, h)
-	}
-	cx = max(wd/2+3, min(cx, w-wd/2-4)) // o texto nunca passa da borda
-	if len(lines) > 0 {                 // a caixa: o texto não briga com o wallpaper
+	y0 := (h - len(lines)) / 2
+	cx := max(wd/2+3, min(w/2, w-wd/2-4)) // o texto nunca passa da borda
+	if len(lines) > 0 {                   // a caixa: o texto não briga com o wallpaper
 		for y := y0 - 1; y <= y0+len(lines); y++ {
 			for x := cx - wd/2 - 3; x < cx+wd/2+3; x++ {
 				c.set(x, y, ' ', "")
@@ -181,7 +178,7 @@ type cell struct {
 type canvas struct {
 	w, h  int
 	cells []cell
-	raw   map[int]rawSeg // por linha: um trecho já em ANSI (o vídeo), que cobre as células de baixo
+	raw   map[int][]rawSeg // por linha: trechos já em ANSI (os vídeos), que cobrem as células de baixo
 }
 
 type rawSeg struct {
@@ -190,7 +187,7 @@ type rawSeg struct {
 }
 
 func newCanvas(w, h int) *canvas {
-	c := &canvas{w: w, h: h, cells: make([]cell, w*h)}
+	c := &canvas{w: w, h: h, cells: make([]cell, w*h), raw: map[int][]rawSeg{}}
 	for i := range c.cells {
 		c.cells[i] = cell{' ', ""}
 	}
@@ -234,9 +231,10 @@ func (c *canvas) String() string {
 			}
 			run.Reset()
 		}
-		seg, hasSeg := c.raw[y]
+		segs := c.raw[y]
 		for x := 0; x < c.w; x++ {
-			if hasSeg && x == seg.x {
+			if i := slices.IndexFunc(segs, func(s rawSeg) bool { return s.x == x }); i >= 0 {
+				seg := segs[i]
 				flush()
 				col = ""
 				b.WriteString(seg.s)
