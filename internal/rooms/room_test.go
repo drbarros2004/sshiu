@@ -42,7 +42,7 @@ func TestReact(t *testing.T) {
 // A sala demo é a única que não passa pelo banco, e os usuários já em memória não são procurados
 // lá: dá para testar o teto sem abrir o SQLite.
 func TestJoinFull(t *testing.T) {
-	rooms[DemoCode] = &room{code: DemoCode, name: "demo"}
+	rooms[DemoCode] = &room{code: DemoCode, name: "demo", max: MaxMembers}
 	defer delete(rooms, DemoCode)
 	for i := range MaxMembers {
 		id := fmt.Sprintf("u%d", i)

@@ -34,9 +34,12 @@ func TestRecordTask(t *testing.T) {
 		t.Fatalf("garden %+v %v", GetGarden("u"), err)
 	}
 
-	r, err := CreateRoom("u", "turma")
+	r, err := CreateRoom("u", "turma", 6)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if rs, _ := Rooms(); len(rs) != 1 || rs[0].Max != 6 { // o tamanho escolhido volta do banco
+		t.Fatalf("rooms %+v", rs)
 	}
 	if err := JoinRoom("u", "nao-existe"); err == nil {
 		t.Fatal("código inexistente deveria falhar")

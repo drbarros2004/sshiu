@@ -133,6 +133,8 @@ func (m model) roomHelp() string {
 	me := m.me()
 	focusing := me.Status == rooms.Focusing
 	switch {
+	case m.picking && m.form == formSize:
+		return "←/→ escolhe · enter cria · esc volta"
 	case m.picking && m.form != formNone:
 		return "enter confirma · esc volta"
 	case m.picking || m.room == "":

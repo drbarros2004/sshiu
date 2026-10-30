@@ -17,6 +17,7 @@ type form int
 const (
 	formNone  form = iota
 	formName       // nome da sala nova
+	formSize       // quantas pessoas cabem nela
 	formCode       // código para entrar
 	formLeave      // confirmando a saída
 )
@@ -54,6 +55,15 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "enter":
 			return m.submitForm()
 		}
+		if m.form == formSize {
+			switch k {
+			case "left":
+				m.size = max(rooms.MinMembers, m.size-1)
+			case "right":
+				m.size = min(rooms.MaxMembers, m.size+1)
+			}
+			return m, nil
+		}
 		if m.form != formLeave {
 			var cmd tea.Cmd
 			m.in, cmd = m.in.Update(msg)
@@ -72,7 +82,7 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		switch it := items[min(m.pcur, len(items)-1)]; it.code {
 		case "+":
-			m.form, m.in = formName, newInput("ex.: Turma de Cálculo", 30)
+			m.form, m.in, m.size = formName, newInput("ex.: Turma de Cálculo", 30), rooms.MaxMembers
 		case "#":
 			m.form, m.in = formCode, newInput("6 letras", 6)
 		case "-":
@@ -104,8 +114,12 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 			m.err = "dê um nome para a sala"
 			return m, nil
 		}
+		m.form, m.err = formSize, "" // o nome fica no campo até a sala nascer
+		return m, nil
+	case formSize:
+		size := m.size
 		return m, func() tea.Msg {
-			code, err := rooms.Create(id, v)
+			code, err := rooms.Create(id, v, size)
 			if err != nil {
 				return errMsg{err}
 			}
@@ -130,6 +144,10 @@ func (m model) pickerView() string {
 	switch m.form {
 	case formName:
 		return bold.Render("Criar sala") + "\n\nNome:\n" + m.in.View()
+	case formSize:
+		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n\nQuantas pessoas cabem?  " +
+			m.st.muted.Render("‹ ") + m.st.title.Render(fmt.Sprintf("%d", m.size)) + m.st.muted.Render(" ›") +
+			"\n" + m.st.muted.Render("dá para mudar de ideia criando outra sala: o tamanho é fixo depois")
 	case formCode:
 		return bold.Render("Entrar com código") + "\n\n" + m.in.View()
 	case formLeave:
@@ -171,5 +189,5 @@ func roomSummary(s rooms.Snapshot) string {
 			n++
 		}
 	}
-	return fmt.Sprintf("%d/%d membros · %d focando", len(s.Members), rooms.MaxMembers, n)
+	return fmt.Sprintf("%d/%d membros · %d focando", len(s.Members), s.Max, n)
 }

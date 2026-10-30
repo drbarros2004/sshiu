@@ -132,6 +132,7 @@ type model struct {
 	mins     int             // índice em minuteChoices()
 	sel      int             // evento selecionado (ID)
 	picking  bool            // menu de salas aberto
+	size     int             // tamanho escolhido para a sala nova
 	pcur     int             // item selecionado no menu
 	form     form            // formulário de sala em andamento
 	pet      pet.Pet         // perfil, carregado ao abrir a aba

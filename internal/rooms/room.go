@@ -21,7 +21,8 @@ import (
 const (
 	DemoCode       = "demo"
 	Reactions      = 4               // quantas reações existem (as teclas 1 a 4)
-	MaxMembers     = 10              // teto de membros por sala (docs/regras.md)
+	MaxMembers     = 10              // maior sala que dá para escolher (docs/regras.md)
+	MinMembers     = 2               // menor sala que dá para escolher
 	reconnectGrace = 2 * time.Minute // conexão instável não interrompe a tarefa
 	maxEvents      = 20
 )
@@ -92,6 +93,7 @@ type Event struct {
 
 type room struct {
 	code, name string
+	max        int // membros que a sala aceita, escolhido na criação
 	members    []string
 	events     []*Event // mais novo primeiro
 }
@@ -109,7 +111,7 @@ func Load() error {
 		if err != nil {
 			return err
 		}
-		rooms[r.Code] = &room{code: r.Code, name: r.Name, members: ids}
+		rooms[r.Code] = &room{code: r.Code, name: r.Name, max: ClampSize(r.Max), members: ids}
 		for _, id := range ids {
 			load(id)
 		}
@@ -263,15 +265,19 @@ func react(id, code string, eventID, k int) {
 	}
 }
 
-// Create cria uma sala com id dentro e devolve o código.
-func Create(id, name string) (string, error) {
-	r, err := store.CreateRoom(id, name)
+// ClampSize: o tamanho que a sala pode ter. Quem cria escolhe, dentro do teto de todas.
+func ClampSize(n int) int { return max(MinMembers, min(n, MaxMembers)) }
+
+// Create cria uma sala com id dentro, do tamanho escolhido, e devolve o código.
+func Create(id, name string, size int) (string, error) {
+	size = ClampSize(size)
+	r, err := store.CreateRoom(id, name, size)
 	if err != nil {
 		return "", err
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	rooms[r.Code] = &room{code: r.Code, name: r.Name, members: []string{id}}
+	rooms[r.Code] = &room{code: r.Code, name: r.Name, max: size, members: []string{id}}
 	load(id)
 	return r.Code, nil
 }
@@ -288,8 +294,8 @@ func Join(id, code string) error {
 	if slices.Contains(r.members, id) {
 		return nil
 	}
-	if len(r.members) >= MaxMembers {
-		return fmt.Errorf("%s já está cheia (%d membros)", r.name, MaxMembers)
+	if len(r.members) >= r.max {
+		return fmt.Errorf("%s já está cheia (%d membros)", r.name, r.max)
 	}
 	if code != DemoCode {
 		if err := store.JoinRoom(id, code); err != nil {
@@ -332,6 +338,7 @@ type Member struct {
 
 type Snapshot struct {
 	Code, Name string
+	Max        int // membros que a sala aceita
 	Members    []Member
 	Events     []Event // cópias: seguras para ler fora do lock
 }
@@ -358,7 +365,7 @@ func SnapshotWorld() World {
 		w.Users[id] = member(u)
 	}
 	for code, r := range rooms {
-		s := Snapshot{Code: code, Name: r.name}
+		s := Snapshot{Code: code, Name: r.name, Max: r.max}
 		for _, id := range r.members {
 			s.Members = append(s.Members, w.Users[id])
 		}
