@@ -113,6 +113,7 @@ func act(f func()) tea.Cmd {
 type model struct {
 	id, nick      string // nick vazio = primeiro acesso
 	invite        string // o "ssh ..." com que um colega chega a este servidor
+	pending       string // código que veio no comando do ssh, a entrar na primeira chance
 	w             rooms.World
 	room          string // código da sala que você está vendo ("" = nenhuma: o menu de salas)
 	now           time.Time
@@ -160,9 +161,9 @@ func (m *model) setWorld(w rooms.World) {
 	}
 }
 
-func New(id, invite string) model {
-	m := model{id: id, invite: invite, width: 80, height: 24, now: time.Now(), lastKey: time.Now(),
-		mins: slices.Index(minuteChoices(), 25)}
+func New(id, invite, code string) model {
+	m := model{id: id, invite: invite, pending: code, width: 80, height: 24, now: time.Now(),
+		lastKey: time.Now(), mins: slices.Index(minuteChoices(), 25)}
 	m.setWorld(rooms.SnapshotWorld())
 	nick, _, ok, err := store.GetUser(id)
 	if err != nil {
@@ -188,7 +189,12 @@ func newInput(placeholder string, limit int) textinput.Model {
 	return in
 }
 
-func (m model) Init() tea.Cmd { return tea.Batch(doTick(), m.loadProfile()) }
+func (m model) Init() tea.Cmd {
+	if m.pending != "" && m.nick != "" { // "ssh <servidor> <código>": entra sem passar pelo menu
+		return tea.Batch(doTick(), m.loadProfile(), m.join(m.pending))
+	}
+	return tea.Batch(doTick(), m.loadProfile())
+}
 
 // active: tarefa em andamento e dentro do tempo declarado.
 func (m model) active() bool {
@@ -309,6 +315,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = msg.err.Error()
 		default:
 			m.nick, m.err = msg.nick, ""
+			if m.pending != "" { // o código do comando esperava o apelido do primeiro acesso
+				code := m.pending
+				m.pending = ""
+				return m, m.join(code)
+			}
 		}
 	case profileMsg:
 		m.pet, m.tasks, m.days, m.totals = msg.pet, msg.tasks, msg.days, msg.totals

@@ -8,6 +8,7 @@ import (
 	"plantao/internal/store"
 	"plantao/internal/tui"
 	"runtime"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/log/v2"
@@ -85,7 +86,16 @@ func programHandler(s ssh.Session) *tea.Program {
 			tea.WithColorProfile(colorprofile.Env(append(s.Environ(), "TERM="+pty.Term))),
 			tea.WithOutput(lfWriter{s}))
 	}
-	return tea.NewProgram(tui.New(id, sshCommand(s)), opts...)
+	return tea.NewProgram(tui.New(id, sshCommand(s), roomCode(s)), opts...)
+}
+
+// roomCode: o código que veio no comando do ssh ("ssh plantao 49ae4z"), para quem recebe o convite
+// entrar na sala sem procurar o menu.
+func roomCode(s ssh.Session) string {
+	if cmd := s.Command(); len(cmd) > 0 {
+		return strings.ToLower(strings.TrimSpace(cmd[0]))
+	}
+	return ""
 }
 
 // sshCommand: o comando com que um colega chega a este servidor, tirado do endereço em que esta

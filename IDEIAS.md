@@ -64,7 +64,7 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **Por quê:** dá um motivo coletivo para voltar, além do pet de cada um.
 
 ### Pôr no ar: `ssh <nome>`
-- **O quê:** um servidor público com domínio, ouvindo na porta 22, para entrar só com `ssh <nome>`, como o `ssh terminal.shop`.
+- **O quê:** um servidor público com domínio, ouvindo na porta 22, para entrar só com `ssh <nome>`, como o `ssh terminal.shop`. O convite de uma sala vira uma linha para colar no grupo da turma: `ssh <nome> <código>`.
 - **Como:** escutar em todas as interfaces (hoje só `localhost`, em `main.go`), porta 22, chave do servidor fixa e fora do git (publicar o fingerprint para quem quiser conferir), binário compilado com `GOOS=linux`. Quem entra só precisa de um cliente SSH e de uma chave.
 - **A chave do servidor nunca muda:** o cliente SSH guarda a chave do servidor na primeira conexão. Se ela mudar (servidor recriado, `.ssh/` apagado, outra máquina no mesmo endereço), todo usuário recebe o aviso "REMOTE HOST IDENTIFICATION HAS CHANGED" e a conexão é recusada. Guardar a chave do servidor com backup e levá-la junto em qualquer migração.
 - **Quando:** sem pressa, mas o grupo precisa conseguir entrar e se ver antes da apresentação. Depende do nome do app (o domínio).
