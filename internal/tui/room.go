@@ -361,15 +361,27 @@ func received(s rooms.Snapshot) map[string]int {
 	return n
 }
 
-func (m model) cards(s rooms.Snapshot) string {
-	var ms []rooms.Member // você primeiro
-	for _, x := range s.Members {
-		if x.ID == m.id {
-			ms = append([]rooms.Member{x}, ms...)
-		} else {
-			ms = append(ms, x)
+// orderedMembers: você primeiro, depois quem está focando, quem está parado e quem está offline.
+// Numa sala cheia, quem está focando agora fica sempre nas primeiras posições.
+func orderedMembers(id string, s rooms.Snapshot) []rooms.Member {
+	rank := func(x rooms.Member) int {
+		switch {
+		case x.ID == id:
+			return 0
+		case x.Status == rooms.Focusing:
+			return 1
+		case x.Status == rooms.Idle:
+			return 2
 		}
+		return 3
 	}
+	ms := slices.Clone(s.Members)
+	slices.SortStableFunc(ms, func(a, b rooms.Member) int { return rank(a) - rank(b) })
+	return ms
+}
+
+func (m model) cards(s rooms.Snapshot) string {
+	ms := orderedMembers(m.id, s)
 	got := received(s)
 	per := max(1, (m.width-4)/18)
 	var rows []string
