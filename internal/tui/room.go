@@ -100,6 +100,8 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "s":
 		return m.openPicker()
+	case "v": // PROTÓTIPO: troca a variante da sala
+		m.salaV = (m.salaV + 1) % len(salaNames)
 	case "enter":
 		if !focusing {
 			m.entering, m.in = true, newInput("ex.: fazer o exercício 1 da lista 3", 80)
@@ -149,19 +151,23 @@ func (m model) roomHelp() string {
 	return "enter começa uma tarefa · ↑/↓ evento · 1-4 reage · s salas"
 }
 
-func (m model) roomView() string {
+// roomView: a sala em w×h células (PROTÓTIPO: três variantes, ver prototype_sala.go).
+func (m model) roomView(w, h int) string {
 	if m.picking || m.room == "" {
 		return m.pickerView()
 	}
-	s := m.w.Rooms[m.room]
-	title := bold.Render(s.Name)
+	return m.salaVariant(w, h)
+}
+
+func (m model) roomTitle() string {
+	title := bold.Render(m.w.Rooms[m.room].Name)
 	if m.room != rooms.DemoCode {
 		title += m.st.muted.Render(" · código " + m.room)
 	}
 	if m.notice != "" {
 		title += "\n" + m.st.ok.Render(m.notice)
 	}
-	return title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s) + "\n\n" + m.feed() + "\n" + m.legend()
+	return title
 }
 
 // focusPanel: o seu foco, conforme o momento.
@@ -207,7 +213,8 @@ func received(s rooms.Snapshot) map[string]int {
 	return n
 }
 
-func (m model) cards(s rooms.Snapshot) string {
+// cards: per cards por fileira; compact troca o desenho do pet por um ponto da cor do humor.
+func (m model) cards(s rooms.Snapshot, per int, compact bool) string {
 	var ms []rooms.Member // você primeiro
 	for _, x := range s.Members {
 		if x.ID == m.id {
@@ -217,19 +224,19 @@ func (m model) cards(s rooms.Snapshot) string {
 		}
 	}
 	got := received(s)
-	per := max(1, (m.width-4)/18)
+	per = max(1, per)
 	var rows []string
 	for i := 0; i < len(ms); i += per {
 		var row []string
 		for _, x := range ms[i:min(i+per, len(ms))] {
-			row = append(row, m.card(x, got[x.ID]))
+			row = append(row, m.card(x, got[x.ID], compact))
 		}
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, row...))
 	}
 	return strings.Join(rows, "\n")
 }
 
-func (m model) card(x rooms.Member, got int) string {
+func (m model) card(x rooms.Member, got int, compact bool) string {
 	mood := pet.MoodOf(x.Energy)
 	st, name, task := m.st.card, bold.Render(x.Nick), ""
 	if x.ID == m.id {
@@ -245,17 +252,22 @@ func (m model) card(x rooms.Member, got int) string {
 	case got > 1:
 		reacts = m.st.muted.Render(fmt.Sprintf("%d reações", got))
 	}
+	art := pet.Render(mood, m.tick, m.pixel)
+	if compact {
+		art = lipgloss.NewStyle().Foreground(lipgloss.Color(pet.MoodColor[mood])).Render("●")
+	}
 	return st.Render(lipgloss.JoinVertical(lipgloss.Center,
-		pet.Render(mood, m.tick, m.pixel),
+		art,
 		name+" "+m.st.muted.Render(pet.MoodName[mood]),
 		m.st.task.Render(task),
 		m.status(x),
 		reacts))
 }
 
-// feed: os eventos mais novos, com as reações numa coluna só, em ordem fixa.
-func (m model) feed() string {
+// feed: os n eventos mais novos, com as reações numa coluna só, em ordem fixa.
+func (m model) feed(n int) string {
 	ev := m.events()
+	ev = ev[:min(max(n, 0), len(ev))]
 	if len(ev) == 0 {
 		return m.st.muted.Render("nada por aqui ainda: quando alguém começar ou cumprir uma tarefa, aparece aqui")
 	}

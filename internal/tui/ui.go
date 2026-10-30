@@ -136,6 +136,7 @@ type model struct {
 	form     form            // formulário de sala em andamento
 	pet      pet.Pet         // perfil, carregado ao abrir a aba
 	tasks    []store.TaskRow
+	salaV    int // PROTÓTIPO: a variante da sala (prototype_sala.go)
 }
 
 // me: você como a sala te vê (status e tarefa).
@@ -323,23 +324,19 @@ func (m model) View() tea.View {
 		body = m.st.title.Render("PLANTÃO") + "\n\nPrimeira vez por aqui. Como quer ser chamado?\n\n" + m.in.View() +
 			m.errLine() + "\n\n" + m.st.muted.Render("enter confirma · sua chave SSH é o seu login")
 	} else {
-		var content, help string
+		var help string
+		content := m.roomView // o conteúdo recebe o espaço que sobra (largura, altura)
 		switch m.tab {
 		case tabRoom:
-			content, help = m.roomView(), m.roomHelp()
+			help = m.roomHelp()
 		case tabProfile:
-			content = m.profileView()
+			content = func(int, int) string { return m.profileView() }
 		case tabVisual:
-			content, help = m.visualView(), "↑/↓ escolhe · ←/→ muda · j vê o modo jardim · enter salva"
+			content, help = func(int, int) string { return m.visualView() }, "↑/↓ escolhe · ←/→ muda · j vê o modo jardim · enter salva"
 		}
-		nav := "a/d troca de aba · q sai"
-		if m.typing() {
-			nav = "tab troca de aba · ctrl+c sai"
-		}
-		if help != "" {
-			help += " · "
-		}
-		body = m.header() + "\n\n" + content + m.errLine() + "\n\n" + m.st.muted.Render(help+nav)
+		v := tea.NewView(m.protoScreen(content, help))
+		v.AltScreen = true
+		return v
 	}
 	v := tea.NewView(lipgloss.NewStyle().Padding(1, 2).Render(body))
 	v.AltScreen = true
