@@ -42,12 +42,14 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - Trocar o código dá algum trabalho: hoje o código é a chave da sala no banco.
 
 ### Histórico, stats e gráficos
+- **Prioridade:** essencial. É a próxima feature grande, antes dos vários pets.
 - Uma aba de histórico com taxa de tarefas cumpridas, streak por semana e filtro por sala.
 - **Gráficos por usuário:** streak, tempo focado por dia ou semana e outras agregações no tempo.
 - **Gráficos da sala:** os mesmos agregados para a sala inteira, mais o pico de usuários focando ao mesmo tempo e quanto tempo esse pico durou.
-- Exige guardar a sala e quando cada tarefa começou e parou, não só o resultado.
+- **O que já existe:** a tabela `tasks` guarda início, fim, minutos focados e resultado de cada tarefa. Os gráficos da sala somam as tarefas dos membros; o pico de usuários focando ao mesmo tempo sai dos intervalos de início e fim.
 
 ### Vários pets (10 a 15 no MVP)
+- **Prioridade:** essencial, mas depois dos gráficos.
 - **O quê:** em vez de um pet só, cada usuário escolhe o seu entre vários, cada um com os próprios humores.
 - **Por quê:** personalização. Pelo ritmo em que os sprites atuais saíram, 10 a 15 pets parece viável para o MVP.
 
@@ -76,6 +78,13 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **O quê:** trocar as tarefas dos bots da demo por piadas de dev, como "reescrevendo X em Rust".
 - **Por quê:** a demo vai ser apresentada para uma plateia.
 - **Onde:** as tarefas dos bots ficam em `internal/rooms/bots.go`.
+
+### Wallpaper de piada: "para desenvolvedores de verdade"
+- **O quê:** um wallpaper do modo jardim no estilo "brainrot": a tela dividida com um vídeo de Subway Surfers ou de corte de sabão, como nos cortes de vídeo que prendem a atenção. Só de piada, pensado para a demo.
+- **Como dá para fazer:** sem nada especial (nem Lua, nem protocolo de imagem do terminal). O mesmo truque do pet em pixel art: cada caractere `▀` mostra 2 pixels, um na cor da frente e outro no fundo. Os quadros do vídeo seriam convertidos antes (ffmpeg, em baixa resolução), embutidos no binário com `go:embed` e tocados no ritmo do modo jardim.
+- **Cuidados:**
+  - **Licença:** o gameplay de Subway Surfers e os vídeos de corte de sabão têm dono, e o [ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md) só aceita arte MIT/Apache/CC0. Saídas: uma paródia nossa (um bonequinho correndo em 3 trilhos, desviando de trens, desenhada por código) ou um vídeo de banco gratuito, como o Pixabay, o que pede mudar o ADR.
+  - **Peso:** vídeo muda a tela inteira a cada quadro. Num quadrado pequeno ao lado do relógio, deve custar algumas vezes a chuva (a mais pesada hoje, uns 24 KB/s). Medir no protótipo.
 
 ### Tela "sobre"
 - **O quê:** um FAQ com perguntas e respostas sérias, misturadas com piadinhas. Tom de exemplo: "a focus app for real developers (or vibe-coders)".
