@@ -418,7 +418,11 @@ func (m model) feed() string {
 		if e.Who == m.id {
 			nick = "você"
 		}
-		return m.st.muted.Render(e.At.Format("15:04")) + " " + bold.Render(nick) + " " + e.Verb + " \"" + e.Task + "\""
+		line := m.st.muted.Render(e.At.Format("15:04")) + " " + bold.Render(nick) + " " + e.Verb
+		if e.Task != "" { // entrar e sair não têm tarefa
+			line += " \"" + e.Task + "\""
+		}
+		return line
 	}
 	col := 0
 	for _, e := range ev {
