@@ -273,7 +273,8 @@ func (m model) soloView() string {
 	if m.side != nil {
 		right = m.side.frame
 	}
-	bar := m.st.muted.Render(strings.TrimRight(strings.Repeat("│\n", m.side.h), "\n"))
+	// a barra separa as colunas pela altura da mais alta: o jardim e os números têm alturas diferentes
+	bar := m.st.muted.Render(strings.TrimRight(strings.Repeat("│\n", max(lipgloss.Height(panel), lipgloss.Height(right))), "\n"))
 	return lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().Width(panelCols).Render(panel), bar, " ", right)
 }

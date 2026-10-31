@@ -3,7 +3,9 @@ package tui
 import (
 	"plantao/internal/rooms"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestRoomCode(t *testing.T) {
@@ -42,5 +44,16 @@ func TestOrderedMembers(t *testing.T) {
 	}
 	if want := []string{"eu", "foca1", "foca2", "parado", "sumiu"}; !slices.Equal(got, want) {
 		t.Fatalf("ordem %v, queria %v", got, want)
+	}
+}
+
+// Sem tarefa a coluna da direita são os números, e o jardim (m.side) é nil: a tela não pode
+// depender dele para se desenhar.
+func TestSoloViewWithoutGarden(t *testing.T) {
+	m := model{id: "a", room: "s", width: 120, height: 36, st: newStyles(themes[0]), now: time.Now(),
+		w: rooms.World{Users: map[string]rooms.Member{"a": {ID: "a"}},
+			Rooms: map[string]rooms.Snapshot{"s": {Code: "s", Name: "solo", Max: rooms.MinMembers}}}}
+	if got := m.soloView(); !strings.Contains(got, "│") {
+		t.Fatalf("sem as duas colunas: %q", got)
 	}
 }
