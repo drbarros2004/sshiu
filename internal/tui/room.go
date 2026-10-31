@@ -105,7 +105,7 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if m.cont {
 				return m, act(func() { rooms.Continue(id, mins) })
 			}
-			return m, act(func() { rooms.Start(id, task, mins) })
+			return m, act(func() { rooms.Start(id, code, task, mins) })
 		}
 		return m, nil
 	}
@@ -235,12 +235,18 @@ func (m model) soloView() string {
 		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel)),
 		m.soloWho())
 	panel := strings.Join([]string{m.focusPanel(), "", who, "", m.soloLog()}, "\n")
-	if m.side == nil { // sem jardim, só o painel
-		return panel
+	if soloGardenWidth(max(m.width-4, 40)) == 0 {
+		return panel // terminal estreito: não cabe coluna nenhuma
 	}
-	bar := m.st.muted.Render(strings.TrimRight(strings.Repeat("│\n", m.side.h), "\n"))
+	// a direita muda com o estado: focando é o jardim, parado são os seus números.
+	right := m.statsBlock(true)
+	if m.side != nil {
+		right = m.side.frame
+	}
+	// a barra separa as colunas pela altura da mais alta: o jardim e os números têm alturas diferentes
+	bar := m.st.muted.Render(strings.TrimRight(strings.Repeat("│\n", max(lipgloss.Height(panel), lipgloss.Height(right))), "\n"))
 	return lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().Width(panelCols).Render(panel), bar, " ", m.side.frame)
+		lipgloss.NewStyle().Width(panelCols).Render(panel), bar, " ", right)
 }
 
 // soloWho: as informações ao lado do pet, em colunas, como a saída de um comando: o rótulo
