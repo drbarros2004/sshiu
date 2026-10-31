@@ -19,6 +19,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"charm.land/log/v2"
 	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Temas: só as cores de destaque; o texto normal usa a cor do próprio terminal (funciona em fundo claro e escuro).
@@ -323,27 +324,51 @@ func (m model) View() tea.View {
 		body = m.st.title.Render("PLANTÃO") + "\n\nprimeira vez por aqui. qual vai ser o seu apelido?\n\n" + m.in.View() +
 			m.errLine() + "\n\n" + m.st.muted.Render("enter confirma · sua chave SSH é o seu login")
 	} else {
-		var content, help string
+		var help string
+		content := m.roomView // o conteúdo recebe o espaço que sobra (largura, altura)
 		switch m.tab {
 		case tabRoom:
-			content, help = m.roomView(), m.roomHelp()
+			help = m.roomHelp()
 		case tabProfile:
-			content = m.profileView()
+			content = func(int, int) string { return m.profileView() }
 		case tabVisual:
-			content, help = m.visualView(), "↑/↓ escolhe · ←/→ muda · j vê o modo jardim · enter salva"
+			content, help = func(int, int) string { return m.visualView() }, "↑/↓ escolhe · ←/→ muda · j vê o modo jardim · enter salva"
 		}
 		nav := "a/d troca de aba · q sai"
 		if m.typing() {
 			nav = "tab troca de aba · ctrl+c sai"
 		}
 		if help != "" {
-			help += " · "
+			nav = help + " · " + nav
 		}
-		body = m.header() + "\n\n" + content + m.errLine() + "\n\n" + m.st.muted.Render(help+nav)
+		// cabeçalho em cima, rodapé preso na última linha e o conteúdo no espaço do meio
+		inner := max(m.width-4, 1)
+		top, foot := m.header(), m.st.muted.Width(inner).Render(nav)
+		h := max(1, m.height-2-lipgloss.Height(top)-2-lipgloss.Height(foot))
+		mid := fit(content(inner, h-lipgloss.Height(m.errLine())+1)+m.errLine(), inner, h)
+		body = top + "\n\n" + mid + "\n\n" + foot
 	}
 	v := tea.NewView(lipgloss.NewStyle().Padding(1, 2).Render(body))
 	v.AltScreen = true
 	return v
+}
+
+// fit deixa s com exatamente h linhas de no máximo w colunas: corta o que passa (com "…" na
+// largura) e completa com linhas vazias.
+func fit(s string, w, h int) string {
+	lines := strings.Split(s, "\n")
+	for len(lines) < h {
+		lines = append(lines, "")
+	}
+	lines = lines[:h]
+	for i, l := range lines {
+		tail := "" // espaço sobrando no fim não é texto cortado: sem reticências
+		if ansi.StringWidth(strings.TrimRight(ansi.Strip(l), " ")) > w {
+			tail = "…"
+		}
+		lines[i] = ansi.Truncate(l, w, tail)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m model) errLine() string {
