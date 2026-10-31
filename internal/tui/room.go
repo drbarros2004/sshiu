@@ -134,17 +134,17 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.entering, m.in = true, newInput("ex.: fazer o exercício 1 da lista 3", 80)
 		}
 	case "f":
-		if focusing {
-			return m, act(func() { rooms.Finish(id, pet.Done) })
+		if focusing { // em sequência: o loadProfile só vale depois de a tarefa estar gravada
+			return m, tea.Sequence(act(func() { rooms.Finish(id, pet.Done) }), m.loadProfile())
 		}
 	case "t": // encerra como não cumprida, sem evento: ninguém é exposto por trocar
 		if focusing {
 			m.entering, m.in = true, newInput("ex.: fazer o exercício 1 da lista 3", 80)
-			return m, act(func() { rooms.Finish(id, pet.NotDone) })
+			return m, tea.Sequence(act(func() { rooms.Finish(id, pet.NotDone) }), m.loadProfile())
 		}
 	case "p":
 		if focusing {
-			return m, act(func() { rooms.Finish(id, pet.NotDone) })
+			return m, tea.Sequence(act(func() { rooms.Finish(id, pet.NotDone) }), m.loadProfile())
 		}
 	case "c":
 		if expired {
@@ -231,12 +231,12 @@ func (m model) soloView() string {
 // apagado e o valor na cor do texto. O streak e os minutos vêm do banco, então só aparecem
 // depois da primeira tarefa encerrada no dia.
 func (m model) soloWho() string {
-	rows := [][2]string{{"você", pet.MoodName[pet.MoodOf(m.me().Energy)]}}
+	rows := [][2]string{{"humor", pet.MoodName[pet.MoodOf(m.me().Energy)]}}
 	if p := m.pet; p.Today == m.now.Format("2006-01-02") {
 		if n := p.StreakAt(m.now); n > 0 {
-			rows = append(rows, [2]string{"streak", fmt.Sprintf("%d %s", n, plural(n, "dia", "dias"))})
+			rows = append(rows, [2]string{"streak", fmt.Sprintf("%d %s", n, plural(n, "dia seguido", "dias seguidos"))})
 		}
-		rows = append(rows, [2]string{"hoje", fmt.Sprintf("%d min", int(p.TodayMin))})
+		rows = append(rows, [2]string{"hoje", fmt.Sprintf("%d min focados", int(p.TodayMin))})
 	}
 	var b strings.Builder
 	for _, r := range rows {
