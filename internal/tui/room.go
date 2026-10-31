@@ -150,6 +150,11 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if expired {
 			m.choosing, m.cont = true, true
 		}
+	case "y": // o servidor não sabe se o terminal aceitou o OSC 52: o aviso diz só que mandou
+		if !m.solo() && code != rooms.DemoCode { // as duas salas sem código para passar adiante
+			m.notice = "código enviado para a área de transferência"
+			return m, tea.SetClipboard(code)
+		}
 	case "j": // na sala solo o jardim é a outra versão da tela, e abre a qualquer momento
 		if m.solo() || focusing && !expired {
 			return m.openGarden(false)
@@ -201,6 +206,9 @@ func (m model) roomView() string {
 	title := bold.Render(s.Name)
 	if m.room != rooms.DemoCode && !m.solo() { // a sala solo não tem código para passar
 		title += m.st.muted.Render(" · código " + m.room)
+		if !m.entering && !m.choosing { // digitando a tarefa, o y é texto
+			title += m.st.muted.Render(" · y copia")
+		}
 	}
 	if !m.solo() { // quanto a sala comporta, embaixo do nome; a solo é sempre uma pessoa
 		title += "\n" + m.st.muted.Render(fmt.Sprintf("%d/%d pessoas", len(s.Members), s.Max))
