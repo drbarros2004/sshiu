@@ -302,7 +302,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.room, m.picking, m.form, m.err = msg.code, false, formNone, ""
 		m.notice = "você entrou em " + m.w.Rooms[msg.code].Name
 		if msg.created {
-			m.notice = "sala criada! passe o código " + msg.code + " para os colegas"
+			m.notice = "" // o código está no título e o convite embaixo explica o que fazer
 			if m.solo() {
 				m.notice = "sala solo criada: só você entra aqui"
 			}

@@ -219,11 +219,16 @@ func (m model) roomView() string {
 }
 
 // invitePanel: a sala recém-criada é a tela mais vazia do app, e o que falta nela é gente.
-// Enquanto você é o único membro, o código ocupa o lugar do feed.
+// Enquanto você é o único membro, o convite ocupa o lugar do feed, com os dois caminhos:
+// quem já usa o app entra pelo menu de salas, e quem está chegando cola o comando no terminal.
 func (m model) invitePanel(s rooms.Snapshot) string {
-	return bold.Render("Você é o primeiro aqui.") + "\n" +
-		m.st.muted.Render("Passe este comando para a turma:") + "\n\n  " +
-		m.st.title.Render(m.invite+" "+s.Code)
+	row := func(label, text string) string {
+		return m.st.muted.Render(fmt.Sprintf("  %-13s", label)) + text
+	}
+	return bold.Render("Você é o primeiro aqui.") + m.st.muted.Render(" Para a turma entrar na sala:") + "\n\n" +
+		row("no Plantão", m.st.muted.Render("aperta ")+"s"+m.st.muted.Render(", escolhe ")+"entrar com código"+
+			m.st.muted.Render(" e digita o código da sala")) + "\n" +
+		row("no terminal", m.st.title.Render(m.invite+" "+s.Code))
 }
 
 // soloView: o painel do foco à esquerda e o modo jardim à direita (ADR 0006). O jardim anda só
