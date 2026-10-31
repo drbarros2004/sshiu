@@ -31,9 +31,10 @@ Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indica
 | Regra | Valor | Por quê | Código |
 |---|---|---|---|
 | Tempos declarados | 10, 15, 25, 45 ou 60 min (padrão 25); na demo, também 1 min | A plateia da demo vê o fluxo inteiro. | [tui/room.go:42-45](../internal/tui/room.go#L42-L45) |
-| Tempo esgotado sem resposta | os minutos param de contar | Estar ausente nunca rende mais do que o tempo que o próprio usuário declarou. | [room.go:61](../internal/rooms/room.go#L61) |
-| Trocar, parar, desconectar | sem penalidade | Os minutos já contaram; punir faria os usuários declararem tempos folgados ou deixarem o terminal aberto. | [room.go:212](../internal/rooms/room.go#L212) |
-| Tolerância de reconexão | 2 min | Conexão instável não interrompe a tarefa. Sem volta, a tarefa é interrompida com os minutos até a desconexão. | [room.go:26](../internal/rooms/room.go#L26) |
+| Tempo esgotado sem resposta | os minutos param de contar | Estar ausente nunca rende mais do que o tempo que o próprio usuário declarou. | [room.go:62](../internal/rooms/room.go#L62) |
+| Trocar, parar, desconectar | sem penalidade | Os minutos já contaram; punir faria os usuários declararem tempos folgados ou deixarem o terminal aberto. | [room.go:247](../internal/rooms/room.go#L247) |
+| Tolerância de reconexão | 2 min | Conexão instável não interrompe a tarefa. Sem volta, a tarefa é interrompida com os minutos até a desconexão. | [room.go:30](../internal/rooms/room.go#L30) |
+| Restart do servidor | desconexão de todo mundo na hora em que o servidor volta, com a mesma tolerância de 2 min | Uma atualização não derruba o foco da turma: quem reconecta a tempo vê o relógio onde estava. Sem volta, a tarefa é interrompida com os minutos até o restart. A tarefa em andamento fica no banco; eventos e reações se perdem. | [room.go:121](../internal/rooms/room.go#L121) |
 
 ## Na sala
 

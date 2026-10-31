@@ -2,6 +2,8 @@ package rooms
 
 import (
 	"fmt"
+	"plantao/internal/pet"
+	"plantao/internal/store"
 	"strings"
 	"testing"
 	"time"
@@ -62,5 +64,56 @@ func TestJoinFull(t *testing.T) {
 	}
 	if err := Join("u0", DemoCode); err != nil { // quem já é membro não ocupa outra vaga
 		t.Fatalf("já membro: %v", err)
+	}
+}
+
+// O restart é uma desconexão de todo mundo: quem volta dentro da tolerância continua a tarefa de onde
+// estava; quem não volta fica com ela interrompida, com os minutos até o restart.
+func TestRestart(t *testing.T) {
+	// uma conexão só (SetMaxOpenConns): o banco em memória dura o teste todo
+	if err := store.Open(":memory:"); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"ana", "bia"} {
+		if err := store.PutUser(id, id, pet.EnergyStart); err != nil {
+			t.Fatal(err)
+		}
+	}
+	defer func(g time.Duration) { reconnectGrace = g }(reconnectGrace)
+	reconnectGrace = 200 * time.Millisecond
+
+	Start("ana", "abc", "lista 3", 25) // grava a tarefa aberta
+	ana := *users["ana"].focus
+	ten := time.Now().Add(-10 * time.Minute) // bia começou há 10 min
+	if err := store.SaveOpenTask(store.OpenTask{User: "bia", Task: "relatório", Room: "abc",
+		Start: ten, SegStart: ten, Ends: ten.Add(25 * time.Minute), Declared: 25}); err != nil {
+		t.Fatal(err)
+	}
+
+	clear(users) // o servidor caiu: só o banco sobrou
+	clear(rooms)
+	defer clear(users)
+	if err := Load(); err != nil {
+		t.Fatal(err)
+	}
+	Connect("ana") // dentro da tolerância
+	time.Sleep(3 * reconnectGrace)
+
+	mu.Lock()
+	f, bia := users["ana"].focus, users["bia"].focus
+	mu.Unlock()
+	if f == nil || f.Task != "lista 3" || f.Start.Unix() != ana.Start.Unix() || f.Ends.Unix() != ana.Ends.Unix() {
+		t.Fatalf("ana não continuou: %+v", f)
+	}
+	if bia != nil {
+		t.Fatalf("bia não foi interrompida: %+v", bia)
+	}
+	ts, err := store.Tasks("bia")
+	if err != nil || len(ts) != 1 || ts[0].Result != pet.Interrupted ||
+		ts[0].Focused < 10*time.Minute || ts[0].Focused > 10*time.Minute+2*time.Second {
+		t.Fatalf("tarefa de bia: %+v %v", ts, err)
+	}
+	if open, _ := store.OpenTasks(); len(open) != 1 || open[0].User != "ana" { // a de bia saiu das abertas
+		t.Fatalf("abertas: %+v", open)
 	}
 }

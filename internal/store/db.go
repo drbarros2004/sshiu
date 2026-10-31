@@ -45,6 +45,16 @@ CREATE TABLE IF NOT EXISTS room_members (
 	code    TEXT NOT NULL REFERENCES rooms(code),
 	user_id TEXT NOT NULL REFERENCES users(id),
 	PRIMARY KEY (code, user_id)
+);
+CREATE TABLE IF NOT EXISTS open_tasks ( -- a tarefa em andamento, uma por usuário; sai daqui ao virar uma linha de tasks
+	user_id        TEXT PRIMARY KEY REFERENCES users(id),
+	started_at     INTEGER NOT NULL,
+	seg_started_at INTEGER NOT NULL, -- início do trecho que está contando (muda ao continuar)
+	ends_at        INTEGER NOT NULL,
+	task           TEXT NOT NULL,
+	declared_min   INTEGER NOT NULL,
+	counted_sec    INTEGER NOT NULL, -- o que contou antes do último continuar
+	room_code      TEXT NOT NULL
 );`
 
 // Open abre o banco (criando as tabelas se preciso) e o guarda para o resto do pacote.
@@ -158,7 +168,45 @@ func RecordTask(id string, t TaskRow) (pet.Pet, error) {
 		id, t.Start.Unix(), t.End.Unix(), t.Task, t.DeclaredMin, int(t.Focused.Seconds()), t.Result, t.Room); err != nil {
 		return pet.Pet{}, err
 	}
+	if _, err = tx.Exec(`DELETE FROM open_tasks WHERE user_id = ?`, id); err != nil {
+		return pet.Pet{}, err
+	}
 	return p, tx.Commit()
+}
+
+// OpenTask: a tarefa em andamento, gravada ao começar e ao continuar para sobreviver a um restart.
+type OpenTask struct {
+	User, Task, Room      string
+	Start, SegStart, Ends time.Time
+	Declared              int
+	Counted               time.Duration
+}
+
+func SaveOpenTask(t OpenTask) error {
+	_, err := db.Exec(`INSERT OR REPLACE INTO open_tasks (user_id, started_at, seg_started_at, ends_at, task, declared_min, counted_sec, room_code)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.User, t.Start.Unix(), t.SegStart.Unix(), t.Ends.Unix(), t.Task, t.Declared, int(t.Counted.Seconds()), t.Room)
+	return err
+}
+
+// OpenTasks: as tarefas que estavam em andamento quando o servidor caiu.
+func OpenTasks() ([]OpenTask, error) {
+	rows, err := db.Query(`SELECT user_id, started_at, seg_started_at, ends_at, task, declared_min, counted_sec, room_code FROM open_tasks`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []OpenTask
+	for rows.Next() {
+		var t OpenTask
+		var start, seg, ends, sec int64
+		if err := rows.Scan(&t.User, &start, &seg, &ends, &t.Task, &t.Declared, &sec, &t.Room); err != nil {
+			return nil, err
+		}
+		t.Start, t.SegStart, t.Ends, t.Counted = time.Unix(start, 0), time.Unix(seg, 0), time.Unix(ends, 0), time.Duration(sec)*time.Second
+		out = append(out, t)
+	}
+	return out, rows.Err()
 }
 
 // Tasks: as últimas tarefas do usuário, da mais nova para a mais velha.
