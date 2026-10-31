@@ -63,8 +63,8 @@ func requireKey(next ssh.Handler) ssh.Handler {
 	return func(s ssh.Session) {
 		if s.PublicKey() == nil {
 			wish.Fatalln(s, "\nO Plantão usa sua chave SSH como login, e você ainda não tem uma.\n"+
-				"Crie com:  ssh-keygen -t ed25519   (enter em tudo)\n"+
-				"Depois entre de novo:  ssh -p 23234 localhost")
+				"crie com:  ssh-keygen -t ed25519   (enter em tudo)\n"+
+				"depois entre de novo:  ssh -p 23234 localhost")
 			return
 		}
 		next(s)

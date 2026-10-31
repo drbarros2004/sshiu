@@ -40,7 +40,7 @@ type Status int
 
 const (
 	Offline Status = iota
-	Idle           // conectado, sem tarefa: "parado"
+	Idle           // conectado, sem tarefa: "sem tarefa"
 	Focusing
 )
 

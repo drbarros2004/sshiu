@@ -86,7 +86,7 @@ _Evite_: sequência, ofensiva
 ### Na sala
 
 **Status**:
-O que um membro está fazendo agora, visto pela sala: focando (com tarefa e tempo), parado ou offline.
+O que um membro está fazendo agora, visto pela sala: focando (com tarefa e tempo), sem tarefa ou offline.
 _Evite_: presença
 
 **Evento**:
