@@ -212,24 +212,25 @@ func (m model) roomView() string {
 // durante o foco; parado, a coluna fica quieta. Em terminal estreito ele não cabe e sobra o painel,
 // com o pet ao lado das informações.
 func (m model) soloView() string {
-	if m.side == nil {
+	sprite := pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel)
+	if m.side == nil { // sem jardim, o pet fica ao lado das informações para o painel não esticar
 		return m.focusPanel() + "\n\n" + lipgloss.JoinHorizontal(lipgloss.Top,
-			lipgloss.NewStyle().Width(26).Render(m.soloPet()), m.soloLog())
+			lipgloss.NewStyle().Width(26).Render(sprite), m.soloWho()+"\n\n"+m.soloLog())
 	}
-	panel := strings.Join([]string{m.focusPanel(), "", m.soloPet(), "", m.soloLog()}, "\n")
+	panel := strings.Join([]string{m.focusPanel(), "", sprite, m.soloWho(), "", m.soloLog()}, "\n")
 	bar := m.st.muted.Render(strings.TrimRight(strings.Repeat("│\n", soloRows(m.height)), "\n"))
 	return lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().Width(panelCols).Render(panel), bar, " ", m.side.frame)
 }
 
-// soloPet: o pet grande, com o humor e, se o banco já respondeu, o streak e os minutos de hoje.
-func (m model) soloPet() string {
-	mood := pet.MoodOf(m.me().Energy)
-	line := bold.Render("você") + " " + m.st.muted.Render(pet.MoodName[mood])
+// soloWho: quem você é hoje, embaixo do pet: o humor e, quando o banco já respondeu, o streak
+// e os minutos focados hoje.
+func (m model) soloWho() string {
+	line := bold.Render("você") + " " + m.st.muted.Render(pet.MoodName[pet.MoodOf(m.me().Energy)])
 	if p := m.pet; p.Today == m.now.Format("2006-01-02") {
 		line += m.st.muted.Render(fmt.Sprintf(" · streak %d · %d min hoje", p.StreakAt(m.now), int(p.TodayMin)))
 	}
-	return pet.Render(mood, m.tick, m.pixel) + "\n" + line
+	return line
 }
 
 // soloLog: as últimas coisas que você fez nesta sala, sem reações e sem cursor.

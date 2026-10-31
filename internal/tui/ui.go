@@ -209,8 +209,8 @@ func (m model) syncSide() model {
 		i := wallpaperFor(m.vis, m.me().Focus)
 		m.side = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen,
 			bare: true, w: w, h: h}
+		m.side.render(m) // o primeiro quadro; parado, a coluna fica nele
 	}
-	m.side.render(m)
 	return m
 }
 
@@ -280,6 +280,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.notice = "você entrou em " + m.w.Rooms[msg.code].Name
 		if msg.created {
 			m.notice = "sala criada! passe o código " + msg.code + " para os colegas"
+			if m.solo() {
+				m.notice = "sala solo criada: só você entra aqui"
+			}
 		}
 		return m, m.loadProfile()
 	case nickMsg:
