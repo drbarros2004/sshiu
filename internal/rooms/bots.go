@@ -54,7 +54,7 @@ func SeedBots() {
 		if !b.offline {
 			u.online = 1
 		}
-		if i != 2 && !b.offline { // caio começa parado
+		if i != 2 && !b.offline { // caio começa sem tarefa
 			start(u, DemoCode, b.tasks[0], 1, 20*time.Second+rand.N(60*time.Second))
 		}
 	}
@@ -78,7 +78,7 @@ func runBots() {
 			case u.focus == nil && u.online > 0 && rand.N(90) == 0: // uns 90 s parado entre uma tarefa e outra: a sala não fica barulhenta
 				start(u, DemoCode, b.tasks[rand.N(len(b.tasks))], 1, 40*time.Second+rand.N(50*time.Second))
 			case u.focus == nil && rand.N(200) == 0:
-				u.online = 1 - u.online // parado <-> offline
+				u.online = 1 - u.online // sem tarefa <-> offline
 			}
 		}
 		rest := pending[:0]
