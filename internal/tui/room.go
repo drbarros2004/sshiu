@@ -105,7 +105,7 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if m.cont {
 				return m, act(func() { rooms.Continue(id, mins) })
 			}
-			return m, act(func() { rooms.Start(id, task, mins) })
+			return m, act(func() { rooms.Start(id, code, task, mins) })
 		}
 		return m, nil
 	}

@@ -50,6 +50,7 @@ const (
 // nunca rende mais do que o tempo que o próprio usuário declarou.
 type Focus struct {
 	Task                  string
+	Room                  string    // a sala em que a tarefa começou, para o histórico
 	Start, SegStart, Ends time.Time // SegStart: início do trecho que está contando (muda ao continuar)
 	Declared              int       // minutos declarados, somando os de "continuar"
 	Counted               time.Duration
@@ -172,19 +173,20 @@ func Created(id string) {
 	u.nick, u.energy = nick, p.EnergyAt(time.Now())
 }
 
-// Start começa uma tarefa, se não há outra em andamento.
-func Start(id, task string, minutes int) {
+// Start começa uma tarefa, se não há outra em andamento. A sala é a que estava na tela: a tarefa
+// aparece em todas as suas salas (ADR 0002), mas o histórico guarda onde ela começou.
+func Start(id, room, task string, minutes int) {
 	mu.Lock()
 	defer mu.Unlock()
-	start(load(id), task, minutes, time.Duration(minutes)*time.Minute)
+	start(load(id), room, task, minutes, time.Duration(minutes)*time.Minute)
 }
 
-func start(u *user, task string, minutes int, d time.Duration) {
+func start(u *user, room, task string, minutes int, d time.Duration) {
 	if u.focus != nil {
 		return
 	}
 	now := time.Now()
-	u.focus = &Focus{Task: task, Start: now, SegStart: now, Ends: now.Add(d), Declared: minutes}
+	u.focus = &Focus{Task: task, Room: room, Start: now, SegStart: now, Ends: now.Add(d), Declared: minutes}
 	event(u, "começou", task)
 }
 
@@ -212,7 +214,8 @@ func Finish(id string, r pet.Result) {
 func finish(u *user, r pet.Result, at time.Time) {
 	f := u.focus
 	u.focus = nil
-	p, err := store.RecordTask(u.id, store.TaskRow{Start: f.Start, End: at, Task: f.Task, DeclaredMin: f.Declared, Focused: f.Focused(at), Result: r})
+	p, err := store.RecordTask(u.id, store.TaskRow{Start: f.Start, End: at, Task: f.Task,
+		DeclaredMin: f.Declared, Focused: f.Focused(at), Result: r, Room: f.Room})
 	if err != nil {
 		log.Error("recordTask", "err", err)
 		return

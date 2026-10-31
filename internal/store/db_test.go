@@ -15,14 +15,15 @@ func TestRecordTask(t *testing.T) {
 		t.Fatal(err)
 	}
 	end := time.Now()
-	p, err := RecordTask("u", TaskRow{end.Add(-20 * time.Minute), end, "lista 3", 25, 15 * time.Minute, pet.Done})
+	p, err := RecordTask("u", TaskRow{end.Add(-20 * time.Minute), end, "lista 3", 25, 15 * time.Minute, pet.Done, "abc123"})
 	if err != nil || p.Energy != 57 || p.Streak != 1 { // 15 min = 4, + bônus 3
 		t.Fatalf("got %+v %v", p, err)
 	}
 	if _, saved, _, _ := GetUser("u"); saved.Energy != 57 || saved.TodayMin != 15 {
 		t.Fatalf("saved %+v", saved)
 	}
-	if ts, err := Tasks("u"); err != nil || len(ts) != 1 || ts[0].Focused != 15*time.Minute || ts[0].Result != pet.Done {
+	if ts, err := Tasks("u"); err != nil || len(ts) != 1 || ts[0].Focused != 15*time.Minute ||
+		ts[0].Result != pet.Done || ts[0].Room != "abc123" { // a sala volta do banco: as stats da sala dependem dela
 		t.Fatalf("tasks %+v %v", ts, err)
 	}
 

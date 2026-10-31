@@ -51,8 +51,8 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **Prioridade:** essencial. É a próxima feature grande, antes dos vários pets.
 - **Primeira parte, feita em 31/10/2026** (na aba perfil e na coluna da sala solo parada, em `internal/tui/stats.go`): calendário do mês com o dia mais aceso quanto mais tempo focado, barras de minutos por dia da semana, e três números — focado no mês e no total, tarefas cumpridas de quantas, e a média declarada contra a focada. Sai de duas consultas (`store.FocusByDay` e `store.GetTotals`).
 - **Falta por usuário:** o recorde de streak, o histórico além do mês (rolar meses para trás) e o horário do dia em que a pessoa foca mais.
-- **Gráficos da sala:** os mesmos agregados para a sala inteira, mais o pico de usuários focando ao mesmo tempo e quanto tempo esse pico durou. O pico sai dos intervalos de início e fim das tarefas dos membros.
-- **Aba de histórico:** com filtro por sala, se os números do perfil não bastarem.
+- **Gráficos da sala:** os mesmos agregados para a sala inteira, mais o pico de usuários focando ao mesmo tempo e quanto tempo esse pico durou. O pico sai dos intervalos de início e fim das tarefas dos membros. A tarefa encerrada guarda a sala em que começou (`tasks.room_code`, desde 31/10/2026), então o agregado por sala é uma consulta.
+- **Aba de histórico:** com filtro por sala (a coluna já existe), se os números do perfil não bastarem.
 
 ### Vários pets (10 a 15 no MVP)
 - **Prioridade:** essencial, mas depois dos gráficos.
