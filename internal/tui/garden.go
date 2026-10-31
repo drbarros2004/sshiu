@@ -92,9 +92,10 @@ func (m model) openGarden(preview bool) (model, tea.Cmd) {
 		gen = m.garden.gen + 1
 	}
 	i := wallpaperFor(m.vis, m.me().Focus)
-	// na sala solo o jardim é a outra versão da tela, então fica ligado mesmo sem tarefa
+	// na sala solo o jardim aberto sem tarefa é a outra versão da tela e fica ligado; aberto
+	// durante o foco, ele fecha quando o tempo esgota, senão você não vê que precisa responder.
 	m.garden = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen,
-		preview: preview, keep: preview || m.solo()}
+		preview: preview, keep: preview || m.solo() && !m.active()}
 	m.garden.render(m)
 	return m, gardenTick(gen)
 }
