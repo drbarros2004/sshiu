@@ -10,6 +10,8 @@ App de foco por SSH em Go (Wish v2 + Bubble Tea v2 + Lip Gloss v2, SQLite via `m
 ## Convenções
 
 - Responda em português. Código (identificadores, arquivos, pastas) em inglês; comentários e texto da interface em português.
+- Textos da interface não tratam ninguém no masculino: reestruture a frase em vez de usar "o(a)", "@" ou "x" (por exemplo, "qual vai ser o seu apelido?", não "Como quer ser chamado?").
+- Textos da interface começam com letra minúscula, inclusive títulos e a frase depois de um ponto. Siglas (SSH) e o logo (PLANTÃO) ficam como estão.
 - Pacotes em `internal/`, com dependência numa direção só: `tui` → `rooms` → `store` → `pet`. `main.go` sobe o servidor.
 - Commits seguem o [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`), com a descrição em inglês. Commit e push só com o OK do usuário.
 

@@ -180,15 +180,15 @@ func (m model) focusPanel() string {
 	var text string
 	switch {
 	case m.entering:
-		return bold.Render("Qual a próxima coisa concreta que você vai fazer?") + "\n" + m.in.View()
+		return bold.Render("qual a próxima coisa concreta que você vai fazer?") + "\n" + m.in.View()
 	case m.choosing && m.cont:
-		return bold.Render(f.Task) + "\n" + choice("Mais quanto tempo?")
+		return bold.Render(f.Task) + "\n" + choice("mais quanto tempo?")
 	case m.choosing:
-		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n" + choice("Quanto tempo?")
+		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n" + choice("quanto tempo?")
 	case me.Status != rooms.Focusing:
-		return bold.Render("Você está parado.") + "\n" + m.st.muted.Render("enter começa uma tarefa")
+		return bold.Render("nenhuma tarefa em andamento.") + "\n" + m.st.muted.Render("enter começa uma tarefa")
 	case f.Expired(m.now):
-		text = m.st.bad.Render("Tempo esgotado: ") + bold.Render(f.Task) + "\n" +
+		text = m.st.bad.Render("tempo esgotado: ") + bold.Render(f.Task) + "\n" +
 			"c continuar · t trocar · p parar · f feito\n" +
 			m.st.muted.Render(fmt.Sprintf("os minutos pararam de contar · %d min focados", int(f.Focused(m.now).Minutes())))
 	default:

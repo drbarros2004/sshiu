@@ -115,7 +115,7 @@ func (m model) visualView() string {
 	var b strings.Builder
 	for i, r := range m.visualRows() {
 		if i == 1 {
-			b.WriteString("\n" + bold.Render("Modo jardim") + m.st.muted.Render(" · a tela de descanso durante o foco") + "\n")
+			b.WriteString("\n" + bold.Render("modo jardim") + m.st.muted.Render(" · a tela de descanso durante o foco") + "\n")
 		}
 		cursor, label, value := "  ", fmt.Sprintf("%-24s", r[0]), m.st.muted.Render("‹ ")+r[1]+m.st.muted.Render(" ›")
 		if i == m.vrow {

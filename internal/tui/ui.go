@@ -217,7 +217,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.room, m.picking, m.form, m.err = msg.code, false, formNone, ""
 		m.notice = "você entrou em " + m.w.Rooms[msg.code].Name
 		if msg.created {
-			m.notice = "sala criada! passe o código " + msg.code + " para os colegas"
+			m.notice = "sala criada! passe o código " + msg.code + " para quem vai focar com você"
 		}
 	case nickMsg:
 		switch {
@@ -321,7 +321,7 @@ func (m model) View() tea.View {
 	}
 	var body string
 	if m.nick == "" {
-		body = m.st.title.Render("PLANTÃO") + "\n\nPrimeira vez por aqui. Como quer ser chamado?\n\n" + m.in.View() +
+		body = m.st.title.Render("PLANTÃO") + "\n\nprimeira vez por aqui. qual vai ser o seu apelido?\n\n" + m.in.View() +
 			m.errLine() + "\n\n" + m.st.muted.Render("enter confirma · sua chave SSH é o seu login")
 	} else {
 		var help string
@@ -375,7 +375,7 @@ func (m model) status(x rooms.Member) string {
 	case x.Status == rooms.Focusing:
 		return "focando " + mmss(x.Focus.Ends.Sub(m.now))
 	case x.Status == rooms.Idle:
-		return m.st.muted.Render("parado")
+		return m.st.muted.Render("sem tarefa")
 	}
 	return m.st.muted.Render("offline")
 }
