@@ -21,6 +21,7 @@ const (
 	panelCols   = 54 // largura do painel da sala solo
 	minGarden   = 36 // menos que isso não dá jardim: a tela fica só com o painel
 	soloEvents  = 3  // linhas do mini log da sala solo
+	clockCols   = 20 // o relógio grande: 5 glifos de 4 colunas
 )
 
 // solo: a sala é de uma pessoa (ADR 0006), então a tela não tem cards, reações nem código.
@@ -171,8 +172,8 @@ func (m model) roomHelp() string {
 		return "enter confirma · esc volta"
 	case m.choosing:
 		return "←/→ escolhe · enter começa · esc volta"
-	case focusing && me.Focus.Expired(m.now):
-		return "c continuar · t trocar · p parar · f feito" + m.reactHelp()
+	case focusing && me.Focus.Expired(m.now): // as escolhas já estão em destaque no painel
+		return "s salas" + m.reactHelp()
 	case focusing:
 		return "f feito · t trocar · p parar · j modo jardim" + m.reactHelp() + " · s salas"
 	}
@@ -226,19 +227,29 @@ func (m model) soloView() string {
 		lipgloss.NewStyle().Width(panelCols).Render(panel), bar, " ", m.side.frame)
 }
 
-// soloWho: quem você é hoje, ao lado do pet: o humor e, quando você já focou hoje, o streak e
-// os minutos (que vêm do banco, então só aparecem depois da primeira tarefa encerrada).
+// soloWho: as informações ao lado do pet, em colunas, como a saída de um comando: o rótulo
+// apagado e o valor na cor do texto. O streak e os minutos vêm do banco, então só aparecem
+// depois da primeira tarefa encerrada no dia.
 func (m model) soloWho() string {
-	line := bold.Render("você") + " " + m.st.muted.Render(pet.MoodName[pet.MoodOf(m.me().Energy)])
-	p := m.pet
-	if p.Today != m.now.Format("2006-01-02") {
-		return line
+	rows := [][2]string{{"você", pet.MoodName[pet.MoodOf(m.me().Energy)]}}
+	if p := m.pet; p.Today == m.now.Format("2006-01-02") {
+		if n := p.StreakAt(m.now); n > 0 {
+			rows = append(rows, [2]string{"streak", fmt.Sprintf("%d %s", n, plural(n, "dia", "dias"))})
+		}
+		rows = append(rows, [2]string{"hoje", fmt.Sprintf("%d min", int(p.TodayMin))})
 	}
-	hoje := fmt.Sprintf("%d min hoje", int(p.TodayMin))
-	if n := p.StreakAt(m.now); n > 0 {
-		hoje = fmt.Sprintf("streak %d dias · %s", n, hoje)
+	var b strings.Builder
+	for _, r := range rows {
+		b.WriteString(m.st.muted.Render(fmt.Sprintf("%-8s", r[0])) + r[1] + "\n")
 	}
-	return line + "\n" + m.st.muted.Render(hoje)
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func plural(n int, um, varios string) string {
+	if n == 1 {
+		return um
+	}
+	return varios
 }
 
 // soloLog: as últimas coisas que você fez nesta sala, sem reações e sem cursor.
@@ -265,7 +276,6 @@ func (m model) focusPanel() string {
 	choice := func(label string) string {
 		return label + "  " + m.st.muted.Render("‹ ") + m.st.title.Render(fmt.Sprintf("%d min", minuteChoices()[min(m.mins, len(minuteChoices())-1)])) + m.st.muted.Render(" ›")
 	}
-	var text string
 	switch {
 	case m.entering:
 		return bold.Render("Qual a próxima coisa concreta que você vai fazer?") + "\n" + m.in.View()
@@ -275,19 +285,34 @@ func (m model) focusPanel() string {
 		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n" + choice("Quanto tempo?")
 	case me.Status != rooms.Focusing:
 		return bold.Render("Você está parado.") + "\n" + m.st.muted.Render("enter começa uma tarefa")
-	case f.Expired(m.now):
-		text = m.st.bad.Render("Tempo esgotado: ") + bold.Render(f.Task) + "\n" +
-			"c continuar · t trocar · p parar · f feito\n" +
-			m.st.muted.Render(fmt.Sprintf("os minutos pararam de contar · %d min focados", int(f.Focused(m.now).Minutes())))
-	default:
-		text = bold.Render(f.Task) + "\n" +
-			m.st.muted.Render(fmt.Sprintf("de %d min · %d min focados", f.Declared, int(f.Focused(m.now).Minutes())))
 	}
+	// A tarefa e os números ficam no topo do relógio, nunca ao lado dele por inteiro: o painel da
+	// sala solo tem 54 colunas, e texto comprido ao lado do relógio quebrava a tela em pedaços.
+	side := max(20, m.panelWidth()-clockCols-3)
+	lines := []string{lipgloss.NewStyle().Width(side).MaxHeight(2).Render(bold.Render(f.Task))}
 	c := m.st.title
 	if f.Expired(m.now) {
 		c = m.st.bad
+		lines = append(lines, m.st.bad.Render("tempo esgotado"))
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Center, c.Render(bigText(mmss(f.Ends.Sub(m.now)))), "   ", text)
+	lines = append(lines, m.st.muted.Render(fmt.Sprintf("%d de %d min focados",
+		int(f.Focused(m.now).Minutes()), f.Declared)))
+	block := lipgloss.JoinHorizontal(lipgloss.Top, c.Render(bigText(mmss(f.Ends.Sub(m.now)))), "   ",
+		strings.Join(lines, "\n"))
+	if f.Expired(m.now) { // as escolhas embaixo do relógio, onde cabem em qualquer largura
+		block += "\n\n" + m.st.bad.Render("c continuar") + m.st.muted.Render(" · ") +
+			m.st.bad.Render("t trocar") + m.st.muted.Render(" · ") + m.st.bad.Render("p parar") +
+			m.st.muted.Render(" · ") + m.st.ok.Render("f feito")
+	}
+	return block
+}
+
+// panelWidth: a largura útil de quem mostra o foco — o painel da sala solo ou a tela inteira.
+func (m model) panelWidth() int {
+	if m.solo() {
+		return panelCols
+	}
+	return max(m.width-4, 40)
 }
 
 // received: quantas reações cada membro recebeu nos eventos da sala (o contador do card, ADR 0004).
