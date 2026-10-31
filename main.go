@@ -89,7 +89,7 @@ func programHandler(s ssh.Session) *tea.Program {
 	return tea.NewProgram(tui.New(id, sshCommand(s), roomCode(s)), opts...)
 }
 
-// roomCode: o código que veio no comando do ssh ("ssh plantao 49ae4z"), para quem recebe o convite
+// roomCode: o código que veio no comando do ssh ("ssh -t plantao 49ae4z"), para quem recebe o convite
 // entrar na sala sem procurar o menu.
 func roomCode(s ssh.Session) string {
 	if cmd := s.Command(); len(cmd) > 0 {
@@ -100,15 +100,16 @@ func roomCode(s ssh.Session) string {
 
 // sshCommand: o comando com que um colega chega a este servidor, tirado do endereço em que esta
 // sessão chegou. Assim o convite da sala serve tanto em localhost quanto no servidor de verdade.
+// O -t é obrigatório: com o código no fim, o ssh não pede terminal e o activeterm recusa a sessão.
 func sshCommand(s ssh.Session) string {
 	host, port, err := net.SplitHostPort(s.LocalAddr().String())
 	if err != nil {
-		return "ssh <servidor>"
+		return "ssh -t <servidor>"
 	}
 	if port == "22" {
-		return "ssh " + host
+		return "ssh -t " + host
 	}
-	return "ssh -p " + port + " " + host
+	return "ssh -t -p " + port + " " + host
 }
 
 // lfWriter: no Windows o renderer do Bubble Tea supõe que "\n" desce mantendo a coluna, mas a

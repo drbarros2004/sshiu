@@ -197,7 +197,7 @@ func newInput(placeholder string, limit int) textinput.Model {
 }
 
 func (m model) Init() tea.Cmd {
-	if m.pending != "" && m.nick != "" { // "ssh <servidor> <código>": entra sem passar pelo menu
+	if m.pending != "" && m.nick != "" { // "ssh -t <servidor> <código>": entra sem passar pelo menu
 		return tea.Batch(doTick(), m.loadProfile(), m.join(m.pending))
 	}
 	return tea.Batch(doTick(), m.loadProfile())

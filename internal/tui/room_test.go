@@ -11,7 +11,7 @@ func TestRoomCode(t *testing.T) {
 	for in, want := range map[string]string{
 		"fg7dhm":                      "fg7dhm",
 		"  FG7DHM\n":                  "fg7dhm", // colado com espaço e quebra de linha
-		"ssh -p 23234 plantao fg7dhm": "fg7dhm", // o convite inteiro
+		"ssh -t -p 23234 plantao fg7dhm": "fg7dhm", // o convite inteiro
 		"":                            "",
 	} {
 		if got := roomCode(in); got != want {

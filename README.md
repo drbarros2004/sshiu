@@ -44,9 +44,9 @@ Precisa de Go 1.27 ou mais novo e de um cliente SSH.
    ```
    Na primeira conexão, o SSH pergunta se você confia no servidor: responda `yes`. Depois escolha um apelido e crie uma sala, entre numa com o código de um colega ou abra a sala demo.
 
-   O código da sala também pode vir no comando, e aí você entra direto nela:
+   O código da sala também pode vir no comando, e aí você entra direto nela. O `-t` é obrigatório: sem ele, o SSH não abre o terminal quando o comando tem algo depois do endereço.
    ```bash
-   ssh -p 23234 localhost 49ae4z
+   ssh -t -p 23234 localhost 49ae4z
    ```
 
 Para usar outra porta, passe `-port`. Para rodar os testes, use `go test ./...`.
