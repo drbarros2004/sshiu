@@ -25,6 +25,12 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **Caixa:** o texto fica sobre uma caixa vazia, que abre um buraco no wallpaper; sem ela, a lava, a árvore e o vapor passam por trás e atrapalham a leitura.
 - **Padrões** de quem nunca mexeu na aba visual: wallpaper sorteado a cada tarefa, relógio só com os minutos, tarefa e sala ligadas (quem chega vê o que o modo jardim oferece e desliga o que achar demais).
 
+### Sala solo (implementada em 30/10/2026)
+- **O quê:** uma sala de uma pessoa, sem código, para focar sozinho ([ADR 0006](docs/adr/0006-sala-solo.md)). Criar com tamanho 1 é a única diferença.
+- **Por quê:** antes, quem criava uma sala sozinho via uma grade com um card, um feed vazio e um código para passar para ninguém. Focar sozinho é o caso de quem acabou de chegar e de quem estuda fora do horário da turma.
+- **Tela:** o layout A, escolhido entre três candidatos e validado no protótipo `prototype/solo`: painel à esquerda (relógio, tarefa, o pet com humor, streak e minutos de hoje, e um mini log de 3 linhas) e o modo jardim à direita, animado só durante o foco. Sem reações, sem cursor de eventos e sem cards. O `j` abre o jardim em tela cheia a qualquer momento, não só durante o foco.
+- **Custo:** o modo jardim custa de 2 a 24 KB/s e de 4 a 6% de um núcleo por usuário a 8 fps, e na sala solo ele fica visível o tempo todo. Por isso a coluna anda só durante o foco; parada, ela congela. Abaixo de 96 colunas o jardim não cabe e sobra só o painel.
+
 ## Próximas candidatas
 
 ### Login pelo GitHub + commits na sala
