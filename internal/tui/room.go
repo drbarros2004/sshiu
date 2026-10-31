@@ -100,8 +100,6 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "s":
 		return m.openPicker()
-	case "v": // PROTÓTIPO: troca a variante da sala
-		m.salaV = (m.salaV + 1) % len(salaNames)
 	case "enter":
 		if !focusing {
 			m.entering, m.in = true, newInput("ex.: fazer o exercício 1 da lista 3", 80)
@@ -151,23 +149,35 @@ func (m model) roomHelp() string {
 	return "enter começa uma tarefa · ↑/↓ evento · 1-4 reage · s salas"
 }
 
-// roomView: a sala em w×h células (PROTÓTIPO: três variantes, ver prototype_sala.go).
+// roomView: a sala em w×h células. Quando falta altura, a lista de eventos encurta e depois os
+// pets viram um ponto da cor do humor.
+// ponytail: com muita gente num terminal baixo os cards ainda passam da altura e são cortados;
+// rolagem nos cards se isso aparecer de verdade.
 func (m model) roomView(w, h int) string {
 	if m.picking || m.room == "" {
 		return m.pickerView()
 	}
-	return m.salaVariant(w, h)
-}
-
-func (m model) roomTitle() string {
-	title := bold.Render(m.w.Rooms[m.room].Name)
+	s := m.w.Rooms[m.room]
+	title := bold.Render(s.Name)
 	if m.room != rooms.DemoCode {
 		title += m.st.muted.Render(" · código " + m.room)
 	}
 	if m.notice != "" {
 		title += "\n" + m.st.ok.Render(m.notice)
 	}
-	return title
+	var out string
+	for _, compact := range []bool{false, true} {
+		for n := shownEvents; n >= 0 && (compact || n > 0); n -= 2 { // sem eventos só com os pets já encolhidos
+			out = title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s, w/18, compact)
+			if n > 0 {
+				out += "\n\n" + m.feed(n) + "\n" + m.legend()
+			}
+			if lipgloss.Height(out) <= h {
+				return out
+			}
+		}
+	}
+	return out
 }
 
 // focusPanel: o seu foco, conforme o momento.
