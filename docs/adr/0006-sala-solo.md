@@ -11,5 +11,5 @@ A sala solo é uma sala de verdade: mesmo banco, mesma tarefa, mesma energia, me
 - A tela dela é o layout A, escolhido em 30/10/2026 entre três candidatos: painel à esquerda (relógio, tarefa, pet, identidade e um mini log de três linhas) e o modo jardim à direita, animado só durante o foco.
 - Saem dela as reações, o cursor de eventos, o contador de reações recebidas e a grade de cards: nada disso tem sentido com uma pessoa.
 - O modo jardim em tela cheia continua na tecla `j`: na sala solo ele é a segunda versão da mesma tela, não outra tela.
-- Abaixo de umas 100 colunas o jardim sai e sobra o painel, com o pet ao lado das informações (ver "Telas de tamanhos diferentes" no [`IDEIAS.md`](../../IDEIAS.md)).
+- Abaixo de umas 100 colunas o jardim sai e sobra só o painel, que em qualquer largura tem o pet com o nome ao lado (ver "Telas de tamanhos diferentes" no [`IDEIAS.md`](../../IDEIAS.md)).
 - Focar sozinho vale igual: mesmos minutos, mesmo bônus por tarefa cumprida, mesmo streak. Sem penalidade e sem bônus por estar só.

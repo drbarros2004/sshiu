@@ -51,6 +51,6 @@ Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indica
 | Tick da tela | 500 ms | Anima o pet e o relógio e atualiza a sala. | [ui.go:103](../internal/tui/ui.go#L103) |
 | Respiração do pet | 1 a 4 ticks por quadro (radiante rápido, murcho lento) | O cansaço aparece no ritmo, não só no desenho. | [render.go:89](../internal/pet/render.go#L89) |
 | Modo jardim | liga depois de 30 s sem tecla, só durante o foco | | [garden.go:26](../internal/tui/garden.go#L26) |
-| Jardim na sala solo | ocupa a direita a partir de 96 colunas de terminal | Menos que isso e o painel fica apertado; aí a tela é só o painel, com o pet ao lado das informações. | [room.go:21-22](../internal/tui/room.go#L21-L22) |
+| Jardim na sala solo | ocupa a direita a partir de 96 colunas de terminal | Menos que isso e o painel fica apertado; aí a tela é só o painel. | [room.go:21-22](../internal/tui/room.go#L21-L22) |
 | Quadros do modo jardim | 8 por segundo | Movimento suave. Medido no protótipo: de 2 a 24 KB/s e de 4 a 6% de um núcleo por usuário; 5 fps gasta uns 40% menos CPU. | [garden.go:25](../internal/tui/garden.go#L25) |
 | Padrões do modo jardim | wallpaper sorteado a cada tarefa, relógio só com os minutos, tarefa e sala aparecem | Quem chega vê o que o modo jardim oferece e desliga o que achar demais. | [db.go:78](../internal/store/db.go#L78) |

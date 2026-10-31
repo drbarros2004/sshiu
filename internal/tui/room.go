@@ -212,25 +212,33 @@ func (m model) roomView() string {
 // durante o foco; parado, a coluna fica quieta. Em terminal estreito ele não cabe e sobra o painel,
 // com o pet ao lado das informações.
 func (m model) soloView() string {
-	sprite := pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel)
-	if m.side == nil { // sem jardim, o pet fica ao lado das informações para o painel não esticar
-		return m.focusPanel() + "\n\n" + lipgloss.JoinHorizontal(lipgloss.Top,
-			lipgloss.NewStyle().Width(26).Render(sprite), m.soloWho()+"\n\n"+m.soloLog())
+	// o pet com quem você é ao lado, na altura dele: embaixo o nome ficava solto, longe do desenho
+	// (o sprite é centralizado numa caixa de 16, então ele nunca encosta na margem).
+	who := lipgloss.JoinHorizontal(lipgloss.Center,
+		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel)),
+		m.soloWho())
+	panel := strings.Join([]string{m.focusPanel(), "", who, "", m.soloLog()}, "\n")
+	if m.side == nil { // sem jardim, só o painel
+		return panel
 	}
-	panel := strings.Join([]string{m.focusPanel(), "", sprite, m.soloWho(), "", m.soloLog()}, "\n")
 	bar := m.st.muted.Render(strings.TrimRight(strings.Repeat("│\n", soloRows(m.height)), "\n"))
 	return lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().Width(panelCols).Render(panel), bar, " ", m.side.frame)
 }
 
-// soloWho: quem você é hoje, embaixo do pet: o humor e, quando o banco já respondeu, o streak
-// e os minutos focados hoje.
+// soloWho: quem você é hoje, ao lado do pet: o humor e, quando você já focou hoje, o streak e
+// os minutos (que vêm do banco, então só aparecem depois da primeira tarefa encerrada).
 func (m model) soloWho() string {
 	line := bold.Render("você") + " " + m.st.muted.Render(pet.MoodName[pet.MoodOf(m.me().Energy)])
-	if p := m.pet; p.Today == m.now.Format("2006-01-02") {
-		line += m.st.muted.Render(fmt.Sprintf(" · streak %d · %d min hoje", p.StreakAt(m.now), int(p.TodayMin)))
+	p := m.pet
+	if p.Today != m.now.Format("2006-01-02") {
+		return line
 	}
-	return line
+	hoje := fmt.Sprintf("%d min hoje", int(p.TodayMin))
+	if n := p.StreakAt(m.now); n > 0 {
+		hoje = fmt.Sprintf("streak %d dias · %s", n, hoje)
+	}
+	return line + "\n" + m.st.muted.Render(hoje)
 }
 
 // soloLog: as últimas coisas que você fez nesta sala, sem reações e sem cursor.
