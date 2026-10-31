@@ -186,6 +186,9 @@ func newInput(placeholder string, limit int) textinput.Model {
 	in.Placeholder = placeholder
 	in.CharLimit = limit
 	in.SetWidth(50)
+	// o ctrl+v do textinput leria a área de transferência do servidor; quem cola é o terminal do
+	// usuário, que manda o texto colado como tea.PasteMsg.
+	in.KeyMap.Paste.SetEnabled(false)
 	in.Focus()
 	return in
 }
@@ -326,6 +329,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pet, m.tasks, m.days, m.totals = msg.pet, msg.tasks, msg.days, msg.totals
 	case errMsg:
 		m.err = msg.Error()
+	case tea.PasteMsg: // colar vai para o campo ativo; o texto vem do terminal (bracketed paste)
+		if m.nick == "" || m.typing() {
+			var cmd tea.Cmd
+			m.in, cmd = m.in.Update(msg)
+			return m, cmd
+		}
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	}

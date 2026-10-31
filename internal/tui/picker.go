@@ -85,7 +85,7 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "+":
 			m.form, m.in, m.size = formName, newInput("ex.: Turma de Cálculo", 30), rooms.MaxMembers
 		case "#":
-			m.form, m.in = formCode, newInput("6 letras", 6)
+			m.form, m.in = formCode, newInput("6 letras", 60)
 		case "-":
 			m.form = formLeave
 		case rooms.DemoCode:
@@ -105,6 +105,16 @@ func (m model) join(code string) tea.Cmd {
 		}
 		return roomMsg{code, false, rooms.SnapshotWorld()}
 	}
+}
+
+// roomCode: o código no que a pessoa escreveu ou colou. Quem cola o convite inteiro
+// ("ssh -p 23234 plantao fg7dhm") quer a sala do fim da linha, não uma sala chamada "ssh".
+func roomCode(s string) string {
+	f := strings.Fields(strings.ToLower(s))
+	if len(f) == 0 {
+		return ""
+	}
+	return f[len(f)-1]
 }
 
 func (m model) submitForm() (tea.Model, tea.Cmd) {
@@ -127,7 +137,7 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 			return roomMsg{code, true, rooms.SnapshotWorld()}
 		}
 	case formCode:
-		code := strings.ToLower(v)
+		code := roomCode(v)
 		if code == "" {
 			m.err = "digite o código que o colega te passou"
 			return m, nil
@@ -166,7 +176,8 @@ func (m model) pickerView() string {
 			m.st.muted.Render("‹ ") + m.st.title.Render(fmt.Sprintf("%d", m.size)) + m.st.muted.Render(" ›") +
 			"\n" + m.st.muted.Render(hint)
 	case formCode:
-		return bold.Render("Entrar com código") + "\n\n" + m.in.View()
+		return bold.Render("Entrar com código") + "\n\n" + m.in.View() + "\n" +
+			m.st.muted.Render("cole com ctrl+v (cmd+v no mac): o código ou o comando ssh inteiro")
 	case formJoin: // a sala tem nome e tamanho: dá para ver onde você está entrando
 		s := m.w.Rooms[m.joining]
 		return bold.Render("Entrar em "+s.Name+"?") + "\n\n" +
