@@ -81,7 +81,8 @@ func wallpaperFor(g store.Garden, f rooms.Focus) int {
 	if i := slices.IndexFunc(wallpapers, func(w wallpaper) bool { return w.id == g.Wallpaper }); i >= 0 {
 		return i
 	}
-	return int(f.Start.UnixNano()/int64(time.Millisecond)) % len(wallpapers)
+	// sem tarefa em andamento o Start é zero, e o cálculo daria índice negativo
+	return int(max(f.Start.UnixNano(), 0)/int64(time.Millisecond)) % len(wallpapers)
 }
 
 // openGarden liga o modo jardim (preview: aberto pela aba visual, mesmo sem tarefa).
