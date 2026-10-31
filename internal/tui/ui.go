@@ -210,8 +210,8 @@ func (m model) syncSide() model {
 		m.side = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen,
 			bare: true, w: w, h: h}
 	}
-	if m.side.frame == "" || !m.active() {
-		m.side.render(m) // parado, a coluna anda no ritmo da tela; focando, quem anda é o sideTick
+	if m.side.frame == "" {
+		m.side.render(m) // o primeiro quadro; daí em diante quem anda é o sideTick
 	}
 	return m
 }
@@ -252,7 +252,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(doTick(), cmd)
 		}
 		m = m.syncSide()
-		if m.side != nil && !m.side.ticking && m.garden == nil && active { // põe os 8 fps para andar
+		if m.side != nil && !m.side.ticking && m.garden == nil { // põe os 8 fps para andar
 			m.side.ticking = true
 			return m, tea.Batch(doTick(), sideTick(m.side.gen))
 		}
@@ -267,7 +267,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.side == nil || msg.gen != m.side.gen {
 			return m, nil
 		}
-		if m.garden != nil || !m.active() { // tela cheia aberta ou foco encerrado: a coluna congela
+		if m.garden != nil { // a tela cheia tomou o lugar: a coluna para de desenhar
 			m.side.ticking = false
 			return m, nil
 		}
