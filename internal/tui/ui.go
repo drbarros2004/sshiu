@@ -19,6 +19,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"charm.land/log/v2"
 	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Temas: só as cores de destaque; o texto normal usa a cor do próprio terminal (funciona em fundo claro e escuro).
@@ -129,6 +130,8 @@ type model struct {
 	garden        *garden      // modo jardim em tela cheia (nil = desligado)
 	side          *garden      // o jardim da coluna da sala solo (nil = não tem)
 	lastKey       time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim
+	wall          int          // o wallpaper trocado no jardim, que vale para a tarefa...
+	wallFor       time.Time    // ...que começou neste instante
 
 	in       textinput.Model // o campo ativo: apelido, tarefa, nome ou código de sala
 	entering bool            // escrevendo a tarefa
@@ -222,7 +225,7 @@ func (m model) syncSide() model {
 		if m.side != nil {
 			gen = m.side.gen + 1
 		}
-		i := wallpaperFor(m.vis, m.me().Focus)
+		i := m.gardenWall(false) // a troca feita na tela cheia vale também na coluna
 		m.side = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen,
 			bare: true, w: w, h: h}
 	}
@@ -344,7 +347,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
 	m.lastKey = time.Now()
-	if m.garden != nil && k != "ctrl+c" { // qualquer tecla sai do modo jardim, sem executar nada
+	if m.garden != nil && k != "ctrl+c" { // ←/→ trocam o wallpaper; qualquer outra tecla sai, sem executar nada
+		switch k {
+		case "left":
+			return m.swapWallpaper(-1)
+		case "right":
+			return m.swapWallpaper(1)
+		}
 		m.garden = nil
 		return m, nil
 	}
@@ -415,30 +424,54 @@ func (m model) View() tea.View {
 	}
 	var body string
 	if m.nick == "" {
-		body = m.st.title.Render("PLANTÃO") + "\n\nPrimeira vez por aqui. Como quer ser chamado?\n\n" + m.in.View() +
+		body = m.st.title.Render("PLANTÃO") + "\n\nprimeira vez por aqui. qual vai ser o seu apelido?\n\n" + m.in.View() +
 			m.errLine() + "\n\n" + m.st.muted.Render("enter confirma · sua chave SSH é o seu login")
 	} else {
-		var content, help string
+		var help string
+		content := m.roomView // o conteúdo recebe o espaço que sobra (largura, altura)
 		switch m.tab {
 		case tabRoom:
-			content, help = m.roomView(), m.roomHelp()
+			help = m.roomHelp()
 		case tabProfile:
-			content = m.profileView()
+			content = func(int, int) string { return m.profileView() }
 		case tabVisual:
-			content, help = m.visualView(), "↑/↓ escolhe · ←/→ muda · j vê o modo jardim · enter salva"
+			content, help = func(int, int) string { return m.visualView() }, "↑/↓ escolhe · ←/→ muda · j vê o modo jardim · enter salva"
 		}
 		nav := "a/d troca de aba · q sai"
 		if m.typing() {
 			nav = "tab troca de aba · ctrl+c sai"
 		}
 		if help != "" {
-			help += " · "
+			nav = help + " · " + nav
 		}
-		body = m.header() + "\n\n" + content + m.errLine() + "\n\n" + m.st.muted.Render(help+nav)
+		// cabeçalho em cima, rodapé preso na última linha e o conteúdo no espaço do meio
+		inner := max(m.width-4, 1)
+		top, foot := m.header(), m.st.muted.Width(inner).Render(nav)
+		h := max(1, m.height-2-lipgloss.Height(top)-2-lipgloss.Height(foot))
+		mid := fit(content(inner, h-lipgloss.Height(m.errLine())+1)+m.errLine(), inner, h)
+		body = top + "\n\n" + mid + "\n\n" + foot
 	}
 	v := tea.NewView(lipgloss.NewStyle().Padding(1, 2).Render(body))
 	v.AltScreen = true
 	return v
+}
+
+// fit deixa s com exatamente h linhas de no máximo w colunas: corta o que passa (com "…" na
+// largura) e completa com linhas vazias.
+func fit(s string, w, h int) string {
+	lines := strings.Split(s, "\n")
+	for len(lines) < h {
+		lines = append(lines, "")
+	}
+	lines = lines[:h]
+	for i, l := range lines {
+		tail := "" // espaço sobrando no fim não é texto cortado: sem reticências
+		if ansi.StringWidth(strings.TrimRight(ansi.Strip(l), " ")) > w {
+			tail = "…"
+		}
+		lines[i] = ansi.Truncate(l, w, tail)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m model) errLine() string {
@@ -473,7 +506,7 @@ func (m model) status(x rooms.Member) string {
 	case x.Status == rooms.Focusing:
 		return "focando " + mmss(x.Focus.Ends.Sub(m.now))
 	case x.Status == rooms.Idle:
-		return m.st.muted.Render("parado")
+		return m.st.muted.Render("sem tarefa")
 	}
 	return m.st.muted.Render("offline")
 }
