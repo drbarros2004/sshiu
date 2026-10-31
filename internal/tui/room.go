@@ -191,7 +191,11 @@ func (m model) reactHelp() string {
 	return " · ↑/↓ evento · 1-4 reage"
 }
 
-func (m model) roomView() string {
+// roomView: a sala em w×h células. Quando falta altura, a lista de eventos encurta e depois os
+// pets viram um ponto da cor do humor.
+// ponytail: com muita gente num terminal baixo os cards ainda passam da altura e são cortados;
+// rolagem nos cards se isso aparecer de verdade.
+func (m model) roomView(w, h int) string {
 	if m.inPicker() {
 		return m.pickerView()
 	}
@@ -203,10 +207,22 @@ func (m model) roomView() string {
 	if m.notice != "" {
 		title += "\n" + m.st.ok.Render(m.notice)
 	}
-	if m.solo() {
+	if m.solo() { // a sala solo tem uma pessoa e nenhum card: ela já cabe
 		return title + "\n\n" + m.soloView()
 	}
-	return title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s) + "\n\n" + m.feed() + "\n" + m.legend()
+	var out string
+	for _, compact := range []bool{false, true} {
+		for n := shownEvents; n >= 0 && (compact || n > 0); n -= 2 { // sem eventos só com os pets já encolhidos
+			out = title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s, w/18, compact)
+			if n > 0 {
+				out += "\n\n" + m.feed(n) + "\n" + m.legend()
+			}
+			if lipgloss.Height(out) <= h {
+				return out
+			}
+		}
+	}
+	return out
 }
 
 // soloView: o painel do foco à esquerda e o modo jardim à direita (ADR 0006). O jardim anda só
@@ -227,7 +243,7 @@ func (m model) soloView() string {
 	if m.side != nil {
 		right = m.side.frame
 	}
-	bar := m.st.muted.Render(strings.TrimRight(strings.Repeat("│\n", soloRows(m.height)), "\n"))
+	bar := m.st.muted.Render(strings.TrimRight(strings.Repeat("│\n", m.side.h), "\n"))
 	return lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().Width(panelCols).Render(panel), bar, " ", right)
 }
@@ -283,13 +299,13 @@ func (m model) focusPanel() string {
 	}
 	switch {
 	case m.entering:
-		return bold.Render("Qual a próxima coisa concreta que você vai fazer?") + "\n" + m.in.View()
+		return bold.Render("qual a próxima coisa concreta que você vai fazer?") + "\n" + m.in.View()
 	case m.choosing && m.cont:
-		return bold.Render(f.Task) + "\n" + choice("Mais quanto tempo?")
+		return bold.Render(f.Task) + "\n" + choice("mais quanto tempo?")
 	case m.choosing:
-		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n" + choice("Quanto tempo?")
+		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n" + choice("quanto tempo?")
 	case me.Status != rooms.Focusing:
-		return bold.Render("Você está parado.") + "\n" + m.st.muted.Render("enter começa uma tarefa")
+		return bold.Render("nenhuma tarefa em andamento.") + "\n" + m.st.muted.Render("enter começa uma tarefa")
 	}
 	// A tarefa e os números ficam no topo do relógio, nunca ao lado dele por inteiro: o painel da
 	// sala solo tem 54 colunas, e texto comprido ao lado do relógio quebrava a tela em pedaços.
@@ -331,7 +347,8 @@ func received(s rooms.Snapshot) map[string]int {
 	return n
 }
 
-func (m model) cards(s rooms.Snapshot) string {
+// cards: per cards por fileira; compact troca o desenho do pet por um ponto da cor do humor.
+func (m model) cards(s rooms.Snapshot, per int, compact bool) string {
 	var ms []rooms.Member // você primeiro
 	for _, x := range s.Members {
 		if x.ID == m.id {
@@ -341,19 +358,19 @@ func (m model) cards(s rooms.Snapshot) string {
 		}
 	}
 	got := received(s)
-	per := max(1, (m.width-4)/18)
+	per = max(1, per)
 	var rows []string
 	for i := 0; i < len(ms); i += per {
 		var row []string
 		for _, x := range ms[i:min(i+per, len(ms))] {
-			row = append(row, m.card(x, got[x.ID]))
+			row = append(row, m.card(x, got[x.ID], compact))
 		}
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, row...))
 	}
 	return strings.Join(rows, "\n")
 }
 
-func (m model) card(x rooms.Member, got int) string {
+func (m model) card(x rooms.Member, got int, compact bool) string {
 	mood := pet.MoodOf(x.Energy)
 	st, name, task := m.st.card, bold.Render(x.Nick), ""
 	if x.ID == m.id {
@@ -369,17 +386,22 @@ func (m model) card(x rooms.Member, got int) string {
 	case got > 1:
 		reacts = m.st.muted.Render(fmt.Sprintf("%d reações", got))
 	}
+	art := pet.Render(mood, m.tick, m.pixel)
+	if compact {
+		art = lipgloss.NewStyle().Foreground(lipgloss.Color(pet.MoodColor[mood])).Render("●")
+	}
 	return st.Render(lipgloss.JoinVertical(lipgloss.Center,
-		pet.Render(mood, m.tick, m.pixel),
+		art,
 		name+" "+m.st.muted.Render(pet.MoodName[mood]),
 		m.st.task.Render(task),
 		m.status(x),
 		reacts))
 }
 
-// feed: os eventos mais novos, com as reações numa coluna só, em ordem fixa.
-func (m model) feed() string {
+// feed: os n eventos mais novos, com as reações numa coluna só, em ordem fixa.
+func (m model) feed(n int) string {
 	ev := m.events()
+	ev = ev[:min(max(n, 0), len(ev))]
 	if len(ev) == 0 {
 		return m.st.muted.Render("nada por aqui ainda: quando alguém começar ou cumprir uma tarefa, aparece aqui")
 	}
