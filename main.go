@@ -24,6 +24,8 @@ import (
 func main() {
 	flag.BoolVar(&rooms.Demo, "demo", false, "liga a sala demo, com bots, e a tarefa de 1 min")
 	port := flag.String("port", "23234", "porta SSH")
+	// o padrão só aceita quem está na própria máquina: abrir para a rede é uma decisão de quem sobe
+	host := flag.String("host", "localhost", "endereço de escuta (vazio = todas as interfaces)")
 	flag.Parse()
 
 	if err := store.Open("plantao.db"); err != nil {
@@ -37,7 +39,7 @@ func main() {
 	}
 
 	s, err := wish.NewServer(
-		wish.WithAddress(net.JoinHostPort("localhost", *port)),
+		wish.WithAddress(net.JoinHostPort(*host, *port)),
 		wish.WithHostKeyPath(".ssh/id_ed25519"),
 		wish.WithPublicKeyAuth(func(ssh.Context, ssh.PublicKey) bool { return true }), // a chave é a identidade
 		// quem chega sem chave entra só para ler como criar uma (em vez de "Permission denied")
@@ -56,20 +58,59 @@ func main() {
 	if err != nil {
 		log.Fatal("porta ocupada? talvez o Plantão já esteja rodando", "err", err)
 	}
-	log.Info("Plantão no ar: ssh localhost -p "+*port, "demo", rooms.Demo)
+	for _, h := range hosts(*host) {
+		log.Info("Plantão no ar: "+sshTo(h, *port), "demo", rooms.Demo)
+	}
 	log.Fatal(s.Serve(ln))
 }
 
 func requireKey(next ssh.Handler) ssh.Handler {
 	return func(s ssh.Session) {
 		if s.PublicKey() == nil {
+			host, port, _ := net.SplitHostPort(s.LocalAddr().String()) // por onde esta sessão chegou
 			wish.Fatalln(s, "\nO Plantão usa sua chave SSH como login, e você ainda não tem uma.\n"+
 				"crie com:  ssh-keygen -t ed25519   (enter em tudo)\n"+
-				"depois entre de novo:  ssh -p 23234 localhost")
+				"depois entre de novo:  "+sshTo(host, port))
 			return
 		}
 		next(s)
 	}
+}
+
+// sshTo: o comando de entrada neste servidor. Sem "-p" na porta 22, que o ssh usa sozinho.
+func sshTo(host, port string) string {
+	if port == "22" {
+		return "ssh " + host
+	}
+	return "ssh -p " + port + " " + host
+}
+
+// hosts: os endereços por onde dá para entrar, para a mensagem de subida. Escutando em todas as
+// interfaces não existe um endereço só, então valem os IPv4 da máquina na rede: quem sobe o
+// servidor precisa saber qual passar para a turma, e uma máquina costuma ter mais de um.
+func hosts(listen string) []string {
+	if listen != "" && listen != "0.0.0.0" {
+		return []string{listen}
+	}
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return []string{"<ip desta máquina>"}
+	}
+	var out []string
+	for _, a := range addrs {
+		n, ok := a.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		// o IPv4 de cada placa, menos o loopback e o 169.254.x de rede sem DHCP
+		if ip := n.IP.To4(); ip != nil && !ip.IsLoopback() && !ip.IsLinkLocalUnicast() {
+			out = append(out, ip.String())
+		}
+	}
+	if len(out) == 0 {
+		return []string{"<ip desta máquina>"}
+	}
+	return out
 }
 
 func programHandler(s ssh.Session) *tea.Program {
@@ -106,10 +147,7 @@ func sshCommand(s ssh.Session) string {
 	if err != nil {
 		return "ssh -t <servidor>"
 	}
-	if port == "22" {
-		return "ssh -t " + host
-	}
-	return "ssh -t -p " + port + " " + host
+	return "ssh -t" + strings.TrimPrefix(sshTo(host, port), "ssh")
 }
 
 // lfWriter: no Windows o renderer do Bubble Tea supõe que "\n" desce mantendo a coluna, mas a
