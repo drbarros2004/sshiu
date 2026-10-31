@@ -2,7 +2,8 @@ package tui
 
 // Modo jardim: a tela de descanso do foco. Um wallpaper animado em tela cheia, com o relógio, a
 // tarefa e quem mais está focando por cima, conforme a aba visual (IDEIAS.md, docs/regras.md).
-// Liga com j ou depois de 30 s sem tecla, só durante o foco; qualquer tecla volta sem executar nada.
+// Liga com j ou depois de 30 s sem tecla, só durante o foco. ←/→ trocam o wallpaper (a troca vale
+// para a tarefa); qualquer outra tecla volta sem executar nada.
 //
 // Wallpapers escritos do zero (ADR 0005, créditos em CREDITS.md): céu noturno, chuva e lâmpada de
 // lava inspirados em projetos MIT/Apache; café, árvore e estrada são desenhos nossos.
@@ -24,6 +25,7 @@ import (
 const (
 	gardenFPS  = 8                // docs/regras.md
 	gardenIdle = 30 * time.Second // sem tecla durante o foco: liga sozinho
+	gardenHint = 5 * time.Second  // o nome do wallpaper e "← → troca", ao abrir e a cada troca
 )
 
 // wallpapers: o id fica no banco; o nome aparece na aba visual.
@@ -49,6 +51,8 @@ type garden struct {
 	start, last time.Time
 	gen         int  // descarta ticks de um jardim anterior
 	preview     bool // aberto pela aba visual: fica ligado sem tarefa
+	wall        int       // o wallpaper na tela
+	hint        time.Time // até quando mostra o nome do wallpaper e "← → troca"
 	frame       string
 }
 
@@ -61,12 +65,39 @@ func gardenTick(gen int) tea.Cmd {
 	return tea.Tick(time.Second/gardenFPS, func(t time.Time) tea.Msg { return gardenTickMsg{t, gen} })
 }
 
+// wallpaperIndex: a posição do wallpaper na lista (-1 = sorteado).
+func wallpaperIndex(id string) int {
+	return slices.IndexFunc(wallpapers, func(w wallpaper) bool { return w.id == id })
+}
+
+// cycleWallpaper: o próximo (step 1) ou o anterior (-1) da aba visual, passando pelo sorteado ("").
+func cycleWallpaper(id string, step int) string {
+	n := len(wallpapers) + 1
+	if i := (wallpaperIndex(id)+1+step+n)%n - 1; i >= 0 {
+		return wallpapers[i].id
+	}
+	return ""
+}
+
 // wallpaperFor: o escolhido, ou um sorteado por tarefa (o mesmo durante toda a tarefa).
+// Sem tarefa (a prévia), sorteia na hora.
 func wallpaperFor(g store.Garden, f rooms.Focus) int {
-	if i := slices.IndexFunc(wallpapers, func(w wallpaper) bool { return w.id == g.Wallpaper }); i >= 0 {
+	if i := wallpaperIndex(g.Wallpaper); i >= 0 {
 		return i
 	}
-	return int(f.Start.UnixNano()/int64(time.Millisecond)) % len(wallpapers)
+	if f.Start.IsZero() {
+		return rand.IntN(len(wallpapers))
+	}
+	return int(f.Start.UnixMilli() % int64(len(wallpapers)))
+}
+
+// gardenWall: o wallpaper ao abrir o jardim. Fora da prévia, vale a troca feita nesta tarefa.
+func (m model) gardenWall(preview bool) int {
+	f := m.me().Focus
+	if !preview && !f.Start.IsZero() && f.Start.Equal(m.wallFor) {
+		return m.wall
+	}
+	return wallpaperFor(m.vis, f)
 }
 
 // openGarden liga o modo jardim (preview: aberto pela aba visual, mesmo sem tarefa).
@@ -75,10 +106,31 @@ func (m model) openGarden(preview bool) (model, tea.Cmd) {
 	if m.garden != nil {
 		gen = m.garden.gen + 1
 	}
-	i := wallpaperFor(m.vis, m.me().Focus)
-	m.garden = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen, preview: preview}
+	i := m.gardenWall(preview)
+	m.garden = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen, preview: preview, wall: i}
+	if !preview {
+		m.garden.hint = m.now.Add(gardenHint)
+	}
 	m.garden.render(m)
 	return m, gardenTick(gen)
+}
+
+// swapWallpaper: ←/→ no jardim. Na prévia, muda a escolha da aba visual (passando pelo sorteado);
+// durante a tarefa, troca só para esta tarefa.
+func (m model) swapWallpaper(step int) (model, tea.Cmd) {
+	g := m.garden
+	if g.preview {
+		m.vis.Wallpaper, m.notice = cycleWallpaper(m.vis.Wallpaper, step), ""
+		g.wall = wallpaperFor(m.vis, m.me().Focus)
+	} else {
+		n := len(wallpapers)
+		g.wall = (g.wall + step + n) % n
+		m.wall, m.wallFor = g.wall, m.me().Focus.Start
+		g.hint = m.now.Add(gardenHint)
+	}
+	g.scene, g.start, g.last = wallpapers[g.wall].new(), m.now, m.now
+	g.render(m)
+	return m, nil
 }
 
 // othersFocusing: quem mais está focando agora, nas suas salas, sem repetir.
@@ -131,7 +183,13 @@ func (g *garden) render(m model) {
 		}
 	}
 	if g.preview {
-		add("prévia de "+wallpapers[wallpaperFor(m.vis, me.Focus)].name+" · qualquer tecla volta", "244")
+		name := wallpapers[g.wall].name
+		if wallpaperIndex(m.vis.Wallpaper) < 0 {
+			name = "sorteado a cada tarefa · agora, " + name
+		}
+		add("prévia: "+name+"\n← → troca · qualquer tecla volta", "244")
+	} else if m.now.Before(g.hint) {
+		add(wallpapers[g.wall].name+" · ← → troca", "244")
 	}
 	if me.Status == rooms.Focusing {
 		left := me.Focus.Ends.Sub(m.now)

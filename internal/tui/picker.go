@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type form int
@@ -143,22 +144,22 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 func (m model) pickerView() string {
 	switch m.form {
 	case formName:
-		return bold.Render("Criar sala") + "\n\nNome:\n" + m.in.View()
+		return bold.Render("criar sala") + "\n\nnome:\n" + m.in.View()
 	case formSize:
-		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n\nQuantas pessoas cabem?  " +
+		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n\nquantas pessoas cabem?  " +
 			m.st.muted.Render("‹ ") + m.st.title.Render(fmt.Sprintf("%d", m.size)) + m.st.muted.Render(" ›") +
 			"\n" + m.st.muted.Render("dá para mudar de ideia criando outra sala: o tamanho é fixo depois")
 	case formCode:
-		return bold.Render("Entrar com código") + "\n\n" + m.in.View()
+		return bold.Render("entrar com código") + "\n\n" + m.in.View()
 	case formLeave:
-		return bold.Render("Sair de "+m.w.Rooms[m.room].Name+"?") + "\n\n" +
-			m.st.muted.Render("Para voltar, você vai precisar do código de novo. Se você for o último, a sala some.")
+		return bold.Render("sair de "+m.w.Rooms[m.room].Name+"?") + "\n\n" +
+			m.st.muted.Render("para voltar, você vai precisar do código de novo. se não sobrar ninguém, a sala some.")
 	}
 	var b strings.Builder
 	if m.room == "" {
-		b.WriteString("Você ainda não está em nenhuma sala. Crie uma e passe o código para os colegas, ou entre com o código de alguém.\n\n")
+		b.WriteString(lipgloss.NewStyle().Width(max(m.width-4, 20)).Render("você ainda não está em nenhuma sala. crie uma e passe o código para quem vai focar com você, ou entre com o código de alguém.") + "\n\n")
 	}
-	b.WriteString(bold.Render("Salas") + "\n\n")
+	b.WriteString(bold.Render("salas") + "\n\n")
 	for i, it := range m.pickerItems() {
 		cursor, name := "  ", it.name
 		switch it.code {
