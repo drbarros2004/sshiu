@@ -46,6 +46,26 @@ Precisa de Go 1.27 ou mais novo e de um cliente SSH.
 
 Para usar outra porta, passe `-port`. Para rodar os testes, use `go test ./...`.
 
+## Abrir para a turma
+
+Por padrão o servidor só aceita quem está na própria máquina. Para outras pessoas entrarem:
+
+1. **Suba escutando em todas as interfaces:**
+   ```bash
+   go run . -host 0.0.0.0
+   ```
+   O log mostra o comando de entrada com cada endereço desta máquina — por exemplo `ssh -p 23234 192.168.0.33`. É esse mesmo comando que o convite da sala passa para quem você chamar.
+
+2. **Libere a porta no firewall do Windows**, num PowerShell como administrador:
+   ```powershell
+   New-NetFirewallRule -DisplayName "Plantão" -Direction Inbound -Protocol TCP -LocalPort 23234 -Action Allow -Profile Private
+   ```
+   Veja em que perfil você está com `Get-NetConnectionProfile`: numa rede **pública** o Windows recusa conexões de entrada, então ou a regra vai com `-Profile Public`, ou a rede passa a privada.
+
+3. **Todo mundo na mesma rede.** De fora dela o roteador não deixa passar sem redirecionamento de porta, e alguns Wi-Fi de visitante isolam os aparelhos entre si.
+
+**Guarde a pasta `.ssh/`:** a chave do servidor nasce lá na primeira execução, e é ela que o cliente SSH memoriza. Se a chave mudar — pasta apagada, servidor recriado, outra máquina no mesmo endereço — todo mundo recebe `REMOTE HOST IDENTIFICATION HAS CHANGED` e só entra depois de limpar o `known_hosts`.
+
 ## Mais
 
 - [`IDEIAS.md`](IDEIAS.md): o backlog e a dívida técnica conhecida.
