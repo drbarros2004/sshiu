@@ -226,21 +226,27 @@ func finish(u *user, r pet.Result, at time.Time) {
 	}
 }
 
-// event aparece em todas as salas de que u é membro. Chame com mu travado.
+// event aparece em todas as salas de que u é membro (a tarefa é a mesma em todas).
+// Chame com mu travado.
 func event(u *user, verb, task string) {
 	for _, r := range rooms {
-		if !slices.Contains(r.members, u.id) {
-			continue
+		if slices.Contains(r.members, u.id) {
+			roomEvent(r, u, verb, task)
 		}
-		lastEvent++
-		e := &Event{ID: lastEvent, Who: u.id, Nick: u.nick, Verb: verb, Task: task, At: time.Now()}
-		r.events = append([]*Event{e}, r.events...)
-		if len(r.events) > maxEvents {
-			r.events = r.events[:maxEvents]
-		}
-		if r.code == DemoCode {
-			botsReactTo(r, e)
-		}
+	}
+}
+
+// roomEvent põe um evento numa sala só: entrar e sair acontecem numa sala, não em todas.
+// Chame com mu travado.
+func roomEvent(r *room, u *user, verb, task string) {
+	lastEvent++
+	e := &Event{ID: lastEvent, Who: u.id, Nick: u.nick, Verb: verb, Task: task, At: time.Now()}
+	r.events = append([]*Event{e}, r.events...)
+	if len(r.events) > maxEvents {
+		r.events = r.events[:maxEvents]
+	}
+	if r.code == DemoCode {
+		botsReactTo(r, e)
 	}
 }
 
@@ -306,7 +312,7 @@ func Join(id, code string) error {
 		}
 	}
 	r.members = append(r.members, id)
-	load(id)
+	roomEvent(r, load(id), "entrou", "")
 	return nil
 }
 
@@ -323,7 +329,9 @@ func Leave(id, code string) error {
 	if r := rooms[code]; r != nil {
 		r.members = slices.DeleteFunc(r.members, func(m string) bool { return m == id })
 		if len(r.members) == 0 {
-			delete(rooms, code)
+			delete(rooms, code) // o último saiu: a sala e os eventos somem com ela
+		} else {
+			roomEvent(r, load(id), "saiu", "")
 		}
 	}
 	return nil

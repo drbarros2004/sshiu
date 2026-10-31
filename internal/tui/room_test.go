@@ -2,6 +2,7 @@ package tui
 
 import (
 	"plantao/internal/rooms"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +27,23 @@ func TestSoloGardenWidth(t *testing.T) {
 	}
 	if got := soloGardenWidth(76); got != 0 { // 80 colunas: o jardim não cabe
 		t.Fatalf("80 colunas: %d", got)
+	}
+}
+
+func TestOrderedMembers(t *testing.T) {
+	s := rooms.Snapshot{Members: []rooms.Member{
+		{ID: "sumiu", Status: rooms.Offline},
+		{ID: "foca1", Status: rooms.Focusing},
+		{ID: "eu", Status: rooms.Idle},
+		{ID: "parado", Status: rooms.Idle},
+		{ID: "foca2", Status: rooms.Focusing},
+	}}
+	var got []string
+	for _, x := range orderedMembers("eu", s) {
+		got = append(got, x.ID)
+	}
+	if want := []string{"eu", "foca1", "foca2", "parado", "sumiu"}; !slices.Equal(got, want) {
+		t.Fatalf("ordem %v, queria %v", got, want)
 	}
 }
 

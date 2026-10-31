@@ -94,7 +94,7 @@ O que um membro está fazendo agora, visto pela sala: focando (com tarefa e temp
 _Evite_: presença
 
 **Evento**:
-Algo que aconteceu na sala e aparece para todos: alguém começou ou cumpriu uma tarefa, bateu um streak.
+Algo que aconteceu na sala e aparece para todos: alguém entrou ou saiu, começou ou cumpriu uma tarefa, bateu um streak.
 _Evite_: notificação, post
 
 **Reação**:
