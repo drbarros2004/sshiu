@@ -7,6 +7,19 @@ import (
 	"time"
 )
 
+func TestRoomCode(t *testing.T) {
+	for in, want := range map[string]string{
+		"fg7dhm":                      "fg7dhm",
+		"  FG7DHM\n":                  "fg7dhm", // colado com espaço e quebra de linha
+		"ssh -t -p 23234 plantao fg7dhm": "fg7dhm", // o convite inteiro
+		"":                            "",
+	} {
+		if got := roomCode(in); got != want {
+			t.Errorf("roomCode(%q) = %q, queria %q", in, got, want)
+		}
+	}
+}
+
 func TestSoloGardenWidth(t *testing.T) {
 	if got := soloGardenWidth(116); got != 60 { // terminal de 120 colunas
 		t.Fatalf("120 colunas: %d", got)

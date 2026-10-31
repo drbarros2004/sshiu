@@ -20,6 +20,7 @@ const (
 	formName       // nome da sala nova
 	formSize       // quantas pessoas cabem nela
 	formCode       // código para entrar
+	formJoin       // a sala do código, antes de entrar
 	formLeave      // confirmando a saída
 )
 
@@ -65,7 +66,7 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if m.form != formLeave {
+		if m.form != formLeave && m.form != formJoin {
 			var cmd tea.Cmd
 			m.in, cmd = m.in.Update(msg)
 			return m, cmd
@@ -85,7 +86,7 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "+":
 			m.form, m.in, m.size = formName, newInput("ex.: Turma de Cálculo", 30), rooms.MaxMembers
 		case "#":
-			m.form, m.in = formCode, newInput("6 letras", 6)
+			m.form, m.in = formCode, newInput("6 letras", 60)
 		case "-":
 			m.form = formLeave
 		case rooms.DemoCode:
@@ -105,6 +106,16 @@ func (m model) join(code string) tea.Cmd {
 		}
 		return roomMsg{code, false, rooms.SnapshotWorld()}
 	}
+}
+
+// roomCode: o código no que a pessoa escreveu ou colou. Quem cola o convite inteiro
+// ("ssh -t -p 23234 plantao fg7dhm") quer a sala do fim da linha, não uma sala chamada "ssh".
+func roomCode(s string) string {
+	f := strings.Fields(strings.ToLower(s))
+	if len(f) == 0 {
+		return ""
+	}
+	return f[len(f)-1]
 }
 
 func (m model) submitForm() (tea.Model, tea.Cmd) {
@@ -127,7 +138,19 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 			return roomMsg{code, true, rooms.SnapshotWorld()}
 		}
 	case formCode:
-		return m, m.join(strings.ToLower(v))
+		code := roomCode(v)
+		if code == "" {
+			m.err = "digite o código que o colega te passou"
+			return m, nil
+		}
+		if _, ok := m.w.Rooms[code]; !ok {
+			m.err = "nenhuma sala com o código " + code
+			return m, nil
+		}
+		m.form, m.joining, m.err = formJoin, code, ""
+		return m, nil
+	case formJoin:
+		return m, m.join(m.joining)
 	case formLeave:
 		code := m.room
 		m.form, m.picking, m.room = formNone, false, ""
@@ -154,7 +177,12 @@ func (m model) pickerView() string {
 			m.st.muted.Render("‹ ") + m.st.title.Render(fmt.Sprintf("%d", m.size)) + m.st.muted.Render(" ›") +
 			"\n" + m.st.muted.Render(hint)
 	case formCode:
-		return bold.Render("entrar com código") + "\n\n" + m.in.View()
+		return bold.Render("entrar com código") + "\n\n" + m.in.View() + "\n" +
+			m.st.muted.Render("cole com ctrl+v (cmd+v no mac): o código ou o comando ssh inteiro")
+	case formJoin: // a sala tem nome e tamanho: dá para ver onde você está entrando
+		s := m.w.Rooms[m.joining]
+		return bold.Render("entrar em "+s.Name+"?") + "\n\n" +
+			m.st.muted.Render("código "+m.joining+" · "+roomSummary(s))
 	case formLeave:
 		return bold.Render("sair de "+m.w.Rooms[m.room].Name+"?") + "\n\n" +
 			m.st.muted.Render("para voltar, você vai precisar do código de novo. se não sobrar ninguém, a sala some.")

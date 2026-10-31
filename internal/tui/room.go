@@ -150,6 +150,11 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if expired {
 			m.choosing, m.cont = true, true
 		}
+	case "y": // o servidor não sabe se o terminal aceitou o OSC 52: o aviso diz só que mandou
+		if !m.solo() && code != rooms.DemoCode { // as duas salas sem código para passar adiante
+			m.notice = "código enviado para a área de transferência"
+			return m, tea.SetClipboard(code)
+		}
 	case "j": // na sala solo o jardim é a outra versão da tela, e abre a qualquer momento
 		if m.solo() || focusing && !expired {
 			return m.openGarden(false)
@@ -164,6 +169,8 @@ func (m model) roomHelp() string {
 	switch {
 	case m.inPicker() && m.form == formSize:
 		return "←/→ escolhe · enter cria · esc volta"
+	case m.inPicker() && m.form == formJoin:
+		return "enter entra · esc volta"
 	case m.inPicker() && m.form != formNone:
 		return "enter confirma · esc volta"
 	case m.inPicker():
@@ -203,6 +210,12 @@ func (m model) roomView(w, h int) string {
 	title := bold.Render(s.Name)
 	if m.room != rooms.DemoCode && !m.solo() { // a sala solo não tem código para passar
 		title += m.st.muted.Render(" · código " + m.room)
+		if !m.entering && !m.choosing { // digitando a tarefa, o y é texto
+			title += m.st.muted.Render(" · y copia")
+		}
+	}
+	if !m.solo() { // quanto a sala comporta, embaixo do nome; a solo é sempre uma pessoa
+		title += "\n" + m.st.muted.Render(fmt.Sprintf("%d/%d pessoas", len(s.Members), s.Max))
 	}
 	if m.notice != "" {
 		title += "\n" + m.st.ok.Render(m.notice)
@@ -210,11 +223,15 @@ func (m model) roomView(w, h int) string {
 	if m.solo() { // a sala solo tem uma pessoa e nenhum card: ela já cabe
 		return title + "\n\n" + m.soloView()
 	}
+	alone := len(s.Members) == 1 && m.room != rooms.DemoCode // sozinho numa sala de mais
 	var out string
 	for _, compact := range []bool{false, true} {
 		for n := shownEvents; n >= 0 && (compact || n > 0); n -= 2 { // sem eventos só com os pets já encolhidos
 			out = title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s, w/18, compact)
-			if n > 0 {
+			switch {
+			case alone: // o convite vale mais que o feed vazio, e não encolhe
+				out += "\n\n" + m.invitePanel(s)
+			case n > 0:
 				out += "\n\n" + m.feed(n) + "\n" + m.legend()
 			}
 			if lipgloss.Height(out) <= h {
@@ -223,6 +240,19 @@ func (m model) roomView(w, h int) string {
 		}
 	}
 	return out
+}
+
+// invitePanel: a sala recém-criada é a tela mais vazia do app, e o que falta nela é gente.
+// Enquanto você é o único membro, o convite ocupa o lugar do feed, com os dois caminhos:
+// quem já usa o app entra pelo menu de salas, e quem está chegando cola o comando no terminal.
+func (m model) invitePanel(s rooms.Snapshot) string {
+	row := func(label, text string) string {
+		return m.st.muted.Render(fmt.Sprintf("  %-13s", label)) + text
+	}
+	return bold.Render("você é o primeiro aqui.") + m.st.muted.Render(" para a turma entrar na sala:") + "\n\n" +
+		row("no Plantão", m.st.muted.Render("aperta ")+"s"+m.st.muted.Render(", escolhe ")+"entrar com código"+
+			m.st.muted.Render(" e digita o código da sala")) + "\n" +
+		row("no terminal", m.st.title.Render(m.invite+" "+s.Code))
 }
 
 // soloView: o painel do foco à esquerda e o modo jardim à direita (ADR 0006). O jardim anda só

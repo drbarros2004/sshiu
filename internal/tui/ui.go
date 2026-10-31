@@ -113,6 +113,8 @@ func act(f func()) tea.Cmd {
 
 type model struct {
 	id, nick      string // nick vazio = primeiro acesso
+	invite        string // o "ssh ..." com que um colega chega a este servidor
+	pending       string // código que veio no comando do ssh, a entrar na primeira chance
 	w             rooms.World
 	room          string // código da sala que você está vendo ("" = nenhuma: o menu de salas)
 	now           time.Time
@@ -141,6 +143,7 @@ type model struct {
 	size     int             // tamanho escolhido para a sala nova
 	pcur     int             // item selecionado no menu
 	form     form            // formulário de sala em andamento
+	joining  string          // código da sala na prévia, esperando o enter
 	pet      pet.Pet         // perfil, carregado ao abrir a aba
 	tasks    []store.TaskRow
 	days     map[string]float64 // minutos focados por dia (uns 40 dias)
@@ -162,8 +165,9 @@ func (m *model) setWorld(w rooms.World) {
 	}
 }
 
-func New(id string) model {
-	m := model{id: id, width: 80, height: 24, now: time.Now(), lastKey: time.Now(), mins: slices.Index(minuteChoices(), 25)}
+func New(id, invite, code string) model {
+	m := model{id: id, invite: invite, pending: code, width: 80, height: 24, now: time.Now(),
+		lastKey: time.Now(), mins: slices.Index(minuteChoices(), 25)}
 	m.setWorld(rooms.SnapshotWorld())
 	nick, _, ok, err := store.GetUser(id)
 	if err != nil {
@@ -185,11 +189,19 @@ func newInput(placeholder string, limit int) textinput.Model {
 	in.Placeholder = placeholder
 	in.CharLimit = limit
 	in.SetWidth(50)
+	// o ctrl+v do textinput leria a área de transferência do servidor; quem cola é o terminal do
+	// usuário, que manda o texto colado como tea.PasteMsg.
+	in.KeyMap.Paste.SetEnabled(false)
 	in.Focus()
 	return in
 }
 
-func (m model) Init() tea.Cmd { return tea.Batch(doTick(), m.loadProfile()) }
+func (m model) Init() tea.Cmd {
+	if m.pending != "" && m.nick != "" { // "ssh -t <servidor> <código>": entra sem passar pelo menu
+		return tea.Batch(doTick(), m.loadProfile(), m.join(m.pending))
+	}
+	return tea.Batch(doTick(), m.loadProfile())
+}
 
 // active: tarefa em andamento e dentro do tempo declarado.
 func (m model) active() bool {
@@ -296,7 +308,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.room, m.picking, m.form, m.err = msg.code, false, formNone, ""
 		m.notice = "você entrou em " + m.w.Rooms[msg.code].Name
 		if msg.created {
-			m.notice = "sala criada! passe o código " + msg.code + " para quem vai focar com você"
+			m.notice = "" // o código está no título e o convite embaixo explica o que fazer
 			if m.solo() {
 				m.notice = "sala solo criada: só você entra aqui"
 			}
@@ -310,11 +322,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = msg.err.Error()
 		default:
 			m.nick, m.err = msg.nick, ""
+			if m.pending != "" { // o código do comando esperava o apelido do primeiro acesso
+				code := m.pending
+				m.pending = ""
+				return m, m.join(code)
+			}
 		}
 	case profileMsg:
 		m.pet, m.tasks, m.days, m.totals = msg.pet, msg.tasks, msg.days, msg.totals
 	case errMsg:
 		m.err = msg.Error()
+	case tea.PasteMsg: // colar vai para o campo ativo; o texto vem do terminal (bracketed paste)
+		if m.nick == "" || m.typing() {
+			var cmd tea.Cmd
+			m.in, cmd = m.in.Update(msg)
+			return m, cmd
+		}
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	}
