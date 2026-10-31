@@ -3,6 +3,7 @@ package store
 import (
 	"crypto/rand"
 	"database/sql"
+	_ "embed"
 	"errors"
 	"fmt"
 	"plantao/internal/pet"
@@ -13,39 +14,8 @@ import (
 
 var db *sql.DB
 
-// As tabelas sprints e friends, do modelo antigo, ficam nos bancos que já as têm, sem uso.
-const schema = `
-CREATE TABLE IF NOT EXISTS users (
-	id          TEXT PRIMARY KEY, -- fingerprint da chave SSH
-	nick        TEXT NOT NULL UNIQUE,
-	energy      REAL NOT NULL,
-	last_active INTEGER NOT NULL,
-	streak      INTEGER NOT NULL DEFAULT 0,
-	streak_day  TEXT NOT NULL DEFAULT ''
-);
-CREATE TABLE IF NOT EXISTS tasks ( -- uma por tarefa encerrada
-	id           INTEGER PRIMARY KEY,
-	user_id      TEXT NOT NULL REFERENCES users(id),
-	started_at   INTEGER NOT NULL,
-	ended_at     INTEGER NOT NULL,
-	task         TEXT NOT NULL,
-	declared_min INTEGER NOT NULL, -- tempo declarado (com o que foi dado ao continuar)
-	focused_sec  INTEGER NOT NULL, -- o que de fato contou
-	result       TEXT NOT NULL,
-	room_code    TEXT NOT NULL DEFAULT '' -- a sala em que ela começou; "" nas tarefas anteriores à coluna
-);
-CREATE TABLE IF NOT EXISTS rooms (
-	code        TEXT PRIMARY KEY, -- o convite: quem tem o código entra
-	name        TEXT NOT NULL,
-	owner       TEXT NOT NULL REFERENCES users(id), -- quem criou; sem poderes no MVP (ADR 0003)
-	slots       TEXT NOT NULL DEFAULT '',    -- do modelo antigo, sem uso
-	max_members INTEGER NOT NULL DEFAULT 10  -- tamanho escolhido na criação
-);
-CREATE TABLE IF NOT EXISTS room_members (
-	code    TEXT NOT NULL REFERENCES rooms(code),
-	user_id TEXT NOT NULL REFERENCES users(id),
-	PRIMARY KEY (code, user_id)
-);`
+//go:embed schema.sql
+var schema string
 
 // Open abre o banco (criando as tabelas se preciso) e o guarda para o resto do pacote.
 func Open(path string) error {
@@ -158,7 +128,45 @@ func RecordTask(id string, t TaskRow) (pet.Pet, error) {
 		id, t.Start.Unix(), t.End.Unix(), t.Task, t.DeclaredMin, int(t.Focused.Seconds()), t.Result, t.Room); err != nil {
 		return pet.Pet{}, err
 	}
+	if _, err = tx.Exec(`DELETE FROM open_tasks WHERE user_id = ?`, id); err != nil {
+		return pet.Pet{}, err
+	}
 	return p, tx.Commit()
+}
+
+// OpenTask: a tarefa em andamento, gravada ao começar e ao continuar para sobreviver a um restart.
+type OpenTask struct {
+	User, Task, Room      string
+	Start, SegStart, Ends time.Time
+	Declared              int
+	Counted               time.Duration
+}
+
+func SaveOpenTask(t OpenTask) error {
+	_, err := db.Exec(`INSERT OR REPLACE INTO open_tasks (user_id, started_at, seg_started_at, ends_at, task, declared_min, counted_sec, room_code)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.User, t.Start.Unix(), t.SegStart.Unix(), t.Ends.Unix(), t.Task, t.Declared, int(t.Counted.Seconds()), t.Room)
+	return err
+}
+
+// OpenTasks: as tarefas que estavam em andamento quando o servidor caiu.
+func OpenTasks() ([]OpenTask, error) {
+	rows, err := db.Query(`SELECT user_id, started_at, seg_started_at, ends_at, task, declared_min, counted_sec, room_code FROM open_tasks`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []OpenTask
+	for rows.Next() {
+		var t OpenTask
+		var start, seg, ends, sec int64
+		if err := rows.Scan(&t.User, &start, &seg, &ends, &t.Task, &t.Declared, &sec, &t.Room); err != nil {
+			return nil, err
+		}
+		t.Start, t.SegStart, t.Ends, t.Counted = time.Unix(start, 0), time.Unix(seg, 0), time.Unix(ends, 0), time.Duration(sec)*time.Second
+		out = append(out, t)
+	}
+	return out, rows.Err()
 }
 
 // Tasks: as últimas tarefas do usuário, da mais nova para a mais velha.

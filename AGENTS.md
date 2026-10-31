@@ -13,6 +13,7 @@ App de foco por SSH em Go (Wish v2 + Bubble Tea v2 + Lip Gloss v2, SQLite via `m
 - Textos da interface não tratam ninguém no masculino: reestruture a frase em vez de usar "o(a)", "@" ou "x" (por exemplo, "qual vai ser o seu apelido?", não "Como quer ser chamado?").
 - Textos da interface começam com letra minúscula, inclusive títulos e a frase depois de um ponto. Siglas (SSH) e o logo (PLANTÃO) ficam como estão.
 - Pacotes em `internal/`, com dependência numa direção só: `tui` → `rooms` → `store` → `pet`. `main.go` sobe o servidor.
+- O schema do banco fica em [`internal/store/schema.sql`](internal/store/schema.sql), embutido com `go:embed`; coluna nova num banco que já existe também precisa do `ALTER TABLE` no `Open`.
 - Commits seguem o [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`), com a descrição em inglês. Commit e push só com o OK do usuário.
 
 ## Rodar e verificar

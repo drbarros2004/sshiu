@@ -2,7 +2,8 @@ package rooms
 
 // Foco individual e salas, em memória (ADR 0002 a 0004). Cada usuário tem no máximo uma tarefa em
 // andamento, vista por todas as salas de que é membro; cada sala tem seus membros e seus eventos,
-// com as reações. O banco guarda os membros e as tarefas encerradas; eventos e reações vivem só aqui.
+// com as reações. O banco guarda os membros, as tarefas encerradas e a em andamento (para sobreviver a
+// um restart); eventos e reações vivem só aqui, e um restart os perde.
 // As telas não recebem eventos: cada sessão lê um retrato (World) a cada tick.
 
 import (
@@ -19,18 +20,18 @@ import (
 )
 
 const (
-	DemoCode       = "demo"
-	Reactions      = 4               // quantas reações existem (as teclas 1 a 4)
-	MaxMembers     = 10              // maior sala que dá para escolher (docs/regras.md)
-	MinMembers     = 1               // a sala solo, para focar sozinho (ADR 0006)
-	reconnectGrace = 2 * time.Minute // conexão instável não interrompe a tarefa
-	maxEvents      = 20
+	DemoCode   = "demo"
+	Reactions  = 4  // quantas reações existem (as teclas 1 a 4)
+	MaxMembers = 10 // maior sala que dá para escolher (docs/regras.md)
+	MinMembers = 1  // a sala solo, para focar sozinho (ADR 0006)
+	maxEvents  = 20
 )
+
+var reconnectGrace = 2 * time.Minute // conexão instável (ou um restart) não interrompe a tarefa; var para o teste
 
 var Demo bool // flag -demo: a sala demo, com bots
 
 // ponytail: um lock só para salas e usuários, que dá para uma turma; um lock por sala se houver muitas.
-// ponytail: foco e eventos só em memória, e um restart perde as tarefas em andamento; gravar a tarefa aberta no banco quando houver deploy.
 var (
 	mu        sync.Mutex
 	rooms     = map[string]*room{} // por código
@@ -117,6 +118,19 @@ func Load() error {
 			load(id)
 		}
 	}
+	// o restart conta como desconexão de todo mundo, agora: quem volta a tempo continua a tarefa.
+	open, err := store.OpenTasks()
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	for _, t := range open {
+		u := load(t.User)
+		u.focus = &Focus{Task: t.Task, Room: t.Room, Start: t.Start, SegStart: t.SegStart, Ends: t.Ends,
+			Declared: t.Declared, Counted: t.Counted}
+		u.gone = now
+		awaitReturn(u)
+	}
 	return nil
 }
 
@@ -150,6 +164,12 @@ func Disconnect(id string) {
 		return
 	}
 	u.gone = time.Now()
+	awaitReturn(u)
+}
+
+// awaitReturn: se u não voltar dentro da tolerância, a tarefa é interrompida com os minutos até u.gone.
+// Chame com mu travado.
+func awaitReturn(u *user) {
 	if f := u.focus; f != nil {
 		time.AfterFunc(reconnectGrace, func() {
 			mu.Lock()
@@ -187,7 +207,19 @@ func start(u *user, room, task string, minutes int, d time.Duration) {
 	}
 	now := time.Now()
 	u.focus = &Focus{Task: task, Room: room, Start: now, SegStart: now, Ends: now.Add(d), Declared: minutes}
+	save(u)
 	event(u, "começou", task)
+}
+
+// save grava a tarefa em andamento, para ela sobreviver a um restart. Os bots não gravam: a demo
+// some com o servidor. Chame com mu travado.
+func save(u *user) {
+	if f := u.focus; f != nil && u.bot == nil {
+		if err := store.SaveOpenTask(store.OpenTask{User: u.id, Task: f.Task, Room: f.Room, Start: f.Start,
+			SegStart: f.SegStart, Ends: f.Ends, Declared: f.Declared, Counted: f.Counted}); err != nil {
+			log.Error("saveOpenTask", "err", err)
+		}
+	}
 }
 
 // Continue dá mais tempo à tarefa cujo tempo declarado esgotou.
@@ -195,9 +227,11 @@ func Continue(id string, minutes int) {
 	mu.Lock()
 	defer mu.Unlock()
 	now := time.Now()
-	if f := load(id).focus; f != nil && f.Expired(now) {
+	u := load(id)
+	if f := u.focus; f != nil && f.Expired(now) {
 		f.Counted, f.SegStart = f.Focused(now), now
 		f.Ends, f.Declared = now.Add(time.Duration(minutes)*time.Minute), f.Declared+minutes
+		save(u)
 	}
 }
 

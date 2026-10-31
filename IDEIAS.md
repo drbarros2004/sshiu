@@ -160,7 +160,6 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 Também marcada no código com comentários `ponytail:`.
 
 - **Migração ingênua:** o `ALTER TABLE` ignora o erro de "coluna já existe". Trocar por uma ferramenta de migração quando houver várias.
-- **Foco e eventos só em memória:** a tarefa em andamento, os eventos e as reações vivem em `internal/rooms`; reiniciar o servidor perde as tarefas em andamento (sem gravar) e os eventos. Gravar a tarefa aberta no banco quando um restart virar rotina (deploy).
 - **Um lock só** para todas as salas e usuários em `internal/rooms`: dá para uma turma; um lock por sala se houver muitas.
 - **Sala sem rolagem** (`roomView` em `internal/tui/room.go`): quando falta altura, a lista de eventos encurta e os pets viram um ponto da cor do humor, mas com muita gente num terminal baixo (80×24 já com 6 membros) os cards passam da altura e são cortados. Rolagem nos cards se isso aparecer de verdade.
 - **Contornos para servidor no Windows** (`lfWriter` e perfil de cores em `main.go`): só existem porque o Wish/Bubble Tea assumem Unix. No deploy em Linux, nem são usados.
