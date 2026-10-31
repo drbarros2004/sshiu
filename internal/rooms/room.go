@@ -22,7 +22,7 @@ const (
 	DemoCode       = "demo"
 	Reactions      = 4               // quantas reações existem (as teclas 1 a 4)
 	MaxMembers     = 10              // maior sala que dá para escolher (docs/regras.md)
-	MinMembers     = 2               // menor sala que dá para escolher
+	MinMembers     = 1               // a sala solo, para focar sozinho (ADR 0006)
 	reconnectGrace = 2 * time.Minute // conexão instável não interrompe a tarefa
 	maxEvents      = 20
 )

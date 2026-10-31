@@ -44,11 +44,16 @@ var wallpapers = []wallpaper{
 var clockModes = []string{"mm:ss", "só os minutos", "nenhum"}
 
 // garden: o modo jardim ligado. É ponteiro no modelo porque as cenas guardam estado (as partículas).
+// Serve para a tela cheia e para a coluna da direita da sala solo (w/h e bare, ADR 0006).
 type garden struct {
 	scene       scene
 	start, last time.Time
 	gen         int  // descarta ticks de um jardim anterior
-	preview     bool // aberto pela aba visual: fica ligado sem tarefa
+	preview     bool // aberto pela aba visual: mostra o nome do wallpaper
+	keep        bool // fica ligado sem tarefa (a prévia e a sala solo)
+	bare        bool // sem texto por cima: na sala solo quem mostra relógio e tarefa é o painel
+	w, h        int  // 0 = a tela toda
+	ticking     bool // já tem um tick de 8 fps a caminho
 	frame       string
 }
 
@@ -59,6 +64,16 @@ type gardenTickMsg struct {
 
 func gardenTick(gen int) tea.Cmd {
 	return tea.Tick(time.Second/gardenFPS, func(t time.Time) tea.Msg { return gardenTickMsg{t, gen} })
+}
+
+// sideTickMsg: o jardim da coluna da sala solo, no mesmo ritmo da tela cheia.
+type sideTickMsg struct {
+	t   time.Time
+	gen int
+}
+
+func sideTick(gen int) tea.Cmd {
+	return tea.Tick(time.Second/gardenFPS, func(t time.Time) tea.Msg { return sideTickMsg{t, gen} })
 }
 
 // wallpaperFor: o escolhido, ou um sorteado por tarefa (o mesmo durante toda a tarefa).
@@ -76,7 +91,9 @@ func (m model) openGarden(preview bool) (model, tea.Cmd) {
 		gen = m.garden.gen + 1
 	}
 	i := wallpaperFor(m.vis, m.me().Focus)
-	m.garden = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen, preview: preview}
+	// na sala solo o jardim é a outra versão da tela, então fica ligado mesmo sem tarefa
+	m.garden = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen,
+		preview: preview, keep: preview || m.solo()}
 	m.garden.render(m)
 	return m, gardenTick(gen)
 }
@@ -117,8 +134,15 @@ func (g *garden) render(m model) {
 	t, dt := m.now.Sub(g.start).Seconds(), min(m.now.Sub(g.last).Seconds(), 0.5)
 	g.last = m.now
 	w, h := max(m.width, 20), max(m.height, 10)
+	if g.w > 0 { // a coluna da sala solo, não a tela toda
+		w, h = g.w, g.h
+	}
 	c := newCanvas(w, h)
 	g.scene.draw(c, t, dt)
+	if g.bare {
+		g.frame = c.String()
+		return
+	}
 
 	me := m.me()
 	var lines, cols []string

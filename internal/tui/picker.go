@@ -145,9 +145,13 @@ func (m model) pickerView() string {
 	case formName:
 		return bold.Render("Criar sala") + "\n\nNome:\n" + m.in.View()
 	case formSize:
+		hint := "dá para mudar de ideia criando outra sala: o tamanho é fixo depois"
+		if m.size == rooms.MinMembers { // ADR 0006
+			hint = "sala solo: só você, sem código de entrada"
+		}
 		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n\nQuantas pessoas cabem?  " +
 			m.st.muted.Render("‹ ") + m.st.title.Render(fmt.Sprintf("%d", m.size)) + m.st.muted.Render(" ›") +
-			"\n" + m.st.muted.Render("dá para mudar de ideia criando outra sala: o tamanho é fixo depois")
+			"\n" + m.st.muted.Render(hint)
 	case formCode:
 		return bold.Render("Entrar com código") + "\n\n" + m.in.View()
 	case formLeave:

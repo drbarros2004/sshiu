@@ -16,7 +16,26 @@ import (
 
 var reactionGlyphs = [rooms.Reactions]string{"👏", "🔥", "💪", "☕"}
 
-const shownEvents = 6
+const (
+	shownEvents = 6
+	panelCols   = 54 // largura do painel da sala solo
+	minGarden   = 36 // menos que isso não dá jardim: a tela fica só com o painel
+	soloEvents  = 3  // linhas do mini log da sala solo
+)
+
+// solo: a sala é de uma pessoa (ADR 0006), então a tela não tem cards, reações nem código.
+func (m model) solo() bool { return m.w.Rooms[m.room].Max == rooms.MinMembers }
+
+// soloGardenWidth: o que sobra para o jardim ao lado do painel (0 = não cabe).
+func soloGardenWidth(inner int) int {
+	if w := inner - panelCols - 2; w >= minGarden {
+		return w
+	}
+	return 0
+}
+
+// soloRows: a altura das colunas da sala solo, fora o cabeçalho, o título e a ajuda.
+func soloRows(height int) int { return max(12, height-9) }
 
 // minuteChoices: os tempos declarados que dá para escolher (na demo, 1 min para a plateia ver o fluxo).
 func minuteChoices() []int {
@@ -26,7 +45,12 @@ func minuteChoices() []int {
 	return []int{10, 15, 25, 45, 60}
 }
 
+// events: os eventos navegáveis. A sala solo não tem nenhum (nem cursor, nem reações); o que
+// você fez nela aparece no mini log.
 func (m model) events() []rooms.Event {
+	if m.solo() {
+		return nil
+	}
 	ev := m.w.Rooms[m.room].Events
 	return ev[:min(len(ev), shownEvents)]
 }
@@ -125,8 +149,8 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if expired {
 			m.choosing, m.cont = true, true
 		}
-	case "j":
-		if focusing && !expired {
+	case "j": // na sala solo o jardim é a outra versão da tela, e abre a qualquer momento
+		if m.solo() || focusing && !expired {
 			return m.openGarden(false)
 		}
 	}
@@ -148,11 +172,22 @@ func (m model) roomHelp() string {
 	case m.choosing:
 		return "←/→ escolhe · enter começa · esc volta"
 	case focusing && me.Focus.Expired(m.now):
-		return "c continuar · t trocar · p parar · f feito · ↑/↓ evento · 1-4 reage"
+		return "c continuar · t trocar · p parar · f feito" + m.reactHelp()
 	case focusing:
-		return "f feito · t trocar · p parar · j modo jardim · ↑/↓ evento · 1-4 reage · s salas"
+		return "f feito · t trocar · p parar · j modo jardim" + m.reactHelp() + " · s salas"
 	}
-	return "enter começa uma tarefa · ↑/↓ evento · 1-4 reage · s salas"
+	if m.solo() { // na sala solo o jardim abre sem tarefa: é a outra versão da tela
+		return "enter começa uma tarefa · j modo jardim · s salas"
+	}
+	return "enter começa uma tarefa" + m.reactHelp() + " · s salas"
+}
+
+// reactHelp: as teclas de evento e reação, que a sala solo não tem.
+func (m model) reactHelp() string {
+	if m.solo() {
+		return ""
+	}
+	return " · ↑/↓ evento · 1-4 reage"
 }
 
 func (m model) roomView() string {
@@ -161,13 +196,57 @@ func (m model) roomView() string {
 	}
 	s := m.w.Rooms[m.room]
 	title := bold.Render(s.Name)
-	if m.room != rooms.DemoCode {
+	if m.room != rooms.DemoCode && !m.solo() { // a sala solo não tem código para passar
 		title += m.st.muted.Render(" · código " + m.room)
 	}
 	if m.notice != "" {
 		title += "\n" + m.st.ok.Render(m.notice)
 	}
+	if m.solo() {
+		return title + "\n\n" + m.soloView()
+	}
 	return title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s) + "\n\n" + m.feed() + "\n" + m.legend()
+}
+
+// soloView: o painel do foco à esquerda e o modo jardim à direita (ADR 0006). O jardim anda só
+// durante o foco; parado, a coluna fica quieta. Em terminal estreito ele não cabe e sobra o painel,
+// com o pet ao lado das informações.
+func (m model) soloView() string {
+	if m.side == nil {
+		return m.focusPanel() + "\n\n" + lipgloss.JoinHorizontal(lipgloss.Top,
+			lipgloss.NewStyle().Width(26).Render(m.soloPet()), m.soloLog())
+	}
+	panel := strings.Join([]string{m.focusPanel(), "", m.soloPet(), "", m.soloLog()}, "\n")
+	bar := m.st.muted.Render(strings.TrimRight(strings.Repeat("│\n", soloRows(m.height)), "\n"))
+	return lipgloss.JoinHorizontal(lipgloss.Top,
+		lipgloss.NewStyle().Width(panelCols).Render(panel), bar, " ", m.side.frame)
+}
+
+// soloPet: o pet grande, com o humor e, se o banco já respondeu, o streak e os minutos de hoje.
+func (m model) soloPet() string {
+	mood := pet.MoodOf(m.me().Energy)
+	line := bold.Render("você") + " " + m.st.muted.Render(pet.MoodName[mood])
+	if p := m.pet; p.Today == m.now.Format("2006-01-02") {
+		line += m.st.muted.Render(fmt.Sprintf(" · streak %d · %d min hoje", p.StreakAt(m.now), int(p.TodayMin)))
+	}
+	return pet.Render(mood, m.tick, m.pixel) + "\n" + line
+}
+
+// soloLog: as últimas coisas que você fez nesta sala, sem reações e sem cursor.
+func (m model) soloLog() string {
+	ev := m.w.Rooms[m.room].Events
+	if len(ev) == 0 {
+		return m.st.muted.Render("a primeira tarefa que você começar aparece aqui")
+	}
+	var b strings.Builder
+	for _, e := range ev[:min(len(ev), soloEvents)] {
+		verb := e.Verb
+		if e.Verb == "cumpriu" {
+			verb = m.st.ok.Render(verb)
+		}
+		b.WriteString(m.st.muted.Render(e.At.Format("15:04")) + "  " + verb + " \"" + e.Task + "\"\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // focusPanel: o seu foco, conforme o momento.
