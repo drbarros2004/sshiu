@@ -40,7 +40,11 @@ func (m model) profileView() string {
 		} else {
 			label = m.st.muted.Render(label)
 		}
-		info += fmt.Sprintf("%s  %s %3d min  %s\n", t.Start.Format("02/01 15:04"), label, int(t.Focused.Minutes()), t.Task)
+		info += fmt.Sprintf("%s  %s %3d min  %s", t.Start.Format("02/01 15:04"), label, int(t.Focused.Minutes()), t.Task)
+		if r, ok := m.w.Rooms[t.Room]; ok { // a sala pode ter sumido desde então: aí não há nome a mostrar
+			info += m.st.muted.Render(" · " + r.Name)
+		}
+		info += "\n"
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, pet.RenderBig(mood, m.tick, m.pixel), "    ", strings.TrimRight(info, "\n"))
 }
