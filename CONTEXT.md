@@ -21,12 +21,16 @@ Um grupo fechado de usuários que focam e se veem juntos. Toda sala é privada.
 _Evite_: canal, grupo, servidor, hub
 
 **Código**:
-O convite de uma sala: quem tem o código entra, sem aprovação.
+O convite de uma sala: quem tem o código entra, sem aprovação. A sala solo não tem código.
 _Evite_: senha, link
 
 **Membro**:
 Um usuário que entrou numa sala e ainda não saiu. Nenhum membro tem poderes especiais; a sala deixa de existir quando o último sai.
 _Evite_: dono, admin, participante
+
+**Sala solo**:
+Uma sala de uma pessoa, para focar sozinho. Não tem código e ninguém entra nela; a tela é só o painel de foco e o modo jardim ([ADR 0006](docs/adr/0006-sala-solo.md)).
+_Evite_: sala privada, modo solo
 
 **Sala demo**:
 A sala com bots que existe só no modo de demonstração, para mostrar o app cheio.
@@ -90,7 +94,7 @@ O que um membro está fazendo agora, visto pela sala: focando (com tarefa e temp
 _Evite_: presença
 
 **Evento**:
-Algo que aconteceu na sala e aparece para todos: alguém começou ou cumpriu uma tarefa, bateu um streak.
+Algo que aconteceu na sala e aparece para todos: alguém entrou ou saiu, começou ou cumpriu uma tarefa, bateu um streak.
 _Evite_: notificação, post
 
 **Reação**:

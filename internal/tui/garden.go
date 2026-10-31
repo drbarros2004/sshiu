@@ -46,11 +46,16 @@ var wallpapers = []wallpaper{
 var clockModes = []string{"mm:ss", "só os minutos", "nenhum"}
 
 // garden: o modo jardim ligado. É ponteiro no modelo porque as cenas guardam estado (as partículas).
+// Serve para a tela cheia e para a coluna da direita da sala solo (w/h e bare, ADR 0006).
 type garden struct {
 	scene       scene
 	start, last time.Time
-	gen         int  // descarta ticks de um jardim anterior
-	preview     bool // aberto pela aba visual: fica ligado sem tarefa
+	gen         int       // descarta ticks de um jardim anterior
+	preview     bool      // aberto pela aba visual
+	keep        bool      // fica ligado sem tarefa (a prévia e a sala solo)
+	bare        bool      // sem texto por cima: na sala solo quem mostra relógio e tarefa é o painel
+	w, h        int       // 0 = a tela toda
+	ticking     bool      // já tem um tick de 8 fps a caminho
 	wall        int       // o wallpaper na tela
 	hint        time.Time // até quando mostra o nome do wallpaper e "← → troca"
 	frame       string
@@ -63,6 +68,16 @@ type gardenTickMsg struct {
 
 func gardenTick(gen int) tea.Cmd {
 	return tea.Tick(time.Second/gardenFPS, func(t time.Time) tea.Msg { return gardenTickMsg{t, gen} })
+}
+
+// sideTickMsg: o jardim da coluna da sala solo, no mesmo ritmo da tela cheia.
+type sideTickMsg struct {
+	t   time.Time
+	gen int
+}
+
+func sideTick(gen int) tea.Cmd {
+	return tea.Tick(time.Second/gardenFPS, func(t time.Time) tea.Msg { return sideTickMsg{t, gen} })
 }
 
 // wallpaperIndex: a posição do wallpaper na lista (-1 = sorteado).
@@ -85,7 +100,7 @@ func wallpaperFor(g store.Garden, f rooms.Focus) int {
 	if i := wallpaperIndex(g.Wallpaper); i >= 0 {
 		return i
 	}
-	if f.Start.IsZero() {
+	if f.Start.IsZero() { // sem tarefa em andamento não há instante de onde sortear
 		return rand.IntN(len(wallpapers))
 	}
 	return int(f.Start.UnixMilli() % int64(len(wallpapers)))
@@ -107,7 +122,10 @@ func (m model) openGarden(preview bool) (model, tea.Cmd) {
 		gen = m.garden.gen + 1
 	}
 	i := m.gardenWall(preview)
-	m.garden = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen, preview: preview, wall: i}
+	// na sala solo o jardim aberto sem tarefa é a outra versão da tela e fica ligado; aberto
+	// durante o foco, ele fecha quando o tempo esgota, senão você não vê que precisa responder.
+	m.garden = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen,
+		preview: preview, keep: preview || m.solo() && !m.active(), wall: i}
 	if !preview {
 		m.garden.hint = m.now.Add(gardenHint)
 	}
@@ -169,8 +187,15 @@ func (g *garden) render(m model) {
 	t, dt := m.now.Sub(g.start).Seconds(), min(m.now.Sub(g.last).Seconds(), 0.5)
 	g.last = m.now
 	w, h := max(m.width, 20), max(m.height, 10)
+	if g.w > 0 { // a coluna da sala solo, não a tela toda
+		w, h = g.w, g.h
+	}
 	c := newCanvas(w, h)
 	g.scene.draw(c, t, dt)
+	if g.bare {
+		g.frame = c.String()
+		return
+	}
 
 	me := m.me()
 	var lines, cols []string

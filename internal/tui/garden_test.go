@@ -27,6 +27,9 @@ func TestWallpaperForWithoutTask(t *testing.T) { // a prévia sem tarefa, em sor
 			t.Fatalf("wallpaperFor sem tarefa = %d", i)
 		}
 	}
+	if i := wallpaperFor(store.Garden{Wallpaper: "rain"}, rooms.Focus{}); wallpapers[i].id != "rain" {
+		t.Fatalf("escolhido pela aba visual: %d", i)
+	}
 }
 
 func TestSwapLastsForTheTask(t *testing.T) {

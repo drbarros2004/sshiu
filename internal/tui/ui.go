@@ -89,8 +89,10 @@ type (
 		err  error
 	}
 	profileMsg struct {
-		pet   pet.Pet
-		tasks []store.TaskRow
+		pet    pet.Pet
+		tasks  []store.TaskRow
+		days   map[string]float64 // minutos focados por dia, para o calendário
+		totals store.Totals
 	}
 	errMsg  struct{ error }
 	roomMsg struct { // entrei numa sala (criada agora ou por código)
@@ -111,6 +113,8 @@ func act(f func()) tea.Cmd {
 
 type model struct {
 	id, nick      string // nick vazio = primeiro acesso
+	invite        string // o "ssh ..." com que um colega chega a este servidor
+	pending       string // código que veio no comando do ssh, a entrar na primeira chance
 	w             rooms.World
 	room          string // código da sala que você está vendo ("" = nenhuma: o menu de salas)
 	now           time.Time
@@ -123,7 +127,8 @@ type model struct {
 	theme, saved  int          // tema em prévia e tema salvo
 	vis, visSaved store.Garden // modo jardim em prévia e salvo
 	vrow          int          // linha selecionada na aba visual
-	garden        *garden      // modo jardim ligado (nil = desligado)
+	garden        *garden      // modo jardim em tela cheia (nil = desligado)
+	side          *garden      // o jardim da coluna da sala solo (nil = não tem)
 	lastKey       time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim
 	wall          int          // o wallpaper trocado no jardim, que vale para a tarefa...
 	wallFor       time.Time    // ...que começou neste instante
@@ -135,10 +140,14 @@ type model struct {
 	mins     int             // índice em minuteChoices()
 	sel      int             // evento selecionado (ID)
 	picking  bool            // menu de salas aberto
+	size     int             // tamanho escolhido para a sala nova
 	pcur     int             // item selecionado no menu
 	form     form            // formulário de sala em andamento
+	joining  string          // código da sala na prévia, esperando o enter
 	pet      pet.Pet         // perfil, carregado ao abrir a aba
 	tasks    []store.TaskRow
+	days     map[string]float64 // minutos focados por dia (uns 40 dias)
+	totals   store.Totals
 }
 
 // me: você como a sala te vê (status e tarefa).
@@ -156,8 +165,9 @@ func (m *model) setWorld(w rooms.World) {
 	}
 }
 
-func New(id string) model {
-	m := model{id: id, width: 80, height: 24, now: time.Now(), lastKey: time.Now(), mins: slices.Index(minuteChoices(), 25)}
+func New(id, invite, code string) model {
+	m := model{id: id, invite: invite, pending: code, width: 80, height: 24, now: time.Now(),
+		lastKey: time.Now(), mins: slices.Index(minuteChoices(), 25)}
 	m.setWorld(rooms.SnapshotWorld())
 	nick, _, ok, err := store.GetUser(id)
 	if err != nil {
@@ -179,11 +189,75 @@ func newInput(placeholder string, limit int) textinput.Model {
 	in.Placeholder = placeholder
 	in.CharLimit = limit
 	in.SetWidth(50)
+	// o ctrl+v do textinput leria a área de transferência do servidor; quem cola é o terminal do
+	// usuário, que manda o texto colado como tea.PasteMsg.
+	in.KeyMap.Paste.SetEnabled(false)
 	in.Focus()
 	return in
 }
 
-func (m model) Init() tea.Cmd { return doTick() }
+func (m model) Init() tea.Cmd {
+	if m.pending != "" && m.nick != "" { // "ssh -t <servidor> <código>": entra sem passar pelo menu
+		return tea.Batch(doTick(), m.loadProfile(), m.join(m.pending))
+	}
+	return tea.Batch(doTick(), m.loadProfile())
+}
+
+// active: tarefa em andamento e dentro do tempo declarado.
+func (m model) active() bool {
+	me := m.me()
+	return me.Status == rooms.Focusing && !me.Focus.Expired(m.now)
+}
+
+// syncSide mantém o jardim da coluna da sala solo: cria quando a tela é dela e ele cabe, descarta
+// quando não, e refaz quando o terminal muda de tamanho. Quem o anima é o sideTickMsg.
+func (m model) syncSide() model {
+	w, h := 0, soloRows(m.height)
+	if m.nick != "" && m.tab == tabRoom && !m.inPicker() && m.solo() && m.active() {
+		w = soloGardenWidth(max(m.width-4, 40))
+	}
+	if w == 0 {
+		m.side = nil
+		return m
+	}
+	if m.side == nil || m.side.w != w || m.side.h != h {
+		gen := 1
+		if m.side != nil {
+			gen = m.side.gen + 1
+		}
+		i := m.gardenWall(false) // a troca feita na tela cheia vale também na coluna
+		m.side = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen,
+			bare: true, w: w, h: h}
+	}
+	if m.side.frame == "" {
+		m.side.render(m) // o primeiro quadro; daí em diante quem anda é o sideTick
+	}
+	return m
+}
+
+// loadProfile lê o pet e as últimas tarefas do banco: a aba perfil e o painel da sala solo.
+func (m model) loadProfile() tea.Cmd {
+	id := m.id
+	return func() tea.Msg {
+		_, p, _, err := store.GetUser(id)
+		if err != nil {
+			return errMsg{err}
+		}
+		ts, err := store.Tasks(id)
+		if err != nil {
+			return errMsg{err}
+		}
+		days, err := store.FocusByDay(id, time.Now().AddDate(0, 0, -40)) // o mês inteiro, com folga
+		if err != nil {
+			return errMsg{err}
+		}
+		totals, err := store.GetTotals(id)
+		if err != nil {
+			return errMsg{err}
+		}
+		return profileMsg{p, ts, days, totals}
+	}
+}
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -195,15 +269,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.tick++
 		m.now = msg.now
 		m.setWorld(msg.w)
-		me := m.me()
-		active := me.Status == rooms.Focusing && !me.Focus.Expired(m.now)
+		active := m.active()
 		switch {
-		case m.garden != nil && !m.garden.preview && !active: // o foco acabou ou esgotou: volta para responder
+		case m.garden != nil && !m.garden.keep && !active: // o foco acabou ou esgotou: volta para responder
 			m.garden = nil
 		case m.garden == nil && active && m.nick != "" && m.now.Sub(m.lastKey) >= gardenIdle:
 			var cmd tea.Cmd
 			m, cmd = m.openGarden(false)
 			return m, tea.Batch(doTick(), cmd)
+		}
+		m = m.syncSide()
+		if m.side != nil && !m.side.ticking && m.garden == nil { // põe os 8 fps para andar
+			m.side.ticking = true
+			return m, tea.Batch(doTick(), sideTick(m.side.gen))
 		}
 		return m, doTick()
 	case gardenTickMsg:
@@ -212,6 +290,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.garden.render(m)
 			return m, gardenTick(msg.gen)
 		}
+	case sideTickMsg:
+		if m.side == nil || msg.gen != m.side.gen {
+			return m, nil
+		}
+		if m.garden != nil { // a tela cheia tomou o lugar: a coluna para de desenhar
+			m.side.ticking = false
+			return m, nil
+		}
+		m.now = msg.t
+		m.side.render(m)
+		return m, sideTick(msg.gen)
 	case worldMsg:
 		m.setWorld(rooms.World(msg))
 	case roomMsg:
@@ -219,8 +308,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.room, m.picking, m.form, m.err = msg.code, false, formNone, ""
 		m.notice = "você entrou em " + m.w.Rooms[msg.code].Name
 		if msg.created {
-			m.notice = "sala criada! passe o código " + msg.code + " para quem vai focar com você"
+			m.notice = "" // o código está no título e o convite embaixo explica o que fazer
+			if m.solo() {
+				m.notice = "sala solo criada: só você entra aqui"
+			}
 		}
+		return m, m.loadProfile()
 	case nickMsg:
 		switch {
 		case msg.err != nil && strings.Contains(msg.err.Error(), "UNIQUE"):
@@ -229,11 +322,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = msg.err.Error()
 		default:
 			m.nick, m.err = msg.nick, ""
+			if m.pending != "" { // o código do comando esperava o apelido do primeiro acesso
+				code := m.pending
+				m.pending = ""
+				return m, m.join(code)
+			}
 		}
 	case profileMsg:
-		m.pet, m.tasks = msg.pet, msg.tasks
+		m.pet, m.tasks, m.days, m.totals = msg.pet, msg.tasks, msg.days, msg.totals
 	case errMsg:
 		m.err = msg.Error()
+	case tea.PasteMsg: // colar vai para o campo ativo; o texto vem do terminal (bracketed paste)
+		if m.nick == "" || m.typing() {
+			var cmd tea.Cmd
+			m.in, cmd = m.in.Update(msg)
+			return m, cmd
+		}
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	}
@@ -281,24 +385,15 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 	}
 	m.tab, m.err, m.notice, m.entering, m.choosing, m.picking, m.form = t, "", "", false, false, false, formNone
 	if t == tabProfile {
-		id := m.id
-		return m, func() tea.Msg {
-			_, p, _, err := store.GetUser(id)
-			if err != nil {
-				return errMsg{err}
-			}
-			ts, err := store.Tasks(id)
-			if err != nil {
-				return errMsg{err}
-			}
-			return profileMsg{p, ts}
-		}
+		return m, m.loadProfile()
 	}
 	return m, nil
 }
 
 // typing: algum campo de texto está recebendo as teclas (então "q", "a" e "d" são texto).
-func (m model) typing() bool { return m.entering || m.form != formNone }
+// Os formulários sem campo (o tamanho da sala, a confirmação de saída) não entram: neles as
+// teclas de sempre valem, inclusive o q.
+func (m model) typing() bool { return m.entering || m.form == formName || m.form == formCode }
 
 func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if msg.String() != "enter" {

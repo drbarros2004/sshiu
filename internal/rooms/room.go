@@ -21,6 +21,8 @@ import (
 const (
 	DemoCode       = "demo"
 	Reactions      = 4               // quantas reações existem (as teclas 1 a 4)
+	MaxMembers     = 10              // maior sala que dá para escolher (docs/regras.md)
+	MinMembers     = 1               // a sala solo, para focar sozinho (ADR 0006)
 	reconnectGrace = 2 * time.Minute // conexão instável não interrompe a tarefa
 	maxEvents      = 20
 )
@@ -48,6 +50,7 @@ const (
 // nunca rende mais do que o tempo que o próprio usuário declarou.
 type Focus struct {
 	Task                  string
+	Room                  string    // a sala em que a tarefa começou, para o histórico
 	Start, SegStart, Ends time.Time // SegStart: início do trecho que está contando (muda ao continuar)
 	Declared              int       // minutos declarados, somando os de "continuar"
 	Counted               time.Duration
@@ -91,6 +94,7 @@ type Event struct {
 
 type room struct {
 	code, name string
+	max        int // membros que a sala aceita, escolhido na criação
 	members    []string
 	events     []*Event // mais novo primeiro
 }
@@ -108,7 +112,7 @@ func Load() error {
 		if err != nil {
 			return err
 		}
-		rooms[r.Code] = &room{code: r.Code, name: r.Name, members: ids}
+		rooms[r.Code] = &room{code: r.Code, name: r.Name, max: ClampSize(r.Max), members: ids}
 		for _, id := range ids {
 			load(id)
 		}
@@ -169,19 +173,20 @@ func Created(id string) {
 	u.nick, u.energy = nick, p.EnergyAt(time.Now())
 }
 
-// Start começa uma tarefa, se não há outra em andamento.
-func Start(id, task string, minutes int) {
+// Start começa uma tarefa, se não há outra em andamento. A sala é a que estava na tela: a tarefa
+// aparece em todas as suas salas (ADR 0002), mas o histórico guarda onde ela começou.
+func Start(id, room, task string, minutes int) {
 	mu.Lock()
 	defer mu.Unlock()
-	start(load(id), task, minutes, time.Duration(minutes)*time.Minute)
+	start(load(id), room, task, minutes, time.Duration(minutes)*time.Minute)
 }
 
-func start(u *user, task string, minutes int, d time.Duration) {
+func start(u *user, room, task string, minutes int, d time.Duration) {
 	if u.focus != nil {
 		return
 	}
 	now := time.Now()
-	u.focus = &Focus{Task: task, Start: now, SegStart: now, Ends: now.Add(d), Declared: minutes}
+	u.focus = &Focus{Task: task, Room: room, Start: now, SegStart: now, Ends: now.Add(d), Declared: minutes}
 	event(u, "começou", task)
 }
 
@@ -209,7 +214,8 @@ func Finish(id string, r pet.Result) {
 func finish(u *user, r pet.Result, at time.Time) {
 	f := u.focus
 	u.focus = nil
-	p, err := store.RecordTask(u.id, store.TaskRow{Start: f.Start, End: at, Task: f.Task, DeclaredMin: f.Declared, Focused: f.Focused(at), Result: r})
+	p, err := store.RecordTask(u.id, store.TaskRow{Start: f.Start, End: at, Task: f.Task,
+		DeclaredMin: f.Declared, Focused: f.Focused(at), Result: r, Room: f.Room})
 	if err != nil {
 		log.Error("recordTask", "err", err)
 		return
@@ -220,21 +226,27 @@ func finish(u *user, r pet.Result, at time.Time) {
 	}
 }
 
-// event aparece em todas as salas de que u é membro. Chame com mu travado.
+// event aparece em todas as salas de que u é membro (a tarefa é a mesma em todas).
+// Chame com mu travado.
 func event(u *user, verb, task string) {
 	for _, r := range rooms {
-		if !slices.Contains(r.members, u.id) {
-			continue
+		if slices.Contains(r.members, u.id) {
+			roomEvent(r, u, verb, task)
 		}
-		lastEvent++
-		e := &Event{ID: lastEvent, Who: u.id, Nick: u.nick, Verb: verb, Task: task, At: time.Now()}
-		r.events = append([]*Event{e}, r.events...)
-		if len(r.events) > maxEvents {
-			r.events = r.events[:maxEvents]
-		}
-		if r.code == DemoCode {
-			botsReactTo(r, e)
-		}
+	}
+}
+
+// roomEvent põe um evento numa sala só: entrar e sair acontecem numa sala, não em todas.
+// Chame com mu travado.
+func roomEvent(r *room, u *user, verb, task string) {
+	lastEvent++
+	e := &Event{ID: lastEvent, Who: u.id, Nick: u.nick, Verb: verb, Task: task, At: time.Now()}
+	r.events = append([]*Event{e}, r.events...)
+	if len(r.events) > maxEvents {
+		r.events = r.events[:maxEvents]
+	}
+	if r.code == DemoCode {
+		botsReactTo(r, e)
 	}
 }
 
@@ -262,36 +274,45 @@ func react(id, code string, eventID, k int) {
 	}
 }
 
-// Create cria uma sala com id dentro e devolve o código.
-func Create(id, name string) (string, error) {
-	r, err := store.CreateRoom(id, name)
+// ClampSize: o tamanho que a sala pode ter. Quem cria escolhe, dentro do teto de todas.
+func ClampSize(n int) int { return max(MinMembers, min(n, MaxMembers)) }
+
+// Create cria uma sala com id dentro, do tamanho escolhido, e devolve o código.
+func Create(id, name string, size int) (string, error) {
+	size = ClampSize(size)
+	r, err := store.CreateRoom(id, name, size)
 	if err != nil {
 		return "", err
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	rooms[r.Code] = &room{code: r.Code, name: r.Name, members: []string{id}}
+	rooms[r.Code] = &room{code: r.Code, name: r.Name, max: size, members: []string{id}}
 	load(id)
 	return r.Code, nil
 }
 
-// Join põe id na sala do código (a demo só existe em memória).
+// Join põe id na sala do código, até o teto de membros (a demo só existe em memória).
+// O teto é conferido antes de gravar: o banco nunca ganha um membro que a sala recusa.
 func Join(id, code string) error {
-	if code != DemoCode {
-		if err := store.JoinRoom(id, code); err != nil {
-			return err
-		}
-	}
 	mu.Lock()
 	defer mu.Unlock()
 	r := rooms[code]
 	if r == nil {
 		return fmt.Errorf("nenhuma sala com o código %q", code)
 	}
-	if !slices.Contains(r.members, id) {
-		r.members = append(r.members, id)
+	if slices.Contains(r.members, id) {
+		return nil
 	}
-	load(id)
+	if len(r.members) >= r.max {
+		return fmt.Errorf("%s já está cheia (%d membros)", r.name, r.max)
+	}
+	if code != DemoCode {
+		if err := store.JoinRoom(id, code); err != nil {
+			return err
+		}
+	}
+	r.members = append(r.members, id)
+	roomEvent(r, load(id), "entrou", "")
 	return nil
 }
 
@@ -308,7 +329,9 @@ func Leave(id, code string) error {
 	if r := rooms[code]; r != nil {
 		r.members = slices.DeleteFunc(r.members, func(m string) bool { return m == id })
 		if len(r.members) == 0 {
-			delete(rooms, code)
+			delete(rooms, code) // o último saiu: a sala e os eventos somem com ela
+		} else {
+			roomEvent(r, load(id), "saiu", "")
 		}
 	}
 	return nil
@@ -326,6 +349,7 @@ type Member struct {
 
 type Snapshot struct {
 	Code, Name string
+	Max        int // membros que a sala aceita
 	Members    []Member
 	Events     []Event // cópias: seguras para ler fora do lock
 }
@@ -352,7 +376,7 @@ func SnapshotWorld() World {
 		w.Users[id] = member(u)
 	}
 	for code, r := range rooms {
-		s := Snapshot{Code: code, Name: r.name}
+		s := Snapshot{Code: code, Name: r.name, Max: r.max}
 		for _, id := range r.members {
 			s.Members = append(s.Members, w.Users[id])
 		}

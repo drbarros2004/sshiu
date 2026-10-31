@@ -44,6 +44,11 @@ Precisa de Go 1.27 ou mais novo e de um cliente SSH.
    ```
    Na primeira conexão, o SSH pergunta se você confia no servidor: responda `yes`. Depois escolha um apelido e crie uma sala, entre numa com o código de um colega ou abra a sala demo.
 
+   O código da sala também pode vir no comando, e aí você entra direto nela. O `-t` é obrigatório: sem ele, o SSH não abre o terminal quando o comando tem algo depois do endereço.
+   ```bash
+   ssh -t -p 23234 localhost 49ae4z
+   ```
+
 Para usar outra porta, passe `-port`. Para rodar os testes, use `go test ./...`.
 
 ## Abrir para a turma
@@ -54,7 +59,7 @@ Por padrão o servidor só aceita quem está na própria máquina. Para outras p
    ```bash
    go run . -host 0.0.0.0
    ```
-   O log mostra o comando de entrada com cada endereço desta máquina — por exemplo `ssh -p 23234 192.168.0.33`. É esse mesmo comando que o convite da sala passa para quem você chamar.
+   O log mostra o comando de entrada com cada endereço desta máquina — por exemplo `ssh -p 23234 192.168.0.33`. O convite da sala usa o mesmo endereço, com `-t` e o código da sala no fim.
 
 2. **Libere a porta no firewall do Windows**, num PowerShell como administrador:
    ```powershell

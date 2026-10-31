@@ -6,4 +6,5 @@ O app é para uma turma, então tudo acontece dentro de salas privadas, em que s
 
 - O primeiro acesso é um menu ("entrar com código" ou "criar sala"), inclusive na demo, em que a sala demo aparece como uma das opções.
 - No MVP, a sala não tem dono com poderes: qualquer membro sai, e a sala some quando o último sai. Trocar o código, remover um membro e passar a sala para outro ficam para depois (o banco continua guardando quem criou a sala).
+- Quem cria escolhe quantas pessoas cabem na sala, de 2 a 10 ([regras](../regras.md#na-sala)). É uma escolha na criação, não um poder sobre os membros: o tamanho não muda depois, e quem chega com a sala cheia é recusado com o motivo.
 - Quem quer ver alguém de fora da turma cria uma sala de dois.

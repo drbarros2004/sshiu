@@ -25,6 +25,12 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **Caixa:** o texto fica sobre uma caixa vazia, que abre um buraco no wallpaper; sem ela, a lava, a árvore e o vapor passam por trás e atrapalham a leitura.
 - **Padrões** de quem nunca mexeu na aba visual: wallpaper sorteado a cada tarefa, relógio só com os minutos, tarefa e sala ligadas (quem chega vê o que o modo jardim oferece e desliga o que achar demais).
 
+### Sala solo (implementada em 30/10/2026)
+- **O quê:** uma sala de uma pessoa, sem código, para focar sozinho ([ADR 0006](docs/adr/0006-sala-solo.md)). Criar com tamanho 1 é a única diferença.
+- **Por quê:** antes, quem criava uma sala sozinho via uma grade com um card, um feed vazio e um código para passar para ninguém. Focar sozinho é o caso de quem acabou de chegar e de quem estuda fora do horário da turma.
+- **Tela:** o layout A, escolhido entre três candidatos e validado no protótipo `prototype/solo`: painel à esquerda (relógio, tarefa, o pet com humor, streak e minutos de hoje, e um mini log de 3 linhas). Sem reações, sem cursor de eventos e sem cards. O `j` abre o jardim em tela cheia a qualquer momento, não só durante o foco.
+- **A coluna da direita muda com o estado:** focando é o modo jardim; parado, são os seus números (calendário do mês, barras da semana, totais). Decidido em 31/10/2026, depois de testar e descartar o jardim a 2 fps (parecia travado) — assim começar a tarefa muda a tela, e quem está parado não paga os 4 a 6% de um núcleo que o jardim custa a 8 fps. Abaixo de 96 colunas não cabe coluna nenhuma e sobra só o painel.
+
 ## Próximas candidatas
 
 ### Login pelo GitHub + commits na sala
@@ -43,10 +49,10 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 
 ### Histórico, stats e gráficos
 - **Prioridade:** essencial. É a próxima feature grande, antes dos vários pets.
-- Uma aba de histórico com taxa de tarefas cumpridas, streak por semana e filtro por sala.
-- **Gráficos por usuário:** streak, tempo focado por dia ou semana e outras agregações no tempo.
-- **Gráficos da sala:** os mesmos agregados para a sala inteira, mais o pico de usuários focando ao mesmo tempo e quanto tempo esse pico durou.
-- **O que já existe:** a tabela `tasks` guarda início, fim, minutos focados e resultado de cada tarefa. Os gráficos da sala somam as tarefas dos membros; o pico de usuários focando ao mesmo tempo sai dos intervalos de início e fim.
+- **Primeira parte, feita em 31/10/2026** (na aba perfil e na coluna da sala solo parada, em `internal/tui/stats.go`): calendário do mês com o dia mais aceso quanto mais tempo focado, barras de minutos por dia da semana, e três números — focado no mês e no total, tarefas cumpridas de quantas, e a média declarada contra a focada. Sai de duas consultas (`store.FocusByDay` e `store.GetTotals`).
+- **Falta por usuário:** o recorde de streak, o histórico além do mês (rolar meses para trás) e o horário do dia em que a pessoa foca mais.
+- **Gráficos da sala:** os mesmos agregados para a sala inteira, mais o pico de usuários focando ao mesmo tempo e quanto tempo esse pico durou. O pico sai dos intervalos de início e fim das tarefas dos membros. A tarefa encerrada guarda a sala em que começou (`tasks.room_code`, desde 31/10/2026), então o agregado por sala é uma consulta.
+- **Aba de histórico:** com filtro por sala (a coluna já existe), se os números do perfil não bastarem.
 
 ### Vários pets (10 a 15 no MVP)
 - **Prioridade:** essencial, mas depois dos gráficos.
@@ -58,7 +64,7 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **Por quê:** dá um motivo coletivo para voltar, além do pet de cada um.
 
 ### Pôr no ar: `ssh <nome>`
-- **O quê:** um servidor público com domínio, ouvindo na porta 22, para entrar só com `ssh <nome>`, como o `ssh terminal.shop`.
+- **O quê:** um servidor público com domínio, ouvindo na porta 22, para entrar só com `ssh <nome>`, como o `ssh terminal.shop`. O convite de uma sala vira uma linha para colar no grupo da turma: `ssh -t <nome> <código>`. O `-t` está lá porque, com o código no fim, o ssh não pede terminal; ler o código do usuário (`ssh <código>@<nome>`) dispensaria o `-t` e deixaria o convite mais curto.
 - **Como:** escutar em todas as interfaces (já dá, com `-host 0.0.0.0`), porta 22, chave do servidor fixa e fora do git (publicar o fingerprint para quem quiser conferir), binário compilado com `GOOS=linux`. Quem entra só precisa de um cliente SSH e de uma chave.
 - **A chave do servidor nunca muda:** o cliente SSH guarda a chave do servidor na primeira conexão. Se ela mudar (servidor recriado, `.ssh/` apagado, outra máquina no mesmo endereço), todo usuário recebe o aviso "REMOTE HOST IDENTIFICATION HAS CHANGED" e a conexão é recusada. Guardar a chave do servidor com backup e levá-la junto em qualquer migração.
 - **Quando:** sem pressa, mas o grupo precisa conseguir entrar e se ver antes da apresentação. Depende do nome do app (o domínio).
