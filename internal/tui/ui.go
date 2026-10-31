@@ -125,6 +125,8 @@ type model struct {
 	vrow          int          // linha selecionada na aba visual
 	garden        *garden      // modo jardim ligado (nil = desligado)
 	lastKey       time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim
+	wall          int          // o wallpaper trocado no jardim, que vale para a tarefa...
+	wallFor       time.Time    // ...que começou neste instante
 
 	in       textinput.Model // o campo ativo: apelido, tarefa, nome ou código de sala
 	entering bool            // escrevendo a tarefa
@@ -241,7 +243,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
 	m.lastKey = time.Now()
-	if m.garden != nil && k != "ctrl+c" { // qualquer tecla sai do modo jardim, sem executar nada
+	if m.garden != nil && k != "ctrl+c" { // ←/→ trocam o wallpaper; qualquer outra tecla sai, sem executar nada
+		switch k {
+		case "left":
+			return m.swapWallpaper(-1)
+		case "right":
+			return m.swapWallpaper(1)
+		}
 		m.garden = nil
 		return m, nil
 	}

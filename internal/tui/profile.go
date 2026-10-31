@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"plantao/internal/pet"
 	"plantao/internal/store"
-	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -47,7 +46,7 @@ func (m model) profileView() string {
 // visualRows: as linhas da aba visual, cada uma com o valor em prévia.
 func (m model) visualRows() [][2]string {
 	wp := "sorteado a cada tarefa"
-	if i := slices.IndexFunc(wallpapers, func(w wallpaper) bool { return w.id == m.vis.Wallpaper }); i >= 0 {
+	if i := wallpaperIndex(m.vis.Wallpaper); i >= 0 {
 		wp = wallpapers[i].name
 	}
 	shown := map[bool]string{true: "aparece", false: "não aparece"}
@@ -94,13 +93,8 @@ func (m model) visualKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case 0:
 		m.theme = cycle(m.theme, len(themes))
 		m.st = newStyles(themes[m.theme]) // prévia ao vivo
-	case 1: // -1 é o sorteado
-		i := slices.IndexFunc(wallpapers, func(w wallpaper) bool { return w.id == m.vis.Wallpaper })
-		i = cycle(i+1, len(wallpapers)+1) - 1
-		m.vis.Wallpaper = ""
-		if i >= 0 {
-			m.vis.Wallpaper = wallpapers[i].id
-		}
+	case 1:
+		m.vis.Wallpaper = cycleWallpaper(m.vis.Wallpaper, step)
 	case 2:
 		m.vis.Clock = cycle(m.vis.Clock, len(clockModes))
 	case 3:
