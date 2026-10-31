@@ -202,6 +202,9 @@ func (m model) roomView() string {
 	if m.room != rooms.DemoCode && !m.solo() { // a sala solo não tem código para passar
 		title += m.st.muted.Render(" · código " + m.room)
 	}
+	if !m.solo() { // quanto a sala comporta, embaixo do nome; a solo é sempre uma pessoa
+		title += "\n" + m.st.muted.Render(fmt.Sprintf("%d/%d pessoas", len(s.Members), s.Max))
+	}
 	if m.notice != "" {
 		title += "\n" + m.st.ok.Render(m.notice)
 	}
@@ -220,8 +223,7 @@ func (m model) roomView() string {
 func (m model) invitePanel(s rooms.Snapshot) string {
 	return bold.Render("Você é o primeiro aqui.") + "\n" +
 		m.st.muted.Render("Passe este comando para a turma:") + "\n\n  " +
-		m.st.title.Render(m.invite+" "+s.Code) + "\n\n" +
-		m.st.muted.Render(fmt.Sprintf("cabem %d pessoas · quem já tem conta entra pelo código, no menu de salas", s.Max))
+		m.st.title.Render(m.invite+" "+s.Code)
 }
 
 // soloView: o painel do foco à esquerda e o modo jardim à direita (ADR 0006). O jardim anda só
