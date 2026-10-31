@@ -147,7 +147,7 @@ func (m model) pickerView() string {
 	case formSize:
 		hint := "dá para mudar de ideia criando outra sala: o tamanho é fixo depois"
 		if m.size == rooms.MinMembers { // ADR 0006
-			hint = "sala solo: só você, sem código de entrada"
+			hint = "sala solo: para focar sozinho, com o seu pet e o modo jardim"
 		}
 		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n\nQuantas pessoas cabem?  " +
 			m.st.muted.Render("‹ ") + m.st.title.Render(fmt.Sprintf("%d", m.size)) + m.st.muted.Render(" ›") +
