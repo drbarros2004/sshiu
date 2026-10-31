@@ -221,7 +221,7 @@ func (m model) invitePanel(s rooms.Snapshot) string {
 	return bold.Render("Você é o primeiro aqui.") + "\n" +
 		m.st.muted.Render("Passe este comando para a turma:") + "\n\n  " +
 		m.st.title.Render(m.invite+" "+s.Code) + "\n\n" +
-		m.st.muted.Render(fmt.Sprintf("cabem %d pessoas · quem já tem conta entra pelo código %s em s → entrar com código", s.Max, s.Code))
+		m.st.muted.Render(fmt.Sprintf("cabem %d pessoas · quem já tem conta entra pelo código, no menu de salas", s.Max))
 }
 
 // soloView: o painel do foco à esquerda e o modo jardim à direita (ADR 0006). O jardim anda só
