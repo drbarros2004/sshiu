@@ -45,7 +45,7 @@ func SeedBots() {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	r := &room{code: DemoCode, name: "sala demo"}
+	r := &room{code: DemoCode, name: "sala demo", max: MaxMembers}
 	rooms[DemoCode] = r
 	for i, b := range bots {
 		u := load("bot:" + b.nick)

@@ -135,6 +135,7 @@ type model struct {
 	mins     int             // índice em minuteChoices()
 	sel      int             // evento selecionado (ID)
 	picking  bool            // menu de salas aberto
+	size     int             // tamanho escolhido para a sala nova
 	pcur     int             // item selecionado no menu
 	form     form            // formulário de sala em andamento
 	pet      pet.Pet         // perfil, carregado ao abrir a aba
@@ -298,7 +299,9 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 }
 
 // typing: algum campo de texto está recebendo as teclas (então "q", "a" e "d" são texto).
-func (m model) typing() bool { return m.entering || m.form != formNone }
+// Os formulários sem campo (o tamanho da sala, a confirmação de saída) não entram: neles as
+// teclas de sempre valem, inclusive o q.
+func (m model) typing() bool { return m.entering || m.form == formName || m.form == formCode }
 
 func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if msg.String() != "enter" {

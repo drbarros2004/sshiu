@@ -31,16 +31,17 @@ Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indica
 | Regra | Valor | Por quê | Código |
 |---|---|---|---|
 | Tempos declarados | 10, 15, 25, 45 ou 60 min (padrão 25); na demo, também 1 min | A plateia da demo vê o fluxo inteiro. | [tui/room.go:24-26](../internal/tui/room.go#L24-L26) |
-| Tempo esgotado sem resposta | os minutos param de contar | Estar ausente nunca rende mais do que o tempo que o próprio usuário declarou. | [room.go:59](../internal/rooms/room.go#L59) |
-| Trocar, parar, desconectar | sem penalidade | Os minutos já contaram; punir faria os usuários declararem tempos folgados ou deixarem o terminal aberto. | [room.go:209](../internal/rooms/room.go#L209) |
-| Tolerância de reconexão | 2 min | Conexão instável não interrompe a tarefa. Sem volta, a tarefa é interrompida com os minutos até a desconexão. | [room.go:24](../internal/rooms/room.go#L24) |
+| Tempo esgotado sem resposta | os minutos param de contar | Estar ausente nunca rende mais do que o tempo que o próprio usuário declarou. | [room.go:61](../internal/rooms/room.go#L61) |
+| Trocar, parar, desconectar | sem penalidade | Os minutos já contaram; punir faria os usuários declararem tempos folgados ou deixarem o terminal aberto. | [room.go:212](../internal/rooms/room.go#L212) |
+| Tolerância de reconexão | 2 min | Conexão instável não interrompe a tarefa. Sem volta, a tarefa é interrompida com os minutos até a desconexão. | [room.go:26](../internal/rooms/room.go#L26) |
 
 ## Na sala
 
 | Regra | Valor | Por quê | Código |
 |---|---|---|---|
+| Tamanho da sala | de 2 a 10, escolhido na criação (padrão 10) | Uma sala é um grupo de estudo, não um auditório: todo mundo cabe na tela e o custo de desenhar a sala cresce com o quadrado do tamanho dela. Quem cria sabe o tamanho da turma; o tamanho não muda depois. | [room.go:24-25](../internal/rooms/room.go#L24-L25) |
 | Reações | 4 (👏 🔥 💪 ☕), teclas 1 a 4; as abas ficam em a/d e tab | Uma tecla cada, sem chat ([ADR 0004](adr/0004-sem-chat-so-reacoes.md)). | [room.go:23](../internal/rooms/room.go#L23) |
-| Eventos guardados | 20 por sala, 6 na tela | O bastante para reagir ao que acabou de acontecer. | [room.go:25](../internal/rooms/room.go#L25), [tui/room.go:19](../internal/tui/room.go#L19) |
+| Eventos guardados | 20 por sala, 6 na tela | O bastante para reagir ao que acabou de acontecer. | [room.go:27](../internal/rooms/room.go#L27), [tui/room.go:19](../internal/tui/room.go#L19) |
 | Bots da demo | tarefas de 40 a 90 s, uns 90 s parados entre uma e outra | A sala parece viva sem empurrar os seus eventos para fora da tela. | [bots.go:78-79](../internal/rooms/bots.go#L78-L79) |
 
 ## Ritmo da tela

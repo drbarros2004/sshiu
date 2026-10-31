@@ -1,6 +1,8 @@
 package rooms
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -34,5 +36,31 @@ func TestReact(t *testing.T) {
 	react("bia", "t", 1, 0) // de novo: desfaz
 	if got := rooms["t"].events[0].Reacts[0]; len(got) != 0 {
 		t.Fatalf("desfez: %v", got)
+	}
+}
+
+// A sala demo é a única que não passa pelo banco, e os usuários já em memória não são procurados
+// lá: dá para testar o teto sem abrir o SQLite.
+func TestJoinFull(t *testing.T) {
+	rooms[DemoCode] = &room{code: DemoCode, name: "demo", max: MaxMembers}
+	defer delete(rooms, DemoCode)
+	for i := range MaxMembers {
+		id := fmt.Sprintf("u%d", i)
+		users[id] = &user{id: id}
+		defer delete(users, id)
+		if err := Join(id, DemoCode); err != nil {
+			t.Fatalf("membro %d: %v", i, err)
+		}
+	}
+	users["tarde"] = &user{id: "tarde"}
+	defer delete(users, "tarde")
+	if err := Join("tarde", DemoCode); err == nil || !strings.Contains(err.Error(), "demo já está cheia") {
+		t.Fatalf("entrou numa sala cheia: %v", err)
+	}
+	if got := len(rooms[DemoCode].members); got != MaxMembers {
+		t.Fatalf("membros: %d", got)
+	}
+	if err := Join("u0", DemoCode); err != nil { // quem já é membro não ocupa outra vaga
+		t.Fatalf("já membro: %v", err)
 	}
 }

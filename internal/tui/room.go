@@ -35,8 +35,12 @@ func (m model) selIndex() int {
 	return max(0, slices.IndexFunc(m.events(), func(e rooms.Event) bool { return e.ID == m.sel }))
 }
 
+// inPicker: o menu de salas está na tela, seja porque você abriu com s, seja porque você ainda
+// não está em nenhuma sala (o primeiro acesso cai nele).
+func (m model) inPicker() bool { return m.picking || m.room == "" }
+
 func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if m.picking || m.room == "" {
+	if m.inPicker() {
 		return m.pickerKey(msg)
 	}
 	k, id, code := msg.String(), m.id, m.room
@@ -133,9 +137,11 @@ func (m model) roomHelp() string {
 	me := m.me()
 	focusing := me.Status == rooms.Focusing
 	switch {
-	case m.picking && m.form != formNone:
+	case m.inPicker() && m.form == formSize:
+		return "←/→ escolhe · enter cria · esc volta"
+	case m.inPicker() && m.form != formNone:
 		return "enter confirma · esc volta"
-	case m.picking || m.room == "":
+	case m.inPicker():
 		return "↑/↓ escolhe · enter abre" + map[bool]string{true: " · esc volta", false: ""}[m.room != ""]
 	case m.entering:
 		return "enter confirma · esc volta"
@@ -154,7 +160,7 @@ func (m model) roomHelp() string {
 // ponytail: com muita gente num terminal baixo os cards ainda passam da altura e são cortados;
 // rolagem nos cards se isso aparecer de verdade.
 func (m model) roomView(w, h int) string {
-	if m.picking || m.room == "" {
+	if m.inPicker() {
 		return m.pickerView()
 	}
 	s := m.w.Rooms[m.room]

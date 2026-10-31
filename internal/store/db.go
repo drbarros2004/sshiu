@@ -34,10 +34,11 @@ CREATE TABLE IF NOT EXISTS tasks ( -- uma por tarefa encerrada
 	result       TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS rooms (
-	code  TEXT PRIMARY KEY, -- o convite: quem tem o código entra
-	name  TEXT NOT NULL,
-	owner TEXT NOT NULL REFERENCES users(id), -- quem criou; sem poderes no MVP (ADR 0003)
-	slots TEXT NOT NULL DEFAULT ''           -- do modelo antigo, sem uso
+	code        TEXT PRIMARY KEY, -- o convite: quem tem o código entra
+	name        TEXT NOT NULL,
+	owner       TEXT NOT NULL REFERENCES users(id), -- quem criou; sem poderes no MVP (ADR 0003)
+	slots       TEXT NOT NULL DEFAULT '',    -- do modelo antigo, sem uso
+	max_members INTEGER NOT NULL DEFAULT 10  -- tamanho escolhido na criação
 );
 CREATE TABLE IF NOT EXISTS room_members (
 	code    TEXT NOT NULL REFERENCES rooms(code),
@@ -63,6 +64,7 @@ func Open(path string) error {
 	d.Exec(`ALTER TABLE users ADD COLUMN garden_clock INTEGER NOT NULL DEFAULT 1`)
 	d.Exec(`ALTER TABLE users ADD COLUMN garden_task INTEGER NOT NULL DEFAULT 1`)
 	d.Exec(`ALTER TABLE users ADD COLUMN garden_room INTEGER NOT NULL DEFAULT 1`)
+	d.Exec(`ALTER TABLE rooms ADD COLUMN max_members INTEGER NOT NULL DEFAULT 10`)
 	db = d
 	return nil
 }
@@ -176,7 +178,10 @@ func Tasks(id string) ([]TaskRow, error) {
 	return out, rows.Err()
 }
 
-type RoomRow struct{ Code, Name string }
+type RoomRow struct {
+	Code, Name string
+	Max        int // quantos membros a sala aceita
+}
 
 // newCode: 6 letras sem as ambíguas (0/o, 1/l/i), fácil de ditar para um colega.
 func newCode() string {
@@ -191,7 +196,7 @@ func newCode() string {
 
 // Rooms lista todas as salas.
 func Rooms() ([]RoomRow, error) {
-	rows, err := db.Query(`SELECT code, name FROM rooms`)
+	rows, err := db.Query(`SELECT code, name, max_members FROM rooms`)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +204,7 @@ func Rooms() ([]RoomRow, error) {
 	var out []RoomRow
 	for rows.Next() {
 		var r RoomRow
-		if err := rows.Scan(&r.Code, &r.Name); err != nil {
+		if err := rows.Scan(&r.Code, &r.Name, &r.Max); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -224,14 +229,15 @@ func RoomMembers(code string) ([]string, error) {
 	return out, rows.Err()
 }
 
-func CreateRoom(owner, name string) (RoomRow, error) {
-	r := RoomRow{newCode(), name}
+func CreateRoom(owner, name string, max int) (RoomRow, error) {
+	r := RoomRow{newCode(), name, max}
 	tx, err := db.Begin()
 	if err != nil {
 		return r, err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`INSERT INTO rooms (code, name, owner, slots) VALUES (?, ?, ?, '')`, r.Code, name, owner); err != nil {
+	if _, err := tx.Exec(`INSERT INTO rooms (code, name, owner, slots, max_members) VALUES (?, ?, ?, '', ?)`,
+		r.Code, name, owner, max); err != nil {
 		return r, err
 	}
 	if _, err := tx.Exec(`INSERT INTO room_members (code, user_id) VALUES (?, ?)`, r.Code, owner); err != nil {
