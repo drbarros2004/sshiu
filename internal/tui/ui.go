@@ -88,8 +88,10 @@ type (
 		err  error
 	}
 	profileMsg struct {
-		pet   pet.Pet
-		tasks []store.TaskRow
+		pet    pet.Pet
+		tasks  []store.TaskRow
+		days   map[string]float64 // minutos focados por dia, para o calendário
+		totals store.Totals
 	}
 	errMsg  struct{ error }
 	roomMsg struct { // entrei numa sala (criada agora ou por código)
@@ -138,6 +140,8 @@ type model struct {
 	form     form            // formulário de sala em andamento
 	pet      pet.Pet         // perfil, carregado ao abrir a aba
 	tasks    []store.TaskRow
+	days     map[string]float64 // minutos focados por dia (uns 40 dias)
+	totals   store.Totals
 }
 
 // me: você como a sala te vê (status e tarefa).
@@ -194,7 +198,7 @@ func (m model) active() bool {
 // quando não, e refaz quando o terminal muda de tamanho. Quem o anima é o sideTickMsg.
 func (m model) syncSide() model {
 	w, h := 0, soloRows(m.height)
-	if m.nick != "" && m.tab == tabRoom && !m.inPicker() && m.solo() {
+	if m.nick != "" && m.tab == tabRoom && !m.inPicker() && m.solo() && m.active() {
 		w = soloGardenWidth(max(m.width-4, 40))
 	}
 	if w == 0 {
@@ -228,7 +232,15 @@ func (m model) loadProfile() tea.Cmd {
 		if err != nil {
 			return errMsg{err}
 		}
-		return profileMsg{p, ts}
+		days, err := store.FocusByDay(id, time.Now().AddDate(0, 0, -40)) // o mês inteiro, com folga
+		if err != nil {
+			return errMsg{err}
+		}
+		totals, err := store.GetTotals(id)
+		if err != nil {
+			return errMsg{err}
+		}
+		return profileMsg{p, ts, days, totals}
 	}
 }
 
@@ -297,7 +309,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.nick, m.err = msg.nick, ""
 		}
 	case profileMsg:
-		m.pet, m.tasks = msg.pet, msg.tasks
+		m.pet, m.tasks, m.days, m.totals = msg.pet, msg.tasks, msg.days, msg.totals
 	case errMsg:
 		m.err = msg.Error()
 	case tea.KeyPressMsg:

@@ -219,12 +219,17 @@ func (m model) soloView() string {
 		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel)),
 		m.soloWho())
 	panel := strings.Join([]string{m.focusPanel(), "", who, "", m.soloLog()}, "\n")
-	if m.side == nil { // sem jardim, só o painel
-		return panel
+	if soloGardenWidth(max(m.width-4, 40)) == 0 {
+		return panel // terminal estreito: não cabe coluna nenhuma
+	}
+	// a direita muda com o estado: focando é o jardim, parado são os seus números.
+	right := m.statsBlock(true)
+	if m.side != nil {
+		right = m.side.frame
 	}
 	bar := m.st.muted.Render(strings.TrimRight(strings.Repeat("│\n", soloRows(m.height)), "\n"))
 	return lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().Width(panelCols).Render(panel), bar, " ", m.side.frame)
+		lipgloss.NewStyle().Width(panelCols).Render(panel), bar, " ", right)
 }
 
 // soloWho: as informações ao lado do pet, em colunas, como a saída de um comando: o rótulo

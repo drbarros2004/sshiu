@@ -27,7 +27,8 @@ func (m model) profileView() string {
 	info := bold.Render(m.nick) + "\n\n" +
 		"humor    " + moodSt.Render(pet.MoodName[mood]) + "\n" +
 		"energia  " + moodSt.Render(strings.Repeat("█", n)) + m.st.muted.Render(strings.Repeat("░", 20-n)) + fmt.Sprintf(" %.0f", e) + "\n" +
-		fmt.Sprintf("streak   %d dia(s)", m.pet.StreakAt(m.now)) + "\n\n" +
+		fmt.Sprintf("streak   %d %s", m.pet.StreakAt(m.now), plural(m.pet.StreakAt(m.now), "dia seguido", "dias seguidos")) + "\n\n" +
+		m.statsBlock(false) + "\n\n" +
 		bold.Render("últimas tarefas") + "\n"
 	if len(m.tasks) == 0 {
 		info += m.st.muted.Render("nenhuma ainda")

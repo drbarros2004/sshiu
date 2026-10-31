@@ -178,6 +178,44 @@ func Tasks(id string) ([]TaskRow, error) {
 	return out, rows.Err()
 }
 
+// --- o histórico, para o calendário e os números do perfil ---
+
+// FocusByDay: os minutos focados em cada dia, de `from` para cá, com a chave "2006-01-02".
+// O dia é o do fuso do servidor, o mesmo que o pet usa para o streak.
+func FocusByDay(id string, from time.Time) (map[string]float64, error) {
+	rows, err := db.Query(`SELECT date(started_at, 'unixepoch', 'localtime'), SUM(focused_sec)
+		FROM tasks WHERE user_id = ? AND started_at >= ? GROUP BY 1`, id, from.Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]float64{}
+	for rows.Next() {
+		var day string
+		var sec float64
+		if err := rows.Scan(&day, &sec); err != nil {
+			return nil, err
+		}
+		out[day] = sec / 60
+	}
+	return out, rows.Err()
+}
+
+// Totals: o resumo de todas as tarefas encerradas de um usuário.
+type Totals struct {
+	Tasks, Done       int
+	Focused, Declared time.Duration // somadas: a média sai dividindo por Tasks
+}
+
+func GetTotals(id string) (Totals, error) {
+	var t Totals
+	var sec, min int64
+	err := db.QueryRow(`SELECT COUNT(*), COALESCE(SUM(result = 'done'), 0), COALESCE(SUM(focused_sec), 0),
+		COALESCE(SUM(declared_min), 0) FROM tasks WHERE user_id = ?`, id).Scan(&t.Tasks, &t.Done, &sec, &min)
+	t.Focused, t.Declared = time.Duration(sec)*time.Second, time.Duration(min)*time.Minute
+	return t, err
+}
+
 type RoomRow struct {
 	Code, Name string
 	Max        int // quantos membros a sala aceita

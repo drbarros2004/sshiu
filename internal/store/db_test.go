@@ -26,6 +26,15 @@ func TestRecordTask(t *testing.T) {
 		t.Fatalf("tasks %+v %v", ts, err)
 	}
 
+	start := end.Add(-20 * time.Minute) // o dia do gráfico é o do início da tarefa
+	if days, err := FocusByDay("u", start.AddDate(0, 0, -1)); err != nil || days[start.Format("2006-01-02")] != 15 {
+		t.Fatalf("por dia %v %v", days, err)
+	}
+	if got, err := GetTotals("u"); err != nil || got.Tasks != 1 || got.Done != 1 ||
+		got.Focused != 15*time.Minute || got.Declared != 25*time.Minute {
+		t.Fatalf("totais %+v %v", got, err)
+	}
+
 	if g := GetGarden("u"); g != DefaultGarden {
 		t.Fatalf("garden padrão %+v", g)
 	}
