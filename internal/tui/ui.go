@@ -209,7 +209,9 @@ func (m model) syncSide() model {
 		i := wallpaperFor(m.vis, m.me().Focus)
 		m.side = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen,
 			bare: true, w: w, h: h}
-		m.side.render(m) // o primeiro quadro; parado, a coluna fica nele
+	}
+	if m.side.frame == "" || !m.active() {
+		m.side.render(m) // parado, a coluna anda no ritmo da tela; focando, quem anda é o sideTick
 	}
 	return m
 }
