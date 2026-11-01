@@ -430,7 +430,7 @@ func (m model) card(x rooms.Member, got int, compact bool) string {
 		reacts = m.st.muted.Render(fmt.Sprintf("%d reações", got))
 	}
 	if x.Status == rooms.Offline { // quem fechou o terminal dorme: o humor volta quando a pessoa volta
-		mood = pet.Sleeping
+		mood, st = pet.Sleeping, st.BorderForeground(m.st.off)
 	}
 	art := pet.Render(mood, m.tick, m.pixel)
 	if compact {
