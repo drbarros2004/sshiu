@@ -78,12 +78,12 @@ type user struct {
 
 func (u *user) status() Status {
 	switch {
+	case u.online == 0: // a tarefa ainda espera a tolerância, mas a sala vê a ausência na hora
+		return Offline
 	case u.focus != nil:
 		return Focusing
-	case u.online > 0:
-		return Idle
 	}
-	return Offline
+	return Idle
 }
 
 type Event struct {

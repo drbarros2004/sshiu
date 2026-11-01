@@ -34,6 +34,7 @@ Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indica
 | Tempo esgotado sem resposta | os minutos param de contar | Estar ausente nunca rende mais do que o tempo que o próprio usuário declarou. | [room.go:62](../internal/rooms/room.go#L62) |
 | Trocar, parar, desconectar | sem penalidade | Os minutos já contaram; punir faria os usuários declararem tempos folgados ou deixarem o terminal aberto. | [room.go:247](../internal/rooms/room.go#L247) |
 | Tolerância de reconexão | 2 min | Conexão instável não interrompe a tarefa. Sem volta, a tarefa é interrompida com os minutos até a desconexão. | [room.go:30](../internal/rooms/room.go#L30) |
+| Quem fechou o terminal | offline na hora, com o pet dormindo | A tolerância é da tarefa, não do que a sala mostra: ninguém "foca" com o terminal fechado, e o relógio parar de correr no card é o que avisa a sala. | [room.go:79](../internal/rooms/room.go#L79) |
 | Restart do servidor | desconexão de todo mundo na hora em que o servidor volta, com a mesma tolerância de 2 min | Uma atualização não derruba o foco da turma: quem reconecta a tempo vê o relógio onde estava. Sem volta, a tarefa é interrompida com os minutos até o restart. A tarefa em andamento fica no banco; eventos e reações se perdem. | [room.go:121](../internal/rooms/room.go#L121) |
 
 ## Na sala
