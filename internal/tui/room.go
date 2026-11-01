@@ -429,6 +429,9 @@ func (m model) card(x rooms.Member, got int, compact bool) string {
 	case got > 1:
 		reacts = m.st.muted.Render(fmt.Sprintf("%d reações", got))
 	}
+	if x.Status == rooms.Offline { // quem fechou o terminal dorme: o humor volta quando a pessoa volta
+		mood = pet.Sleeping
+	}
 	art := pet.Render(mood, m.tick, m.pixel)
 	if compact {
 		art = lipgloss.NewStyle().Foreground(lipgloss.Color(pet.MoodColor[mood])).Render("●")

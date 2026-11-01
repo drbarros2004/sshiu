@@ -50,7 +50,7 @@ Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indica
 | Regra | Valor | Por quê | Código |
 |---|---|---|---|
 | Tick da tela | 500 ms | Anima o pet e o relógio e atualiza a sala. | [ui.go:103](../internal/tui/ui.go#L103) |
-| Respiração do pet | 1 a 4 ticks por quadro (radiante rápido, murcho lento) | O cansaço aparece no ritmo, não só no desenho. | [render.go:89](../internal/pet/render.go#L89) |
+| Respiração do pet | 1 a 4 ticks por quadro (radiante rápido, murcho lento), 2 quadros; dormindo são 4, a 3 ticks | O cansaço aparece no ritmo, não só no desenho. No sono os dois quadros a mais são o z subindo da cabeça, num ciclo de 6 s. | [render.go:89](../internal/pet/render.go#L89) |
 | Modo jardim | liga depois de 30 s sem tecla, só durante o foco | | [garden.go:27](../internal/tui/garden.go#L27) |
 | Jardim na sala solo | ocupa a direita a partir de 96 colunas de terminal | Menos que isso e o painel fica apertado; aí a tela é só o painel. | [room.go:21-22](../internal/tui/room.go#L21-L22) |
 | Nome do wallpaper no modo jardim | 5 s, ao abrir e a cada troca (←/→) | Quem troca vê o nome do novo e descobre as setas, sem texto fixo na tela de descanso. | [garden.go:28](../internal/tui/garden.go#L28) |
