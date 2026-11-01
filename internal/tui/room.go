@@ -232,7 +232,7 @@ func (m model) roomView(w, h int) string {
 			case alone: // o convite vale mais que o feed vazio, e não encolhe
 				out += "\n\n" + m.invitePanel(s)
 			case n > 0:
-				out += "\n\n" + m.feed(n) + "\n" + m.legend()
+				out += "\n\n" + m.feed(n) + "\n\n" + m.legend()
 			}
 			if lipgloss.Height(out) <= h {
 				return out
