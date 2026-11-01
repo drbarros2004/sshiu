@@ -10,10 +10,10 @@ import (
 
 func TestRoomCode(t *testing.T) {
 	for in, want := range map[string]string{
-		"fg7dhm":                      "fg7dhm",
-		"  FG7DHM\n":                  "fg7dhm", // colado com espaço e quebra de linha
+		"fg7dhm":                         "fg7dhm",
+		"  FG7DHM\n":                     "fg7dhm", // colado com espaço e quebra de linha
 		"ssh -t -p 23234 plantao fg7dhm": "fg7dhm", // o convite inteiro
-		"":                            "",
+		"":                               "",
 	} {
 		if got := roomCode(in); got != want {
 			t.Errorf("roomCode(%q) = %q, queria %q", in, got, want)
@@ -27,6 +27,23 @@ func TestSoloGardenWidth(t *testing.T) {
 	}
 	if got := soloGardenWidth(76); got != 0 { // 80 colunas: o jardim não cabe
 		t.Fatalf("80 colunas: %d", got)
+	}
+}
+
+// Passar a sala e remover alguém listam os outros, na ordem dos cards: ninguém passa a sala nem
+// a própria vaga para si mesmo (ADR 0007).
+func TestOthers(t *testing.T) {
+	m := model{id: "eu", room: "s", w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": {Members: []rooms.Member{
+		{ID: "sumiu", Status: rooms.Offline},
+		{ID: "eu", Status: rooms.Idle},
+		{ID: "foca", Status: rooms.Focusing},
+	}}}}}
+	var got []string
+	for _, x := range m.others() {
+		got = append(got, x.ID)
+	}
+	if want := []string{"foca", "sumiu"}; !slices.Equal(got, want) {
+		t.Fatalf("outros %v, queria %v", got, want)
 	}
 }
 

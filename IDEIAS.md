@@ -44,8 +44,10 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
   - Substitui o "hook de git" do doc original.
 
 ### Gerenciar salas
-- Trocar o código, remover um membro, passar a sala para outro usuário. Fora do MVP: no MVP ninguém tem poderes especiais.
-- Trocar o código dá algum trabalho: hoje o código é a chave da sala no banco.
+- **Feito:** a sala tem dono ([ADR 0007](docs/adr/0007-dono-da-sala.md)), que troca o nome e o tamanho, fecha para novas entradas, remove um membro, passa a sala e a encerra. Sair sendo dono passa a sala para o membro mais antigo.
+- **A tela** (`c` na sala, só para o dono; com o tempo esgotado o `c` volta a ser "continuar", que é o que o painel está pedindo, e a dica some do cabeçalho): nome, tamanho e novas entradas mudam na própria página, com ←/→ na linha escolhida, e as setas só aparecem na linha em que o cursor está — a que não anda mais some, em vez de explicar o limite. O tamanho é `membros / ‹ teto ›`, então o chão fica à vista. Passar a sala, remover alguém e encerrar não têm valor à direita: abrem uma página própria. O cabeçalho da sala ganha `· fechada` e `· c configura`.
+- **Quem perde a sala** (removido ou sala encerrada) cai no menu de salas com o aviso "você não está mais em X", que o menu passou a mostrar.
+- **Falta:** trocar o código, que dá algum trabalho — hoje o código é a chave da sala no banco, e as tarefas guardam em que sala aconteceram.
 
 ### Histórico, stats e gráficos
 - **Prioridade:** essencial. É a próxima feature grande, antes dos vários pets.

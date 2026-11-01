@@ -1,0 +1,269 @@
+package tui
+
+// Menu do dono da sala, na tecla c (ADR 0007). O que se configura muda na própria página, com ←/→
+// na linha escolhida; passar a sala, remover alguém e encerrar abrem uma página própria.
+
+import (
+	"fmt"
+	"plantao/internal/rooms"
+	"slices"
+	"strings"
+
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+)
+
+// as linhas do menu, na ordem da tela
+const (
+	cfgName = iota
+	cfgSize
+	cfgEntries
+	cfgGive
+	cfgKick
+	cfgEnd
+	cfgRows
+)
+
+type cfgPage int
+
+const (
+	pageMenu cfgPage = iota
+	pageGive
+	pageKick
+	pageEnd
+)
+
+// owns: a sala que você está vendo é sua (ADR 0007). A demo não tem dono.
+func (m model) owns() bool {
+	s, ok := m.w.Rooms[m.room]
+	return ok && s.Owner == m.id
+}
+
+// others: os outros membros, que é quem recebe a sala ou perde a vaga.
+func (m model) others() []rooms.Member {
+	var out []rooms.Member
+	for _, x := range orderedMembers(m.id, m.w.Rooms[m.room]) {
+		if x.ID != m.id {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
+// do roda uma mudança da sala e mostra o erro, se o servidor recusar.
+func do(f func() error) tea.Cmd {
+	return func() tea.Msg {
+		if err := f(); err != nil {
+			return errMsg{err}
+		}
+		return worldMsg(rooms.SnapshotWorld())
+	}
+}
+
+func (m model) openConfig() (tea.Model, tea.Cmd) {
+	m.cfg, m.cpage, m.ccur, m.notice, m.err = true, pageMenu, cfgName, "", ""
+	return m, nil
+}
+
+func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	k, id, code := msg.String(), m.id, m.room
+	s := m.w.Rooms[code]
+	if m.cname { // o nome é digitado na própria linha
+		switch k {
+		case "enter":
+			name := strings.TrimSpace(m.in.Value())
+			if name == "" {
+				m.err = "a sala precisa de um nome"
+				return m, nil
+			}
+			m.cname, m.err = false, ""
+			return m, do(func() error { return rooms.Rename(id, code, name) })
+		case "esc":
+			m.cname, m.err = false, ""
+			return m, nil
+		}
+		var cmd tea.Cmd
+		m.in, cmd = m.in.Update(msg)
+		return m, cmd
+	}
+	switch m.cpage {
+	case pageGive, pageKick:
+		others := m.others()
+		switch k {
+		case "up":
+			m.mcur = max(0, m.mcur-1)
+		case "down":
+			m.mcur = min(len(others)-1, m.mcur+1)
+		case "esc":
+			m.cpage, m.err = pageMenu, ""
+		case "enter":
+			if len(others) == 0 {
+				return m, nil
+			}
+			who := others[min(m.mcur, len(others)-1)]
+			if m.cpage == pageKick {
+				m.cpage = pageMenu
+				return m, do(func() error { return rooms.Kick(id, code, who.ID) })
+			}
+			// passar a sala tira os seus poderes: o menu fecha junto
+			m.cfg, m.cpage, m.notice = false, pageMenu, "a sala agora é de "+who.Nick
+			return m, do(func() error { return rooms.Transfer(id, code, who.ID) })
+		}
+		return m, nil
+	case pageEnd:
+		switch k {
+		case "left", "right":
+			m.cyes = !m.cyes
+		case "esc":
+			m.cpage, m.cyes = pageMenu, false
+		case "enter":
+			if !m.cyes {
+				m.cpage = pageMenu
+				return m, nil
+			}
+			m.cfg, m.cpage, m.room, m.picking = false, pageMenu, "", true
+			return m, do(func() error { return rooms.Dissolve(id, code) })
+		}
+		return m, nil
+	}
+	switch k {
+	case "up":
+		m.ccur = max(0, m.ccur-1)
+	case "down":
+		m.ccur = min(cfgRows-1, m.ccur+1)
+	case "esc", "c":
+		m.cfg, m.err = false, ""
+	case "left", "right":
+		d := 1
+		if k == "left" {
+			d = -1
+		}
+		switch m.ccur {
+		case cfgSize:
+			n := s.Max + d
+			return m, do(func() error { return rooms.Resize(id, code, n) })
+		case cfgEntries:
+			closed := !s.Closed
+			return m, do(func() error { return rooms.SetClosed(id, code, closed) })
+		}
+	case "enter":
+		switch m.ccur {
+		case cfgName:
+			m.cname, m.in, m.err = true, newInput("nome da sala", 30), ""
+			m.in.Prompt = "" // o ▸ da linha já diz onde o texto entra
+			m.in.SetValue(s.Name)
+		case cfgEntries: // o enter também abre e fecha: ninguém adivinha que ali só vale ←/→
+			closed := !s.Closed
+			return m, do(func() error { return rooms.SetClosed(id, code, closed) })
+		case cfgGive:
+			m.cpage, m.mcur = pageGive, 0
+		case cfgKick:
+			m.cpage, m.mcur = pageKick, 0
+		case cfgEnd:
+			m.cpage, m.cyes = pageEnd, false
+		}
+	}
+	return m, nil
+}
+
+func (m model) cfgHelp() string {
+	switch {
+	case m.cname:
+		return "enter confirma · esc cancela"
+	case m.cpage == pageGive, m.cpage == pageKick:
+		if len(m.others()) == 0 { // não há o que escolher: a página só tem a saída
+			return "esc volta"
+		}
+		if m.cpage == pageKick {
+			return "↑/↓ escolhe · enter remove · esc volta"
+		}
+		return "↑/↓ escolhe · enter passa a sala · esc volta"
+	case m.cpage == pageEnd:
+		return "←/→ escolhe · enter confirma · esc volta"
+	}
+	return "↑/↓ escolhe · ←/→ muda · enter abre · esc volta"
+}
+
+func (m model) cfgView() string {
+	s := m.w.Rooms[m.room]
+	switch m.cpage {
+	case pageGive, pageKick:
+		titulo, vazio := "passar a sala para quem?", "você é a única pessoa na sala."
+		if m.cpage == pageKick {
+			titulo, vazio = "remover quem da sala?", "não há mais ninguém na sala."
+		}
+		others := m.others()
+		if len(others) == 0 {
+			return bold.Render(titulo) + "\n\n" + m.st.muted.Render(vazio)
+		}
+		var b strings.Builder
+		b.WriteString(bold.Render(titulo) + "\n\n")
+		for i, x := range others {
+			b.WriteString(cfgRow(m, i == m.mcur, x.Nick, m.st.muted.Render(m.status(x))) + "\n")
+		}
+		return strings.TrimRight(b.String(), "\n")
+	case pageEnd:
+		sim, nao := "sim", bold.Render("não")
+		if m.cyes {
+			sim, nao = bold.Render("sim"), "não"
+		}
+		aviso := "a sala some. o que você focou nela fica no seu histórico."
+		if n := len(s.Members); n > 1 {
+			aviso = fmt.Sprintf("a sala some para os %d membros. o histórico de cada um fica.", n)
+		}
+		return bold.Render("encerrar "+s.Name+"?") + "\n\n" + m.st.muted.Render(aviso) +
+			"\n\n" + m.st.muted.Render("‹ ") + nao + m.st.muted.Render(" · ") + sim + m.st.muted.Render(" ›")
+	}
+
+	name := m.st.muted.Render(s.Name)
+	if m.cname {
+		name = m.in.View()
+	}
+	floor := max(len(s.Members), rooms.MinMembers)
+	size := bold.Render(fmt.Sprintf("%d", len(s.Members))) + m.st.muted.Render(" / ") +
+		m.arrows(m.ccur == cfgSize, fmt.Sprintf("%d", s.Max), s.Max > floor, s.Max < rooms.MaxMembers)
+	entries := m.arrows(m.ccur == cfgEntries, map[bool]string{true: "fechadas", false: "abertas"}[s.Closed], true, true)
+
+	rows := []string{
+		cfgRow(m, m.ccur == cfgName, "nome", name),
+		cfgRow(m, m.ccur == cfgSize, "tamanho", size),
+		cfgRow(m, m.ccur == cfgEntries, "novas entradas", entries),
+		cfgRow(m, m.ccur == cfgGive, "passar a sala", ""),
+		cfgRow(m, m.ccur == cfgKick, "remover alguém", ""),
+		cfgRow(m, m.ccur == cfgEnd, "encerrar a sala", ""),
+	}
+	return bold.Render("configurar") + m.st.muted.Render(" · "+s.Name) + "\n\n" + strings.Join(rows, "\n")
+}
+
+// cfgRow: uma linha da lista, com o rótulo numa coluna fixa e o valor à direita. As linhas que
+// abrem outra página não têm valor: o espaço vazio é que diz que ali se entra.
+func cfgRow(m model, sel bool, label, value string) string {
+	mark, st := "  ", lipgloss.NewStyle().Width(18)
+	if sel {
+		mark, st = m.st.sel.Render("▸ "), st.Bold(true)
+	}
+	return mark + st.Render(label) + value
+}
+
+// arrows: o valor com as setas, desenhadas só na linha escolhida. A seta que não anda mais some,
+// para o fim do caminho aparecer sem precisar de explicação.
+func (m model) arrows(sel bool, value string, left, right bool) string {
+	if !sel {
+		return m.st.muted.Render(value)
+	}
+	l, r := m.st.muted.Render("‹"), m.st.muted.Render("›")
+	if !left {
+		l = " "
+	}
+	if !right {
+		r = " "
+	}
+	return l + " " + m.st.title.Render(value) + " " + r
+}
+
+// stillMine: a sala que você está vendo continua sua? Serve para o aviso de quem perdeu a vaga ou
+// estava numa sala encerrada (ADR 0007).
+func (m model) stillMine() bool {
+	s, ok := m.w.Rooms[m.room]
+	return ok && slices.ContainsFunc(s.Members, func(x rooms.Member) bool { return x.ID == m.id })
+}

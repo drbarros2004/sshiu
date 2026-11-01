@@ -68,6 +68,9 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.inPicker() {
 		return m.pickerKey(msg)
 	}
+	if m.cfg {
+		return m.cfgKey(msg)
+	}
 	k, id, code := msg.String(), m.id, m.room
 	m.notice = "" // o aviso de "entrou na sala" some na primeira tecla
 	me := m.me()
@@ -147,8 +150,11 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, tea.Sequence(act(func() { rooms.Finish(id, pet.NotDone) }), m.loadProfile())
 		}
 	case "c":
-		if expired {
+		switch {
+		case expired: // o painel está em "c continuar": a configuração espera a resposta
 			m.choosing, m.cont = true, true
+		case m.owns():
+			return m.openConfig()
 		}
 	case "y": // o servidor não sabe se o terminal aceitou o OSC 52: o aviso diz só que mandou
 		if !m.solo() && code != rooms.DemoCode { // as duas salas sem código para passar adiante
@@ -167,6 +173,8 @@ func (m model) roomHelp() string {
 	me := m.me()
 	focusing := me.Status == rooms.Focusing
 	switch {
+	case m.cfg:
+		return m.cfgHelp()
 	case m.inPicker() && m.form == formSize:
 		return "←/→ escolhe · enter cria · esc volta"
 	case m.inPicker() && m.form == formJoin:
@@ -207,15 +215,31 @@ func (m model) roomView(w, h int) string {
 		return m.pickerView()
 	}
 	s := m.w.Rooms[m.room]
+	if m.cfg {
+		return m.cfgView()
+	}
+	me := m.me()
+	// com o tempo esgotado o c é "continuar", e digitando a tarefa as teclas são texto
+	busy := m.entering || m.choosing || me.Status == rooms.Focusing && me.Focus.Expired(m.now)
 	title := bold.Render(s.Name)
 	if m.room != rooms.DemoCode && !m.solo() { // a sala solo não tem código para passar
 		title += m.st.muted.Render(" · código " + m.room)
-		if !m.entering && !m.choosing { // digitando a tarefa, o y é texto
+		if !busy {
 			title += m.st.muted.Render(" · y copia")
 		}
 	}
+	if m.solo() && m.owns() && !busy { // é pelo menu que a sala solo cresce e ganha código
+		title += m.st.muted.Render(" · c configura")
+	}
 	if !m.solo() { // quanto a sala comporta, embaixo do nome; a solo é sempre uma pessoa
-		title += "\n" + m.st.muted.Render(fmt.Sprintf("%d/%d pessoas", len(s.Members), s.Max))
+		line := fmt.Sprintf("%d/%d pessoas", len(s.Members), s.Max)
+		if s.Closed {
+			line += " · fechada"
+		}
+		if m.owns() && !busy {
+			line += " · c configura"
+		}
+		title += "\n" + m.st.muted.Render(line)
 	}
 	if m.notice != "" {
 		title += "\n" + m.st.ok.Render(m.notice)
@@ -248,6 +272,13 @@ func (m model) roomView(w, h int) string {
 func (m model) invitePanel(s rooms.Snapshot) string {
 	row := func(label, text string) string {
 		return m.st.muted.Render(fmt.Sprintf("  %-13s", label)) + text
+	}
+	if s.Closed { // sala fechada: o código não serve para ninguém enquanto a porta não abrir
+		aviso := m.st.muted.Render("esta sala não está aceitando ninguém.")
+		if m.owns() {
+			aviso += m.st.muted.Render(" abra as novas entradas em ") + "c" + m.st.muted.Render(" · configurar.")
+		}
+		return bold.Render("você é o primeiro aqui.") + "\n\n" + aviso
 	}
 	return bold.Render("você é o primeiro aqui.") + m.st.muted.Render(" para a turma entrar na sala:") + "\n\n" +
 		row("no Plantão", m.st.muted.Render("aperta ")+"s"+m.st.muted.Render(", escolhe ")+"entrar com código"+

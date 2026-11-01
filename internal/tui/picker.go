@@ -191,6 +191,9 @@ func (m model) pickerView() string {
 	if m.room == "" {
 		b.WriteString(lipgloss.NewStyle().Width(max(m.width-4, 20)).Render("você ainda não está em nenhuma sala. crie uma e passe o código para quem vai focar com você, ou entre com o código de alguém.") + "\n\n")
 	}
+	if m.notice != "" { // quem perdeu a vaga ou estava numa sala encerrada cai aqui sem entender
+		b.WriteString(m.st.ok.Render(m.notice) + "\n\n")
+	}
 	b.WriteString(bold.Render("salas") + "\n\n")
 	for i, it := range m.pickerItems() {
 		cursor, name := "  ", it.name
