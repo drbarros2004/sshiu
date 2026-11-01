@@ -24,9 +24,10 @@ CREATE TABLE IF NOT EXISTS tasks ( -- uma por tarefa encerrada
 CREATE TABLE IF NOT EXISTS rooms (
 	code        TEXT PRIMARY KEY, -- o convite: quem tem o código entra
 	name        TEXT NOT NULL,
-	owner       TEXT NOT NULL REFERENCES users(id), -- quem criou; sem poderes no MVP (ADR 0003)
-	slots       TEXT NOT NULL DEFAULT '',    -- do modelo antigo, sem uso
-	max_members INTEGER NOT NULL DEFAULT 10  -- tamanho escolhido na criação
+	owner       TEXT NOT NULL REFERENCES users(id), -- o dono da sala (ADR 0007)
+	slots       TEXT NOT NULL DEFAULT '',     -- do modelo antigo, sem uso
+	max_members INTEGER NOT NULL DEFAULT 10,  -- tamanho, mudado pelo dono
+	closed      INTEGER NOT NULL DEFAULT 0    -- 1 = não aceita mais ninguém, mesmo com vaga
 );
 CREATE TABLE IF NOT EXISTS room_members (
 	code    TEXT NOT NULL REFERENCES rooms(code),
