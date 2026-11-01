@@ -21,15 +21,23 @@ Um grupo fechado de usuários que focam e se veem juntos. Toda sala é privada.
 _Evite_: canal, grupo, servidor, hub
 
 **Código**:
-O convite de uma sala: quem tem o código entra, sem aprovação. A sala solo não tem código.
+O convite de uma sala: quem tem o código entra, sem aprovação, enquanto houver vaga e a sala estiver aberta. Toda sala tem um; a sala solo esconde o seu enquanto for de uma pessoa.
 _Evite_: senha, link
 
 **Membro**:
-Um usuário que entrou numa sala e ainda não saiu. Nenhum membro tem poderes especiais; a sala deixa de existir quando o último sai.
-_Evite_: dono, admin, participante
+Um usuário que entrou numa sala e ainda não saiu. A sala deixa de existir quando o último sai, ou quando o dono a encerra.
+_Evite_: participante
+
+**Dono da sala**:
+Quem criou a sala, ou o membro para quem ela foi passada. É quem muda o nome e o tamanho, fecha a sala para novas entradas, remove um membro e encerra a sala ([ADR 0007](docs/adr/0007-dono-da-sala.md)). Nenhum outro membro tem poderes.
+_Evite_: admin, moderador, host, criador
+
+**Sala fechada**:
+Uma sala que não aceita mais ninguém, mesmo com vaga e com o código na mão. O dono abre e fecha quando quiser.
+_Evite_: sala trancada, privada
 
 **Sala solo**:
-Uma sala de uma pessoa, para focar sozinho. Não tem código e ninguém entra nela; a tela é só o painel de foco e o modo jardim ([ADR 0006](docs/adr/0006-sala-solo.md)).
+Uma sala de uma pessoa, para focar sozinho. Ninguém entra nela e o código fica escondido; a tela é só o painel de foco e o modo jardim ([ADR 0006](docs/adr/0006-sala-solo.md)). Ela deixa de ser solo se o dono aumentar o tamanho.
 _Evite_: sala privada, modo solo
 
 **Sala demo**:
