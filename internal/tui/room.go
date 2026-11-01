@@ -371,8 +371,11 @@ func (m model) panelWidth() int {
 func received(s rooms.Snapshot) map[string]int {
 	n := map[string]int{}
 	for _, e := range s.Events {
-		for _, r := range e.Reacts {
-			n[e.Who] += len(r)
+		for _, who := range e.Reacts {
+			n[e.Who] += len(who)
+			if slices.Contains(who, e.Who) { // reagir ao próprio evento não enche o próprio contador
+				n[e.Who]--
+			}
 		}
 	}
 	return n
