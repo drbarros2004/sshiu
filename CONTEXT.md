@@ -83,6 +83,12 @@ Um número de 0 a 100 que sobe com minutos focados e tarefas cumpridas e decai a
 O estado visível do pet, derivado da energia: murcho, cansado, normal, bem ou radiante.
 _Evite_: estado, mood
 
+**Cor do pet**:
+O tom que cada usuário escolhe para a sua criatura, na aba de perfil. A cor é da pessoa e o
+humor continua aparecendo no quanto ela é viva: murcho fica apagado e radiante fica vivo, os
+dois no tom escolhido. Quem não escolhe fica com a cor saindo do humor, como sempre foi.
+_Evite_: skin, tema do pet
+
 **Streak**:
 Dias seguidos em que o usuário focou.
 _Evite_: sequência, ofensiva

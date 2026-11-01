@@ -69,6 +69,7 @@ func (f Focus) Focused(now time.Time) time.Duration {
 
 type user struct {
 	id, nick string
+	color    string // a cor escolhida para o pet ("" = a cor sai do humor)
 	energy   float64
 	focus    *Focus
 	online   int       // sessões abertas
@@ -143,7 +144,7 @@ func load(id string) *user {
 	if err != nil {
 		log.Error("getUser", "err", err)
 	}
-	u := &user{id: id, nick: nick, energy: p.EnergyAt(time.Now())}
+	u := &user{id: id, nick: nick, color: p.Color, energy: p.EnergyAt(time.Now())}
 	users[id] = u
 	return u
 }
@@ -191,6 +192,14 @@ func Created(id string) {
 	}
 	u := load(id)
 	u.nick, u.energy = nick, p.EnergyAt(time.Now())
+}
+
+// SetColor: a pessoa trocou a cor do pet. Quem guarda é o banco; aqui é só o retrato que as
+// salas mostram, que ficaria com a cor velha até a próxima tarefa encerrada.
+func SetColor(id, hex string) {
+	mu.Lock()
+	defer mu.Unlock()
+	load(id).color = hex
 }
 
 // Start começa uma tarefa, se não há outra em andamento. A sala é a que estava na tela: a tarefa
@@ -254,7 +263,7 @@ func finish(u *user, r pet.Result, at time.Time) {
 		log.Error("recordTask", "err", err)
 		return
 	}
-	u.energy = p.EnergyAt(at)
+	u.energy, u.color = p.EnergyAt(at), p.Color
 	if r == pet.Done {
 		event(u, "cumpriu", f.Task)
 	}
@@ -376,6 +385,7 @@ func Leave(id, code string) error {
 // Member: um usuário como as telas o veem. Focus só vale com Status == Focusing.
 type Member struct {
 	ID, Nick string
+	Color    string // a cor escolhida para o pet
 	Energy   float64
 	Status   Status
 	Focus    Focus
@@ -395,7 +405,7 @@ type World struct {
 }
 
 func member(u *user) Member {
-	m := Member{ID: u.id, Nick: u.nick, Energy: u.energy, Status: u.status()}
+	m := Member{ID: u.id, Nick: u.nick, Color: u.color, Energy: u.energy, Status: u.status()}
 	if u.focus != nil {
 		m.Focus = *u.focus
 	}

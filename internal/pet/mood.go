@@ -82,6 +82,7 @@ type Pet struct {
 	StreakDay  string // último dia que contou pro streak (YYYY-MM-DD)
 	Today      string // dia de TodayMin (YYYY-MM-DD)
 	TodayMin   float64
+	Color      string // cor escolhida para o pet ("" = a cor sai do humor)
 }
 
 // EnergyAt é o que o pet mostra agora: energia com decaimento + bônus do streak.

@@ -262,7 +262,7 @@ func (m model) soloView() string {
 	// o pet com quem você é ao lado, na altura dele: embaixo o nome ficava solto, longe do desenho
 	// (o sprite é centralizado numa caixa de 16, então ele nunca encosta na margem).
 	who := lipgloss.JoinHorizontal(lipgloss.Center,
-		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel)),
+		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel, m.me().Color)),
 		m.soloWho())
 	panel := strings.Join([]string{m.focusPanel(), "", who, "", m.soloLog()}, "\n")
 	if soloGardenWidth(max(m.width-4, 40)) == 0 {
@@ -429,7 +429,7 @@ func (m model) card(x rooms.Member, got int, compact bool) string {
 	case got > 1:
 		reacts = m.st.muted.Render(fmt.Sprintf("%d reações", got))
 	}
-	art := pet.Render(mood, m.tick, m.pixel)
+	art := pet.Render(mood, m.tick, m.pixel, x.Color)
 	if compact {
 		art = lipgloss.NewStyle().Foreground(lipgloss.Color(pet.MoodColor[mood])).Render("●")
 	}

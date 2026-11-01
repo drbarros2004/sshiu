@@ -29,6 +29,7 @@ func Open(path string) error {
 	}
 	// ponytail: migração ingênua (o erro "duplicate column" é esperado após a 1ª vez); goose/migrate quando houver várias.
 	d.Exec(`ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT ''`)
+	d.Exec(`ALTER TABLE users ADD COLUMN pet_color TEXT NOT NULL DEFAULT ''`)
 	d.Exec(`ALTER TABLE users ADD COLUMN today TEXT NOT NULL DEFAULT ''`)
 	d.Exec(`ALTER TABLE users ADD COLUMN today_min REAL NOT NULL DEFAULT 0`)
 	d.Exec(`ALTER TABLE users ADD COLUMN garden_wallpaper TEXT NOT NULL DEFAULT ''`)
@@ -74,9 +75,15 @@ func SetTheme(id, t string) error {
 	return err
 }
 
+// SetPetColor guarda a cor escolhida para o pet ("" volta para a cor do humor).
+func SetPetColor(id, c string) error {
+	_, err := db.Exec(`UPDATE users SET pet_color = ? WHERE id = ?`, c, id)
+	return err
+}
+
 func scanUser(row *sql.Row) (nick string, p pet.Pet, ok bool, err error) {
 	var last int64
-	err = row.Scan(&nick, &p.Energy, &last, &p.Streak, &p.StreakDay, &p.Today, &p.TodayMin)
+	err = row.Scan(&nick, &p.Energy, &last, &p.Streak, &p.StreakDay, &p.Today, &p.TodayMin, &p.Color)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", pet.Pet{}, false, nil
 	}
@@ -84,7 +91,7 @@ func scanUser(row *sql.Row) (nick string, p pet.Pet, ok bool, err error) {
 	return nick, p, err == nil, err
 }
 
-const selectUser = `SELECT nick, energy, last_active, streak, streak_day, today, today_min FROM users WHERE id = ?`
+const selectUser = `SELECT nick, energy, last_active, streak, streak_day, today, today_min, pet_color FROM users WHERE id = ?`
 
 func GetUser(id string) (string, pet.Pet, bool, error) {
 	return scanUser(db.QueryRow(selectUser, id))

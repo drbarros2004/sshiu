@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
 	energy      REAL NOT NULL,
 	last_active INTEGER NOT NULL,
 	streak      INTEGER NOT NULL DEFAULT 0,
-	streak_day  TEXT NOT NULL DEFAULT ''
+	streak_day  TEXT NOT NULL DEFAULT '',
+	pet_color   TEXT NOT NULL DEFAULT ''   -- cor escolhida para o pet ("" = sai do humor)
 );
 CREATE TABLE IF NOT EXISTS tasks ( -- uma por tarefa encerrada
 	id           INTEGER PRIMARY KEY,
