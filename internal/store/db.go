@@ -14,6 +14,10 @@ import (
 
 var db *sql.DB
 
+// DefaultObraMeta: os minutos focados que completam uma peça da obra, quando o dono não escolhe
+// outro valor (docs/regras.md, ADR 0008).
+const DefaultObraMeta = 60
+
 //go:embed schema.sql
 var schema string
 
@@ -29,6 +33,7 @@ func Open(path string) error {
 	}
 	// ponytail: migração ingênua (o erro "duplicate column" é esperado após a 1ª vez); goose/migrate quando houver várias.
 	d.Exec(`ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT ''`)
+	d.Exec(`ALTER TABLE users ADD COLUMN pet_color TEXT NOT NULL DEFAULT ''`)
 	d.Exec(`ALTER TABLE users ADD COLUMN today TEXT NOT NULL DEFAULT ''`)
 	d.Exec(`ALTER TABLE users ADD COLUMN today_min REAL NOT NULL DEFAULT 0`)
 	d.Exec(`ALTER TABLE users ADD COLUMN garden_wallpaper TEXT NOT NULL DEFAULT ''`)
@@ -40,6 +45,8 @@ func Open(path string) error {
 		// só quando a coluna nasce: as salas solo que já existiam também ficam fechadas (ADR 0006)
 		d.Exec(`UPDATE rooms SET closed = 1 WHERE max_members = 1`)
 	}
+	d.Exec(`ALTER TABLE rooms ADD COLUMN obra TEXT NOT NULL DEFAULT ''`)
+	d.Exec(`ALTER TABLE rooms ADD COLUMN obra_meta INTEGER NOT NULL DEFAULT 60`)
 	d.Exec(`ALTER TABLE tasks ADD COLUMN room_code TEXT NOT NULL DEFAULT ''`)
 	db = d
 	return nil
@@ -78,9 +85,22 @@ func SetTheme(id, t string) error {
 	return err
 }
 
+// SetToday grava os minutos focados hoje. Só a demo usa, para os bots já chegarem com a obra
+// andada em vez de a sala começar com todas as peças vazias.
+func SetToday(id, day string, min float64) error {
+	_, err := db.Exec(`UPDATE users SET today = ?, today_min = ? WHERE id = ?`, day, min, id)
+	return err
+}
+
+// SetPetColor guarda a cor escolhida para o pet ("" volta para a cor do humor).
+func SetPetColor(id, c string) error {
+	_, err := db.Exec(`UPDATE users SET pet_color = ? WHERE id = ?`, c, id)
+	return err
+}
+
 func scanUser(row *sql.Row) (nick string, p pet.Pet, ok bool, err error) {
 	var last int64
-	err = row.Scan(&nick, &p.Energy, &last, &p.Streak, &p.StreakDay, &p.Today, &p.TodayMin)
+	err = row.Scan(&nick, &p.Energy, &last, &p.Streak, &p.StreakDay, &p.Today, &p.TodayMin, &p.Color)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", pet.Pet{}, false, nil
 	}
@@ -88,7 +108,7 @@ func scanUser(row *sql.Row) (nick string, p pet.Pet, ok bool, err error) {
 	return nick, p, err == nil, err
 }
 
-const selectUser = `SELECT nick, energy, last_active, streak, streak_day, today, today_min FROM users WHERE id = ?`
+const selectUser = `SELECT nick, energy, last_active, streak, streak_day, today, today_min, pet_color FROM users WHERE id = ?`
 
 func GetUser(id string) (string, pet.Pet, bool, error) {
 	return scanUser(db.QueryRow(selectUser, id))
@@ -236,6 +256,8 @@ type RoomRow struct {
 	Code, Name, Owner string
 	Max               int  // quantos membros a sala aceita
 	Closed            bool // fechada para novas entradas
+	Obra              string
+	ObraMeta          int // minutos focados que completam uma peça
 }
 
 // newCode: 6 letras sem as ambíguas (0/o, 1/l/i), fácil de ditar para um colega.
@@ -251,7 +273,7 @@ func newCode() string {
 
 // Rooms lista todas as salas.
 func Rooms() ([]RoomRow, error) {
-	rows, err := db.Query(`SELECT code, name, owner, max_members, closed FROM rooms`)
+	rows, err := db.Query(`SELECT code, name, owner, max_members, closed, obra, obra_meta FROM rooms`)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +281,7 @@ func Rooms() ([]RoomRow, error) {
 	var out []RoomRow
 	for rows.Next() {
 		var r RoomRow
-		if err := rows.Scan(&r.Code, &r.Name, &r.Owner, &r.Max, &r.Closed); err != nil {
+		if err := rows.Scan(&r.Code, &r.Name, &r.Owner, &r.Max, &r.Closed, &r.Obra, &r.ObraMeta); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -269,8 +291,8 @@ func Rooms() ([]RoomRow, error) {
 
 // SetRoom grava o que o dono mudou na sala: nome, tamanho, dono e se ela está fechada.
 func SetRoom(r RoomRow) error {
-	_, err := db.Exec(`UPDATE rooms SET name = ?, owner = ?, max_members = ?, closed = ? WHERE code = ?`,
-		r.Name, r.Owner, r.Max, r.Closed, r.Code)
+	_, err := db.Exec(`UPDATE rooms SET name = ?, owner = ?, max_members = ?, closed = ?, obra = ?, obra_meta = ? WHERE code = ?`,
+		r.Name, r.Owner, r.Max, r.Closed, r.Obra, r.ObraMeta, r.Code)
 	return err
 }
 
@@ -308,7 +330,7 @@ func RoomMembers(code string) ([]string, error) {
 }
 
 func CreateRoom(owner, name string, max int) (RoomRow, error) {
-	r := RoomRow{Code: newCode(), Name: name, Owner: owner, Max: max}
+	r := RoomRow{Code: newCode(), Name: name, Owner: owner, Max: max, ObraMeta: DefaultObraMeta}
 	tx, err := db.Begin()
 	if err != nil {
 		return r, err

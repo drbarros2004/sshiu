@@ -108,3 +108,15 @@ _Evite_: notificação, post
 **Reação**:
 Uma resposta rápida, de um conjunto fixo e pequeno, a um evento. Não existe chat.
 _Evite_: curtida, like, mensagem
+
+**Obra**:
+O desenho que a sala constrói junto no dia: uma peça por membro, lado a lado ([ADR 0008](docs/adr/0008-obra-da-sala.md)). Zera todo dia e a sala solo não tem.
+_Evite_: projeto, conquista, missão
+
+**Peça**:
+A sua parte da obra — o vagão, o vaso, a casa. Cresce com os seus minutos focados no dia.
+_Evite_: item, pedaço, bloco
+
+**Meta da sala**:
+Quantos minutos focados completam uma peça. O dono escolhe; o padrão é 1 h.
+_Evite_: objetivo, cota

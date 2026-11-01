@@ -164,6 +164,77 @@ func TestSoloNasceFechada(t *testing.T) {
 	}
 }
 
+// A peça anda nos terços da meta, e a mesma pessoa está em etapas diferentes em salas de metas
+// diferentes: os minutos são dela, a meta é da sala (ADR 0008).
+func TestStage(t *testing.T) {
+	for _, c := range []struct {
+		mins float64
+		meta int
+		want int
+	}{
+		{0, 60, 0}, {19, 60, 0}, {20, 60, 1}, {39, 60, 1}, {40, 60, 2}, {60, 60, 3},
+		{90, 60, 3},  // passar da meta não cria etapa nova
+		{30, 60, 1},  // meia hora numa sala de 1 h
+		{30, 120, 0}, // a mesma meia hora numa sala de 2 h
+		{30, 0, 0},   // sala sem meta não constrói nada
+	} {
+		if got := Stage(c.mins, c.meta); got != c.want {
+			t.Errorf("Stage(%v, %d) = %d, queria %d", c.mins, c.meta, got, c.want)
+		}
+	}
+}
+
+// Os minutos do dia somam o que já foi gravado e a tarefa em andamento, e viram do dia.
+func TestMinutesToday(t *testing.T) {
+	now := time.Date(2026, 11, 1, 14, 0, 0, 0, time.Local)
+	u := &user{id: "a", today: now.Format(time.DateOnly), todayMin: 25}
+	if got := u.minutesToday(now); got != 25 {
+		t.Fatalf("só o gravado: %v", got)
+	}
+	u.focus = &Focus{Start: now.Add(-10 * time.Minute), SegStart: now.Add(-10 * time.Minute),
+		Ends: now.Add(15 * time.Minute), Declared: 25}
+	if got := u.minutesToday(now); got != 35 {
+		t.Fatalf("com a tarefa em andamento: %v", got)
+	}
+	u.focus = nil
+	u.today = now.AddDate(0, 0, -1).Format(time.DateOnly) // o que ficou é de ontem
+	if got := u.minutesToday(now); got != 0 {
+		t.Fatalf("virou o dia: %v", got)
+	}
+}
+
+// Só o dono escolhe a obra, e a sala solo não tem obra (ADR 0008).
+func TestObra(t *testing.T) {
+	rooms[DemoCode] = &room{code: DemoCode, name: "sala", owner: "ana", max: MaxMembers,
+		meta: 60, members: []string{"ana"}}
+	defer delete(rooms, DemoCode)
+	users["ana"] = &user{id: "ana", nick: "ana"}
+	defer delete(users, "ana")
+	r := rooms[DemoCode]
+	if err := SetObra("bia", DemoCode, "trem"); err == nil || r.obra != "" {
+		t.Fatalf("quem não é dono escolheu a obra: %v", err)
+	}
+	if err := SetObra("ana", DemoCode, "foguete"); err == nil {
+		t.Fatal("aceitou um tema que não existe")
+	}
+	if err := SetObra("ana", DemoCode, "cidade"); err != nil || r.obra != "cidade" {
+		t.Fatalf("escolher: %v %q", err, r.obra)
+	}
+	if err := SetMeta("ana", DemoCode, 17); err == nil || r.meta != 60 {
+		t.Fatalf("meta fora da lista: %v %d", err, r.meta)
+	}
+	if err := SetMeta("ana", DemoCode, 120); err != nil || r.meta != 120 {
+		t.Fatalf("meta: %v %d", err, r.meta)
+	}
+	if err := SetObra("ana", DemoCode, ""); err != nil || r.obra != "" { // desligar
+		t.Fatalf("desligar: %v %q", err, r.obra)
+	}
+	r.max = MinMembers
+	if err := SetObra("ana", DemoCode, "trem"); err == nil {
+		t.Fatal("a sala solo ganhou obra")
+	}
+}
+
 // A sala demo é a única que não passa pelo banco, e os usuários já em memória não são procurados
 // lá: dá para testar o teto sem abrir o SQLite.
 func TestJoinFull(t *testing.T) {

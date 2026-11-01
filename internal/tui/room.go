@@ -247,21 +247,52 @@ func (m model) roomView(w, h int) string {
 	if m.solo() { // a sala solo tem uma pessoa e nenhum card: ela já cabe
 		return title + "\n\n" + m.soloView()
 	}
-	alone := len(s.Members) == 1 && m.room != rooms.DemoCode // sozinho numa sala de mais
+	// A obra só entra quando a tela comporta ela inteira: num terminal baixo ela é a primeira
+	// coisa a sair, antes de o feed encurtar e de os pets virarem ponto (ADR 0008).
+	if ob := m.obraBlock(s, w); ob != "" {
+		if out := m.roomBody(s, title, w, shownEvents, false, ob); lipgloss.Height(out) <= h {
+			return out
+		}
+	}
 	var out string
 	for _, compact := range []bool{false, true} {
 		for n := shownEvents; n >= 0 && (compact || n > 0); n -= 2 { // sem eventos só com os pets já encolhidos
-			out = title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s, w/18, compact)
-			switch {
-			case alone: // o convite vale mais que o feed vazio, e não encolhe
-				out += "\n\n" + m.invitePanel(s)
-			case n > 0:
-				out += "\n\n" + m.feed(n) + "\n" + m.legend()
-			}
+			out = m.roomBody(s, title, w, n, compact, "")
 			if lipgloss.Height(out) <= h {
 				return out
 			}
 		}
+	}
+	return out
+}
+
+// roomBody: a tela montada com n eventos, os pets do tamanho que couber e, se ob não for vazio,
+// a obra. O trem ocupa a largura e fica embaixo dos cards; a cidade cabe ao lado do log e vai
+// para o canto que hoje fica vazio, descendo para baixo dele quando a janela é estreita.
+func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, ob string) string {
+	out := title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s, w/18, compact)
+	alone := len(s.Members) == 1 && m.room != rooms.DemoCode // sozinho numa sala de mais
+	if alone {                                               // o convite vale mais que o feed vazio, e não encolhe
+		if ob != "" {
+			out += "\n\n" + ob
+		}
+		return out + "\n\n" + m.invitePanel(s)
+	}
+	var log string
+	if n > 0 {
+		log = m.feed(n) + "\n" + m.legend()
+	}
+	switch {
+	case ob == "":
+	case m.obraOf(s).wide:
+		out += "\n\n" + ob
+	case log == "" || w-lipgloss.Width(log)-obraGap < lipgloss.Width(ob):
+		out += "\n\n" + ob // não cabe ao lado: desce para baixo do log
+	default:
+		log = lipgloss.JoinHorizontal(lipgloss.Top, log, strings.Repeat(" ", obraGap), ob)
+	}
+	if log != "" {
+		out += "\n\n" + log
 	}
 	return out
 }
@@ -293,7 +324,7 @@ func (m model) soloView() string {
 	// o pet com quem você é ao lado, na altura dele: embaixo o nome ficava solto, longe do desenho
 	// (o sprite é centralizado numa caixa de 16, então ele nunca encosta na margem).
 	who := lipgloss.JoinHorizontal(lipgloss.Center,
-		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel)),
+		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel, m.me().Color)),
 		m.soloWho())
 	panel := strings.Join([]string{m.focusPanel(), "", who, "", m.soloLog()}, "\n")
 	if soloGardenWidth(max(m.width-4, 40)) == 0 {
@@ -460,7 +491,7 @@ func (m model) card(x rooms.Member, got int, compact bool) string {
 	case got > 1:
 		reacts = m.st.muted.Render(fmt.Sprintf("%d reações", got))
 	}
-	art := pet.Render(mood, m.tick, m.pixel)
+	art := pet.Render(mood, m.tick, m.pixel, x.Color)
 	if compact {
 		art = lipgloss.NewStyle().Foreground(lipgloss.Color(pet.MoodColor[mood])).Render("●")
 	}

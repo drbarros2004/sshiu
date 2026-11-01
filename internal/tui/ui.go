@@ -125,6 +125,9 @@ type model struct {
 	err, notice   string
 	st            styles
 	theme, saved  int          // tema em prévia e tema salvo
+	pcolor        int          // cor do pet em prévia (índice em pet.Colors)
+	pcSaved       int          // a cor do pet que está no banco
+	custom        bool         // aba de perfil no modo personalizar
 	vis, visSaved store.Garden // modo jardim em prévia e salvo
 	vrow          int          // linha selecionada na aba visual
 	garden        *garden      // modo jardim em tela cheia (nil = desligado)
@@ -182,11 +185,13 @@ func New(id, invite, code string) model {
 	m := model{id: id, invite: invite, pending: code, width: 80, height: 24, now: time.Now(),
 		lastKey: time.Now(), mins: slices.Index(minuteChoices(), 25)}
 	m.setWorld(rooms.SnapshotWorld())
-	nick, _, ok, err := store.GetUser(id)
+	nick, p, ok, err := store.GetUser(id)
 	if err != nil {
 		log.Error("getUser", "err", err)
 	}
 	m.nick = nick
+	m.pcolor = pet.ColorIndex(p.Color)
+	m.pcSaved = m.pcolor
 	m.theme = themeIndex(store.Theme(id))
 	m.saved, m.st = m.theme, newStyles(themes[m.theme])
 	m.vis = store.GetGarden(id)
@@ -386,6 +391,8 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch m.tab {
 	case tabRoom:
 		return m.roomKey(msg)
+	case tabProfile:
+		return m.profileKey(msg)
 	case tabVisual:
 		return m.visualKey(msg)
 	}
@@ -395,6 +402,9 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 	if m.tab == tabVisual && t != tabVisual { // saiu sem salvar: desfaz a prévia
 		m.theme, m.st, m.vis = m.saved, newStyles(themes[m.saved]), m.visSaved
+	}
+	if m.tab == tabProfile && t != tabProfile { // idem para a cor do pet
+		m.pcolor, m.custom = m.pcSaved, false
 	}
 	m.tab, m.err, m.notice, m.entering, m.choosing, m.picking, m.form = t, "", "", false, false, false, formNone
 	if t == tabProfile {
@@ -448,7 +458,7 @@ func (m model) View() tea.View {
 		case tabRoom:
 			help = m.roomHelp()
 		case tabProfile:
-			content = func(int, int) string { return m.profileView() }
+			content, help = func(int, int) string { return m.profileView() }, m.profileHelp()
 		case tabVisual:
 			content, help = func(int, int) string { return m.visualView() }, "↑/↓ escolhe · ←/→ muda · j vê o modo jardim · enter salva"
 		}
