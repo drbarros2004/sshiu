@@ -250,7 +250,7 @@ func (m model) syncSide() model {
 		}
 		i := m.gardenWall(false) // a troca feita na tela cheia vale também na coluna
 		m.side = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen,
-			bare: true, w: w, h: h}
+			bare: true, w: w, h: h, wall: i}
 	}
 	if m.side.frame == "" {
 		m.side.render(m) // o primeiro quadro; daí em diante quem anda é o sideTick
@@ -378,9 +378,9 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.garden != nil && k != "ctrl+c" { // ←/→ trocam o wallpaper; qualquer outra tecla sai, sem executar nada
 		switch k {
 		case "left":
-			return m.swapWallpaper(-1)
+			return m.swapWallpaper(m.garden, -1)
 		case "right":
-			return m.swapWallpaper(1)
+			return m.swapWallpaper(m.garden, 1)
 		}
 		m.garden = nil
 		return m, nil

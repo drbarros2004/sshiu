@@ -3,9 +3,26 @@ package tui
 import (
 	"plantao/internal/rooms"
 	"plantao/internal/store"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestSplitTask(t *testing.T) {
+	a40 := strings.Repeat("a", 40)
+	cases := map[string][]string{
+		"revisar a lista 3": {"revisar a lista 3"},
+		a40:                 {a40},
+		a40 + "bb":          {strings.Repeat("a", 21) + "-", strings.Repeat("a", 19) + "bb"},
+		"fazer os exercícios de 1 a 12 da lista 3 de cálculo": {"fazer os exercícios de 1", "a 12 da lista 3 de cálculo"},
+	}
+	for s, want := range cases {
+		if got := splitTask(s); !slices.Equal(got, want) {
+			t.Errorf("%q: got %q, want %q", s, got, want)
+		}
+	}
+}
 
 func TestFocusingLine(t *testing.T) {
 	cases := map[string][]string{
@@ -37,7 +54,7 @@ func TestSwapLastsForTheTask(t *testing.T) {
 	m := model{id: "a", now: t0, w: rooms.World{Users: map[string]rooms.Member{"a": {Focus: rooms.Focus{Start: t0}}}}}
 	m, _ = m.openGarden(false)
 	want := (m.garden.wall + 1) % len(wallpapers)
-	m, _ = m.swapWallpaper(1)
+	m, _ = m.swapWallpaper(m.garden, 1)
 	m.garden = nil
 	if m, _ = m.openGarden(false); m.garden.wall != want {
 		t.Errorf("reabrindo na mesma tarefa: %d, want %d", m.garden.wall, want)
@@ -58,5 +75,25 @@ func TestCycleWallpaper(t *testing.T) {
 	}
 	if got := cycleWallpaper("", -1); got != last {
 		t.Errorf("antes do sorteado: %q", got)
+	}
+}
+
+func TestShadeAndPut(t *testing.T) {
+	ramp := []uint8{0, 17, 60}
+	if shade(ramp, 0, 3, 1) != 0 || shade(ramp, 1, 3, 1) != 60 || shade(ramp, 2, 0, 0) != 60 {
+		t.Fatal("as pontas da rampa")
+	}
+	p := newPix(2, 2)
+	p.set(0, 0, 17)
+	p.set(0, 1, 60)
+	p.set(1, 1, shade(ramp, 0, 1, 1)) // 0 é transparente: não pinta
+	c := newCanvas(2, 1)
+	c.put(p)
+	if want := "\x1b[0;38;5;17;48;5;60m▀\x1b[0m "; c.String() != want {
+		t.Errorf("got %q, want %q", c.String(), want)
+	}
+	c.ink(0, 0, "x ", "255") // a letra fica no fundo de baixo; o espaço não apaga nada
+	if c.cells[0] != (cell{'x', "255", "60"}) || c.cells[1] != (cell{r: ' '}) {
+		t.Errorf("ink: %+v", c.cells)
 	}
 }

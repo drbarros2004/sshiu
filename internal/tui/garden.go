@@ -6,7 +6,8 @@ package tui
 // para a tarefa); qualquer outra tecla volta sem executar nada.
 //
 // Wallpapers escritos do zero (ADR 0005, créditos em CREDITS.md): céu noturno, chuva e lâmpada de
-// lava inspirados em projetos MIT/Apache; café, árvore e estrada são desenhos nossos.
+// lava inspirados em projetos MIT/Apache; café, árvore e estrada são desenhos nossos, em pixels
+// (garden_pixels.go).
 
 import (
 	"fmt"
@@ -19,7 +20,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
 const (
@@ -133,10 +133,9 @@ func (m model) openGarden(preview bool) (model, tea.Cmd) {
 	return m, gardenTick(gen)
 }
 
-// swapWallpaper: ←/→ no jardim. Na prévia, muda a escolha da aba visual (passando pelo sorteado);
-// durante a tarefa, troca só para esta tarefa.
-func (m model) swapWallpaper(step int) (model, tea.Cmd) {
-	g := m.garden
+// swapWallpaper: ←/→ no jardim g, o da tela cheia ou o da coluna da sala solo. Na prévia, muda a
+// escolha da aba visual (passando pelo sorteado); durante a tarefa, troca só para esta tarefa.
+func (m model) swapWallpaper(g *garden, step int) (model, tea.Cmd) {
 	if g.preview {
 		m.vis.Wallpaper, m.notice = cycleWallpaper(m.vis.Wallpaper, step), ""
 		g.wall = wallpaperFor(m.vis, m.me().Focus)
@@ -182,7 +181,35 @@ func focusingLine(nicks []string) string {
 	return s + " também estão focando"
 }
 
-// render avança a cena até agora e monta o quadro, com o texto por cima numa caixa.
+// spot: o wallpaper que escolhe onde o texto fica e em que cores, em vez da caixa no meio. Ele
+// recebe o tamanho do bloco de texto (tw × th células) antes de desenhar, para abrir lugar para
+// ele no desenho (a lousa do café). Devolve o canto de cima à esquerda e as cores do resto, do
+// relógio e da tarefa.
+type spot interface {
+	spot(w, h, tw, th int) (x, y int, ink [3]string)
+}
+
+// splitTask: a tarefa comprida em duas linhas, quebrando no espaço mais perto do meio. Sem espaço
+// por perto, corta a palavra no meio com hífen.
+func splitTask(s string) []string {
+	const fits, slack = 40, 12 // até 40 cabe numa linha; o espaço vale até 12 do meio
+	r := []rune(s)
+	if len(r) <= fits {
+		return []string{s}
+	}
+	mid := len(r) / 2
+	for d := 0; d <= slack; d++ {
+		for _, i := range []int{mid - d, mid + d} {
+			if r[i] == ' ' {
+				return []string{strings.TrimSpace(string(r[:i])), strings.TrimSpace(string(r[i:]))}
+			}
+		}
+	}
+	return []string{string(r[:mid]) + "-", string(r[mid:])}
+}
+
+// render avança a cena até agora e monta o quadro, com o texto por cima: numa caixa no meio, ou
+// no lugar que a cena escolheu.
 func (g *garden) render(m model) {
 	t, dt := m.now.Sub(g.start).Seconds(), min(m.now.Sub(g.last).Seconds(), 0.5)
 	g.last = m.now
@@ -191,45 +218,48 @@ func (g *garden) render(m model) {
 		w, h = g.w, g.h
 	}
 	c := newCanvas(w, h)
-	g.scene.draw(c, t, dt)
 	if g.bare {
+		g.scene.draw(c, t, dt)
 		g.frame = c.String()
 		return
 	}
 
+	const dim, clock, task = 0, 1, 2 // o papel de cada linha, que vira a cor
 	me := m.me()
-	var lines, cols []string
-	add := func(text, col string) { // um bloco, separado do anterior por uma linha vazia
+	var lines []string
+	var roles []int
+	add := func(text string, role int) { // um bloco, separado do anterior por uma linha vazia
 		if len(lines) > 0 {
-			lines, cols = append(lines, ""), append(cols, "")
+			lines, roles = append(lines, ""), append(roles, dim)
 		}
 		for _, l := range strings.Split(text, "\n") {
-			lines, cols = append(lines, l), append(cols, col)
+			lines, roles = append(lines, l), append(roles, role)
 		}
 	}
+	var hint []string // o nome do wallpaper fica no rodapé, fora do bloco: some sem mexer no resto
 	if g.preview {
 		name := wallpapers[g.wall].name
 		if wallpaperIndex(m.vis.Wallpaper) < 0 {
 			name = "sorteado a cada tarefa · agora, " + name
 		}
-		add("prévia: "+name+"\n← → troca · qualquer tecla volta", "244")
+		hint = []string{"prévia: " + name, "← → troca · qualquer tecla volta"}
 	} else if m.now.Before(g.hint) {
-		add(wallpapers[g.wall].name+" · ← → troca", "244")
+		hint = []string{wallpapers[g.wall].name + " · ← → troca"}
 	}
 	if me.Status == rooms.Focusing {
 		left := me.Focus.Ends.Sub(m.now)
 		switch m.vis.Clock {
 		case 0:
-			add(bigText(mmss(left)), "208")
+			add(bigText(mmss(left)), clock)
 		case 1: // só os minutos: o número muda uma vez por minuto
-			add(bigText(fmt.Sprint(int(math.Ceil(max(left, 0).Minutes())))), "208")
-			lines, cols = append(lines, "min"), append(cols, "208")
+			add(bigText(fmt.Sprint(int(math.Ceil(max(left, 0).Minutes())))), clock)
+			lines, roles = append(lines, "min"), append(roles, clock)
 		}
 		if m.vis.Task {
-			add(me.Focus.Task, "252")
+			add(strings.Join(splitTask(me.Focus.Task), "\n"), task)
 		}
 		if m.vis.Room {
-			add(focusingLine(m.othersFocusing()), "244")
+			add(focusingLine(m.othersFocusing()), dim)
 		}
 	}
 	wd := 0
@@ -238,24 +268,49 @@ func (g *garden) render(m model) {
 	}
 	y0 := (h - len(lines)) / 2
 	cx := max(wd/2+3, min(w/2, w-wd/2-4)) // o texto nunca passa da borda
-	if len(lines) > 0 {                   // a caixa: o texto não briga com o wallpaper
-		for y := y0 - 1; y <= y0+len(lines); y++ {
-			for x := cx - wd/2 - 3; x < cx+wd/2+3; x++ {
-				c.set(x, y, ' ', "")
+	ink := [3]string{"244", "208", "252"}
+	sp, placed := g.scene.(spot)
+	if placed && len(lines) > 0 {
+		var x int
+		x, y0, ink = sp.spot(w, h, wd, len(lines))
+		cx = min(max(x, 1), w-wd-1) + wd/2
+		y0 = min(max(y0, 0), h-len(lines))
+	}
+	g.scene.draw(c, t, dt)
+	put := func(ls []string, cx, y0, wd int, col func(i int) string) { // linhas centradas em cx
+		if len(ls) == 0 {
+			return
+		}
+		if !placed { // a caixa: o texto não briga com o wallpaper
+			for y := y0 - 1; y <= y0+len(ls); y++ {
+				for x := cx - wd/2 - 3; x < cx+wd/2+3; x++ {
+					c.set(x, y, ' ', "")
+				}
+			}
+		}
+		for i, l := range ls {
+			x := cx - len([]rune(l))/2
+			if placed {
+				c.ink(x, y0+i, l, col(i))
+			} else {
+				c.text(x, y0+i, l, col(i))
 			}
 		}
 	}
-	for i, l := range lines {
-		c.text(cx-len([]rune(l))/2, y0+i, l, cols[i])
+	put(lines, cx, y0, wd, func(i int) string { return ink[roles[i]] })
+	hw := 0
+	for _, l := range hint {
+		hw = max(hw, len([]rune(l)))
 	}
+	put(hint, w/2, h-len(hint)-1, hw, func(int) string { return ink[dim] })
 	g.frame = c.String()
 }
 
 // --- a tela é uma grade de células: as cenas e o relógio desenham nela ---
 
 type cell struct {
-	r rune
-	c string // cor 256 ("" = cor do terminal)
+	r    rune
+	c, b string // cor 256 da frente e do fundo ("" = a do terminal)
 }
 
 type canvas struct {
@@ -272,11 +327,12 @@ type rawSeg struct {
 func newCanvas(w, h int) *canvas {
 	c := &canvas{w: w, h: h, cells: make([]cell, w*h), raw: map[int][]rawSeg{}}
 	for i := range c.cells {
-		c.cells[i] = cell{' ', ""}
+		c.cells[i] = cell{r: ' '}
 	}
 	return c
 }
 
+// set escreve um caractere sem fundo: o texto por cima de um wallpaper em pixels apaga o pixel.
 func (c *canvas) set(x, y int, r rune, col string) {
 	if x < 0 || y < 0 || x >= c.w || y >= c.h {
 		return
@@ -284,7 +340,7 @@ func (c *canvas) set(x, y int, r rune, col string) {
 	if r == ' ' {
 		col = ""
 	}
-	c.cells[y*c.w+x] = cell{r, col}
+	c.cells[y*c.w+x] = cell{r: r, c: col}
 }
 
 func (c *canvas) text(x, y int, s, col string) {
@@ -294,44 +350,54 @@ func (c *canvas) text(x, y int, s, col string) {
 	}
 }
 
-var styleOf = map[string]lipgloss.Style{}
+// ink escreve por cima do desenho sem apagar o fundo: a letra pega a cor de fundo da célula, e
+// o espaço deixa o desenho aparecer.
+func (c *canvas) ink(x, y int, s, col string) {
+	for _, r := range s {
+		if r != ' ' && x >= 0 && y >= 0 && x < c.w && y < c.h {
+			cl := &c.cells[y*c.w+x]
+			bg := cl.b
+			if bg == "" && cl.r != '▀' { // "▄" e o meio bloco sem fundo: o pixel aceso é o de baixo
+				bg = cl.c
+			}
+			*cl = cell{r, col, bg}
+		}
+		x++
+	}
+}
 
+// String: a grade em ANSI, com o código de cor só quando a cor muda.
 func (c *canvas) String() string {
 	var b strings.Builder
 	for y := range c.h {
-		var run strings.Builder
-		col := ""
-		flush := func() {
-			if col == "" {
-				b.WriteString(run.String())
-			} else {
-				st, ok := styleOf[col]
-				if !ok {
-					st = lipgloss.NewStyle().Foreground(lipgloss.Color(col))
-					styleOf[col] = st
-				}
-				b.WriteString(st.Render(run.String()))
+		fg, bg := "", ""
+		sgr := func(f, k string) {
+			if f == fg && k == bg {
+				return
 			}
-			run.Reset()
+			b.WriteString("\x1b[0")
+			if f != "" {
+				b.WriteString(";38;5;" + f)
+			}
+			if k != "" {
+				b.WriteString(";48;5;" + k)
+			}
+			b.WriteByte('m')
+			fg, bg = f, k
 		}
 		segs := c.raw[y]
 		for x := 0; x < c.w; x++ {
 			if i := slices.IndexFunc(segs, func(s rawSeg) bool { return s.x == x }); i >= 0 {
-				seg := segs[i]
-				flush()
-				col = ""
-				b.WriteString(seg.s)
-				x += seg.w - 1
+				sgr("", "")
+				b.WriteString(segs[i].s) // termina com o reset
+				x += segs[i].w - 1
 				continue
 			}
 			cl := c.cells[y*c.w+x]
-			if cl.c != col {
-				flush()
-				col = cl.c
-			}
-			run.WriteRune(cl.r)
+			sgr(cl.c, cl.b)
+			b.WriteRune(cl.r)
 		}
-		flush()
+		sgr("", "")
 		if y < c.h-1 {
 			b.WriteByte('\n')
 		}
@@ -471,153 +537,6 @@ func (s *lava) draw(c *canvas, t, dt float64) {
 			case v > 0.6:
 				c.set(x, y, '░', "52")
 			}
-		}
-	}
-}
-
-// art desenha um desenho opaco: só os espaços antes do primeiro caractere de cada linha são transparentes.
-func (c *canvas) art(x, y int, lines []string, col string) {
-	for i, l := range lines {
-		t := strings.TrimLeft(l, " ")
-		c.text(x+len(l)-len(t), y+i, t, col)
-	}
-}
-
-// Café: uma xícara parada e o vapor subindo, balançando e sumindo.
-type coffee struct {
-	steam []struct{ x, y, born, ph float64 }
-	next  float64
-}
-
-var cup = []string{
-	"  _________",
-	" |         |__",
-	" |         |  )",
-	" |         |_/",
-	"  \\_______/",
-	"═════════════",
-}
-
-func (s *coffee) draw(c *canvas, t, dt float64) {
-	x0, y0 := c.w*2/3, c.h-2-len(cup)
-	c.art(x0, y0, cup, "180")
-	if t >= s.next {
-		s.next = t + 0.3
-		s.steam = append(s.steam, struct{ x, y, born, ph float64 }{float64(x0 + 3 + rand.N(7)), float64(y0), t, rand.Float64() * 6.3})
-	}
-	live := s.steam[:0]
-	for _, p := range s.steam {
-		age := t - p.born // sobe ~1 linha/s e some em 8 s
-		if age > 8 {
-			continue
-		}
-		live = append(live, p)
-		ch := ')'
-		if math.Cos(t*1.2+p.ph) < 0 {
-			ch = '('
-		}
-		col := []string{"252", "250", "248", "246", "244", "242", "240", "238"}[int(age)]
-		c.set(int(p.x+1.5*math.Sin(t*1.2+p.ph)+age*0.3), int(p.y-age), ch, col)
-	}
-	s.steam = live
-}
-
-// Árvore: copa e tronco parados, folhas se soltando de vez em quando, caindo com o vento.
-type tree struct {
-	leaves []struct{ x, y, vx, vy, ph, landed float64 }
-	next   float64
-}
-
-func (s *tree) draw(c *canvas, t, dt float64) {
-	ground := c.h - 2
-	tx, rx, ry := c.w/5, 13.0, 6.0 // centro do tronco e raios da copa
-	cy := float64(ground - 4 - 6)
-	for x := range c.w {
-		c.set(x, ground, '_', "58")
-	}
-	for y := ground - 4; y < ground; y++ {
-		c.text(tx-1, y, "| |", "94")
-	}
-	c.text(tx-3, ground, "/   \\", "94")
-	for y := int(cy - ry); y <= int(cy+ry); y++ {
-		for x := tx - int(rx); x <= tx+int(rx); x++ {
-			dx, dy := (float64(x)-float64(tx))/rx, (float64(y)-cy)/ry
-			if dx*dx+dy*dy <= 1 {
-				h := int(uint32(x*73856093^y*19349663) % 5) // folhagem fixa: mesmo caractere sempre na mesma célula
-				c.set(x, y, []rune("&%@#&")[h], []string{"22", "28", "64", "70", "28"}[h])
-			}
-		}
-	}
-	if t >= s.next {
-		s.next = t + 0.8 + rand.Float64()
-		a := rand.Float64() * 2 * math.Pi
-		s.leaves = append(s.leaves, struct{ x, y, vx, vy, ph, landed float64 }{
-			float64(tx) + rx*0.9*math.Cos(a), cy + ry*0.9*math.Sin(a), 0.5 + rand.Float64(), 0.7 + rand.Float64()*0.5, rand.Float64() * 6.3, 0})
-	}
-	live := s.leaves[:0]
-	for _, l := range s.leaves {
-		if l.landed == 0 {
-			l.x += l.vx * dt
-			l.y += l.vy * dt
-			if l.y >= float64(ground) {
-				l.y, l.landed = float64(ground), t
-			}
-		} else if t-l.landed > 5 { // no chão por 5 s, depois some: nada se acumula
-			continue
-		}
-		live = append(live, l)
-		x := l.x
-		if l.landed == 0 {
-			x += 1.2 * math.Sin(t*1.5+l.ph)
-		}
-		c.set(int(x), int(l.y), []rune(",`'*")[int(l.ph)%4], []string{"130", "136", "166", "178"}[int(l.ph)%4])
-	}
-	s.leaves = live
-}
-
-// Estrada à noite: o carro parado na tela e o mundo passando em camadas (paralaxe).
-type road struct {
-	stars [][2]int
-	w, h  int
-}
-
-var car = []string{
-	"     ______",
-	" ___/__|___\\____",
-	"'--(_)----(_)--'",
-}
-
-func (s *road) draw(c *canvas, t, dt float64) {
-	if s.w != c.w || s.h != c.h {
-		s.w, s.h, s.stars = c.w, c.h, nil
-		for range c.w * c.h / 60 {
-			s.stars = append(s.stars, [2]int{rand.N(c.w), rand.N(max(1, c.h-12))})
-		}
-	}
-	for _, st := range s.stars {
-		c.set(st[0], st[1], '.', "238")
-	}
-	base := c.h - 4      // linha das rodas
-	for x := range c.w { // morros ao fundo: devagar
-		u := float64(x) + t*1.5
-		top := base - 3 - int(3+2*math.Sin(u*0.05)+1.5*math.Sin(u*0.13))
-		for y := top; y < base; y++ {
-			c.set(x, y, '░', "238")
-		}
-	}
-	for x := range c.w { // postes: velocidade média
-		if (x+int(t*6))%28 == 0 {
-			for y := base - 5; y < base; y++ {
-				c.set(x, y, '│', "240")
-			}
-			c.text(x-1, base-5, "─┼─", "240")
-		}
-	}
-	c.art(c.w/4, base-2, car, "174")
-	for x := range c.w {
-		c.set(x, base+1, '─', "240")
-		if (x+int(t*14))%8 < 3 { // faixa: rápida
-			c.set(x, base+2, '━', "178")
 		}
 	}
 }

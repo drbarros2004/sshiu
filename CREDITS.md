@@ -4,7 +4,7 @@ Arte e animações de terceiros, ou inspiradas em terceiros, só com licença pe
 
 ## Wallpapers do modo jardim
 
-Todos foram escritos do zero em Go, em [`internal/tui/garden.go`](internal/tui/garden.go). Nenhum código ou arte foi copiado; os projetos abaixo serviram de inspiração e ficam creditados.
+Todos foram escritos do zero em Go, em [`internal/tui/garden.go`](internal/tui/garden.go) e, os de pixel art, em [`internal/tui/garden_pixels.go`](internal/tui/garden_pixels.go). Nenhum código ou arte foi copiado; os projetos abaixo serviram de inspiração e ficam creditados.
 
 | Wallpaper | Inspirado em | Licença |
 |---|---|---|
