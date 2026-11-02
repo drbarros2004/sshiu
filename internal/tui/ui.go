@@ -130,6 +130,7 @@ type model struct {
 	custom        bool         // aba de perfil no modo personalizar
 	vis, visSaved store.Garden // modo jardim em prévia e salvo
 	vrow          int          // linha selecionada na aba visual
+	ncur, nobra   int          // linha e obra escolhidas na tela de criar sala
 	garden        *garden      // modo jardim em tela cheia (nil = desligado)
 	side          *garden      // o jardim da coluna da sala solo (nil = não tem)
 	lastKey       time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim
@@ -340,11 +341,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = msg.err.Error()
 		default:
 			m.nick, m.err = msg.nick, ""
+			// escolher a cor do pet é o passo seguinte ao apelido: o perfil abre já no modo
+			// personalizar, com o pet grande do lado mudando junto com a escolha
+			m.tab, m.custom = tabProfile, true
+			cmds := []tea.Cmd{m.loadProfile()}
 			if m.pending != "" { // o código do comando esperava o apelido do primeiro acesso
 				code := m.pending
 				m.pending = ""
-				return m, m.join(code)
+				cmds = append(cmds, m.join(code))
 			}
+			return m, tea.Batch(cmds...)
 		}
 	case profileMsg:
 		m.pet, m.tasks, m.days, m.totals = msg.pet, msg.tasks, msg.days, msg.totals
@@ -417,7 +423,7 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 // Os formulários sem campo (o tamanho da sala, a confirmação de saída) não entram: neles as
 // teclas de sempre valem, inclusive o q.
 func (m model) typing() bool {
-	return m.entering || m.cname || m.form == formName || m.form == formCode
+	return m.entering || m.cname || m.form == formNew || m.form == formCode
 }
 
 func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

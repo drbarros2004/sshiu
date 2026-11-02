@@ -17,8 +17,7 @@ type form int
 
 const (
 	formNone  form = iota
-	formName       // nome da sala nova
-	formSize       // quantas pessoas cabem nela
+	formNew        // a sala nova inteira: nome, tamanho e obra
 	formCode       // código para entrar
 	formJoin       // a sala do código, antes de entrar
 	formLeave      // confirmando a saída
@@ -42,6 +41,22 @@ func (m model) pickerItems() []pickerItem {
 	return items
 }
 
+// as linhas da tela de criar sala, na ordem
+const (
+	newName = iota
+	newSize
+	newObra
+)
+
+// newList: as linhas que aparecem. A sala solo não tem obra (ADR 0008), então a linha dela só
+// existe quando a sala comporta mais de uma pessoa.
+func newList(size int) []int {
+	if size == rooms.MinMembers {
+		return []int{newName, newSize}
+	}
+	return []int{newName, newSize, newObra}
+}
+
 func (m model) openPicker() (tea.Model, tea.Cmd) {
 	m.picking, m.notice, m.err, m.pcur = true, "", "", 0
 	return m, nil
@@ -57,14 +72,33 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "enter":
 			return m.submitForm()
 		}
-		if m.form == formSize {
+		if m.form == formNew {
+			list := newList(m.size)
+			m.ncur = min(m.ncur, len(list)-1)
 			switch k {
-			case "left":
-				m.size = max(rooms.MinMembers, m.size-1)
-			case "right":
-				m.size = min(rooms.MaxMembers, m.size+1)
+			case "up":
+				m.ncur = max(0, m.ncur-1)
+				return m, nil
+			case "down":
+				m.ncur = min(len(list)-1, m.ncur+1)
+				return m, nil
+			case "left", "right":
+				d := 1
+				if k == "left" {
+					d = -1
+				}
+				switch list[m.ncur] {
+				case newSize:
+					m.size = min(max(m.size+d, rooms.MinMembers), rooms.MaxMembers)
+					return m, nil
+				case newObra:
+					m.nobra = min(max(m.nobra+d, 0), len(rooms.Obras)-1)
+					return m, nil
+				}
 			}
-			return m, nil
+			if list[m.ncur] != newName { // fora da linha do nome, o que se digita não é texto
+				return m, nil
+			}
 		}
 		if m.form != formLeave && m.form != formJoin {
 			var cmd tea.Cmd
@@ -84,7 +118,9 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		switch it := items[min(m.pcur, len(items)-1)]; it.code {
 		case "+":
-			m.form, m.in, m.size = formName, newInput("ex.: Turma de Cálculo", 30), rooms.MaxMembers
+			m.form, m.in, m.size = formNew, newInput("ex.: Turma de Cálculo", 30), rooms.MaxMembers
+			// a obra já vem escolhida: a sala nasce construindo em vez de nascer vazia
+			m.ncur, m.nobra = newName, max(slices.Index(rooms.Obras, "cidade"), 0)
 		case "#":
 			m.form, m.in = formCode, newInput("6 letras", 60)
 		case "-":
@@ -121,19 +157,24 @@ func roomCode(s string) string {
 func (m model) submitForm() (tea.Model, tea.Cmd) {
 	v, id := strings.TrimSpace(m.in.Value()), m.id
 	switch m.form {
-	case formName:
+	case formNew:
 		if v == "" {
 			m.err = "dê um nome para a sala"
 			return m, nil
 		}
-		m.form, m.err = formSize, "" // o nome fica no campo até a sala nascer
-		return m, nil
-	case formSize:
-		size := m.size
+		size, obra := m.size, ""
+		if size > rooms.MinMembers {
+			obra = rooms.Obras[m.nobra]
+		}
 		return m, func() tea.Msg {
 			code, err := rooms.Create(id, v, size)
 			if err != nil {
 				return errMsg{err}
+			}
+			if obra != "" { // a sala nasce com a obra já ligada (ADR 0008)
+				if err := rooms.SetObra(id, code, obra); err != nil {
+					return errMsg{err}
+				}
 			}
 			return roomMsg{code, true, rooms.SnapshotWorld()}
 		}
@@ -166,16 +207,31 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 
 func (m model) pickerView() string {
 	switch m.form {
-	case formName:
-		return bold.Render("criar sala") + "\n\nnome:\n" + m.in.View()
-	case formSize:
-		hint := "dá para mudar de ideia criando outra sala: o tamanho é fixo depois"
+	case formNew:
+		list := newList(m.size)
+		cur := list[min(m.ncur, len(list)-1)]
+		name := m.in.View()
+		if cur != newName { // fora da linha do nome, o campo vira só o texto, sem cursor
+			name = m.st.muted.Render(strings.TrimSpace(m.in.Value()))
+		}
+		hint := "o tamanho é fixo depois de a sala nascer; o resto o dono muda em c"
 		if m.size == rooms.MinMembers { // ADR 0006
 			hint = "sala solo: para focar sozinho, com o seu pet e o modo jardim"
 		}
-		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n\nquantas pessoas cabem?  " +
-			m.st.muted.Render("‹ ") + m.st.title.Render(fmt.Sprintf("%d", m.size)) + m.st.muted.Render(" ›") +
-			"\n" + m.st.muted.Render(hint)
+		value := map[int]string{
+			newName: name,
+			newSize: m.arrows(cur == newSize, fmt.Sprintf("%d", m.size),
+				m.size > rooms.MinMembers, m.size < rooms.MaxMembers),
+			newObra: m.arrows(cur == newObra, obraName(rooms.Obras[m.nobra]),
+				m.nobra > 0, m.nobra < len(rooms.Obras)-1),
+		}
+		label := map[int]string{newName: "nome", newSize: "quantas pessoas", newObra: "obra"}
+		var rows []string
+		for _, r := range list {
+			rows = append(rows, cfgRow(m, r == cur, label[r], value[r]))
+		}
+		return bold.Render("criar sala") + "\n\n" + strings.Join(rows, "\n") +
+			"\n\n" + m.st.muted.Render(hint)
 	case formCode:
 		return bold.Render("entrar com código") + "\n\n" + m.in.View() + "\n" +
 			m.st.muted.Render("cole com ctrl+v (cmd+v no mac): o código ou o comando ssh inteiro")

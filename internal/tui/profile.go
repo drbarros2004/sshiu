@@ -58,10 +58,7 @@ func (m model) myColor() string { return pet.Colors[m.pcolor].Hex }
 // dentro, é a linha que as setas mudam, com a prévia no pet grande ao lado.
 func (m model) colorRow() string {
 	c := pet.Colors[m.pcolor]
-	name := c.Name
-	if c.Hex != "" {
-		name += " " + lipgloss.NewStyle().Foreground(lipgloss.Color(c.Hex)).Render("██")
-	}
+	name := c.Name + " " + lipgloss.NewStyle().Foreground(lipgloss.Color(c.Hex)).Render("██")
 	if !m.custom {
 		return "cor      " + m.st.muted.Render(name)
 	}

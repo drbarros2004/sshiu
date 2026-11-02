@@ -92,11 +92,10 @@ var (
 	moodPeriod = [...]int{Wilted: 4, Tired: 3, Okay: 2, Good: 2, Radiant: 1} // ticks por quadro: quanto mais cansado, mais lenta a respiração
 )
 
-// Colors: as cores que dá para escolher para o pet. A primeira deixa como sempre foi, com a cor
-// saindo do humor; nas outras o matiz é o escolhido, e o humor continua aparecendo no quanto a
-// cor é viva — murcho fica apagado, radiante fica vivo, os dois no seu tom.
+// Colors: as cores que dá para escolher para o pet. O matiz é o escolhido e o humor continua
+// aparecendo no quanto a cor é viva — murcho fica apagado, radiante fica vivo, os dois no seu
+// tom. Quem nunca escolheu fica com a primeira da lista.
 var Colors = []struct{ Name, Hex string }{
-	{"padrão", ""},
 	{"azul", "#8EC9F0"},
 	{"verde", "#8EE08A"},
 	{"amarelo", "#FFD166"},
@@ -107,7 +106,8 @@ var Colors = []struct{ Name, Hex string }{
 	{"rosa", "#E890C0"},
 }
 
-// ColorIndex: onde está a cor hex em Colors (0, o padrão, para uma cor que não existe mais).
+// ColorIndex: onde está a cor hex em Colors (a primeira, para quem nunca escolheu ou para uma
+// cor que saiu da lista).
 func ColorIndex(hex string) int {
 	for i, c := range Colors {
 		if c.Hex == hex {
@@ -147,7 +147,6 @@ type skin struct{ small, big [5][2]string }
 
 var (
 	sheet  image.Image
-	plain  skin // o pet como está no PNG, com a cor saindo do humor
 	skins  = map[string]*skin{}
 	skinMu sync.Mutex
 )
@@ -158,7 +157,6 @@ func init() {
 		panic(err)
 	}
 	sheet = img
-	plain = build(nil)
 }
 
 // Tint: o que trocar para um desenho sair no tom escolhido — a cor base e a sombra dela viram
@@ -166,7 +164,7 @@ func init() {
 // O pet usa isso por humor; a obra usa nas cores marcadoras do corpo da peça.
 func Tint(base, shade uint32, hex string) map[uint32]color.Color {
 	if hex == "" {
-		return nil
+		hex = Colors[0].Hex
 	}
 	var c uint32
 	if _, err := fmt.Sscanf(hex, "#%06x", &c); err != nil {
@@ -180,16 +178,14 @@ func Tint(base, shade uint32, hex string) map[uint32]color.Color {
 // servidor é um só, então um mapa com cadeado dá conta.
 func skinOf(hex string) *skin {
 	if hex == "" {
-		return &plain
+		hex = Colors[0].Hex // quem nunca escolheu fica com a primeira cor da lista
 	}
 	skinMu.Lock()
 	defer skinMu.Unlock()
 	if s, ok := skins[hex]; ok {
 		return s
 	}
-	if Tint(body[Okay][0], body[Okay][1], hex) == nil { // hex que não dá para ler
-		return &plain
-	}
+	// hex que não dá para ler devolve swap nil, e aí o pet sai com a cor que está no PNG
 	s := build(func(m Mood) map[uint32]color.Color {
 		return Tint(body[m][0], body[m][1], hex)
 	})
