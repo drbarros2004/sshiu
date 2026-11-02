@@ -161,18 +161,24 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 ## Temas de obra que faltam desenhar
 
 Cada tema custa quatro desenhos de 12×12 pixels ([ADR 0008](docs/adr/0008-obra-da-sala.md)). O gerador
-dos que existem é um mapa de caracteres, uma linha por linha de pixel.
+dos que existem é um mapa de caracteres, uma linha por linha de pixel. Horta, estante, feira,
+acampamento, orquestra, passarinhos, porto e foguetes já entraram; a ponte foi desenhada e
+descartada em 01/11/2026.
 
-- **Horta:** vaso vazio, brotos com folhinhas, plantas com início de flor, vaso cheio de flores.
 - **Bolo de casamento:** cada pessoa faz um andar, e os andares se compõem numa escada. Quem não
   focou deixa a escada desigual. Precisa de um arranjo vertical, que nenhum tema de hoje usa, e de
   um teto de altura: com dez andares não cabe em terminal nenhum.
-- **Ponte:** pilar, viga, tabuleiro, guarda-corpo com lanternas. Quem não focou deixa um buraco no
-  meio da ponte, que é a ausência visível que o bolo queria, sem o problema de altura.
-- **Orquestra:** cadeira vazia, estante de partitura, músico sentado, músico tocando. A única em
-  que a peça não é intercambiável — o instrumento é de cada pessoa —, e por isso a mais cara:
-  os dois últimos estágios se multiplicam pelo número de instrumentos.
-- **Constelação, estante de livros, vitral:** anotadas na conversa, sem desenho.
+- **Varal de bandeirinhas:** corda vazia, bandeirinha pequena, bandeirinha grande, bandeirinha com
+  lampião. Usa o engate do trem como a corda, então a sala inteira vira um varal de festa junina.
+- **Estação espacial:** anel de acoplamento, módulo, módulo com painel solar, módulo com antena.
+  Também engata, como o trem, mas pode quebrar em fileiras sem parecer errado.
+- **Muralha:** uma torre por pessoa, do alicerce à torre com bandeira; a muralha entre elas é o
+  engate, e quem não focou deixa a torre baixa no meio do muro.
+- **Recife:** pedra, coral pequeno, coral ramificado, coral com peixe. Areia no chão.
+- **Quebra-cabeça:** cada pessoa é uma peça de uma imagem só, e a imagem só fecha com todo mundo.
+  O único tema em que o conjunto é literalmente um desenho, e por isso o mais caro: uma arte
+  grande para cada tamanho de sala, cortada em peças.
+- **Constelação, vitral:** anotadas na conversa, sem desenho.
 
 ## Dívida técnica conhecida
 

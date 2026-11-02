@@ -38,8 +38,13 @@ var pending []botReaction // reações agendadas pelos bots
 
 // SeedBots cria a sala demo com os bots, alguns já focando, e põe os bots para andar.
 func SeedBots() {
-	for _, b := range bots {
+	for i, b := range bots {
 		if err := store.PutUser("bot:"+b.nick, b.nick, b.energy); err != nil {
+			log.Fatal("seed bots", "err", err)
+		}
+		// cada bot numa cor, a partir da segunda: quem entra fica com a primeira, e a obra mostra
+		// um tom (e, na orquestra, um instrumento) por pessoa
+		if err := store.SetPetColor("bot:"+b.nick, pet.Colors[(i+1)%len(pet.Colors)].Hex); err != nil {
 			log.Fatal("seed bots", "err", err)
 		}
 		// os minutos de hoje saem da energia: é a escada que a demo precisa para a obra mostrar

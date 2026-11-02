@@ -510,6 +510,22 @@ func fit(s string, w, h int) string {
 	return strings.Join(lines, "\n")
 }
 
+// ellipsize: s quebrada nas palavras em até n linhas de w colunas. Se o texto não cabe, a última linha
+// termina em "…": antes a tarefa comprida sumia sem aviso, e parecia que ela acabava ali.
+func ellipsize(s string, w, n int) string {
+	lines := strings.Split(ansi.Wrap(s, w, ""), "\n")
+	if len(lines) <= n {
+		return strings.Join(lines, "\n")
+	}
+	lines = lines[:n]
+	last := strings.TrimRight(lines[n-1], " ")
+	if ansi.StringWidth(last) >= w { // a linha cheia abre espaço para a reticência
+		last = ansi.Truncate(last, w-1, "")
+	}
+	lines[n-1] = last + "…"
+	return strings.Join(lines, "\n")
+}
+
 func (m model) errLine() string {
 	if m.err == "" {
 		return ""

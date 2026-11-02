@@ -15,3 +15,17 @@ func TestFit(t *testing.T) {
 		}
 	}
 }
+
+// A tarefa comprida quebra nas palavras e avisa com "…" que continua; a que cabe fica inteira.
+func TestEllipsize(t *testing.T) {
+	cases := map[string]string{
+		"ler o cap. 4":                         "ler o cap. 4",
+		"implementar designs para o trabalho":  "implementar\ndesigns para o…",
+		"abcdefghijklmnopqrstuvwxyz0123456789": "abcdefghijklmnop\nqrstuvwxyz01234…", // palavra sem fim corta no meio
+	}
+	for in, want := range cases {
+		if got := ellipsize(in, 16, 2); got != want {
+			t.Errorf("ellipsize(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

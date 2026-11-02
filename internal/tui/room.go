@@ -444,7 +444,7 @@ func (m model) focusPanel() string {
 	// A tarefa e os números ficam no topo do relógio, nunca ao lado dele por inteiro: o painel da
 	// sala solo tem 54 colunas, e texto comprido ao lado do relógio quebrava a tela em pedaços.
 	side := max(20, m.panelWidth()-clockCols-3)
-	lines := []string{lipgloss.NewStyle().Width(side).MaxHeight(2).Render(bold.Render(f.Task))}
+	lines := []string{bold.Render(ellipsize(f.Task, side, 2))}
 	c := m.st.title
 	if f.Expired(m.now) {
 		c = m.st.bad
@@ -545,7 +545,7 @@ func (m model) card(x rooms.Member, got int, compact bool) string {
 	return st.Render(lipgloss.JoinVertical(lipgloss.Center,
 		art,
 		name+" "+m.st.muted.Render(pet.MoodName[mood]),
-		m.st.task.Render(task),
+		m.st.task.Render(ellipsize(task, m.st.task.GetWidth(), 2)),
 		m.status(x),
 		reacts))
 }
