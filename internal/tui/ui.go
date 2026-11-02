@@ -23,27 +23,29 @@ import (
 )
 
 // Temas: só as cores de destaque; o texto normal usa a cor do próprio terminal (funciona em fundo claro e escuro).
-type theme struct{ name, accent, muted, border, good, bad string }
+// off é a borda de quem está offline: a mesma cor da borda puxada para longe do olho (mais escura
+// nos temas escuros, mais clara no claro), para a caixa de quem não está ali ficar apagada.
+type theme struct{ name, accent, muted, border, off, good, bad string }
 
 var themes = []theme{
-	{"plantão", "#ff8700", "#7a7a7a", "#4a4a4a", "#5fd787", "#ff5f5f"},
-	{"catppuccin", "#cba6f7", "#7f849c", "#45475a", "#a6e3a1", "#f38ba8"},
-	{"dracula", "#bd93f9", "#6272a4", "#44475a", "#50fa7b", "#ff5555"},
-	{"gruvbox", "#fe8019", "#928374", "#665c54", "#b8bb26", "#fb4934"},
-	{"tokyo night", "#7aa2f7", "#565f89", "#3b4261", "#9ece6a", "#f7768e"},
-	{"nord", "#88c0d0", "#616e88", "#4c566a", "#a3be8c", "#bf616a"},
-	{"latte (claro)", "#8839ef", "#8c8fa1", "#bcc0cc", "#40a02b", "#d20f39"},
+	{"plantão", "#ff8700", "#7a7a7a", "#4a4a4a", "#212121", "#5fd787", "#ff5f5f"},
+	{"catppuccin", "#cba6f7", "#7f849c", "#45475a", "#1f1f28", "#a6e3a1", "#f38ba8"},
+	{"dracula", "#bd93f9", "#6272a4", "#44475a", "#1e1f28", "#50fa7b", "#ff5555"},
+	{"gruvbox", "#fe8019", "#928374", "#665c54", "#2d2925", "#b8bb26", "#fb4934"},
+	{"tokyo night", "#7aa2f7", "#565f89", "#3b4261", "#1a1d2b", "#9ece6a", "#f7768e"},
+	{"nord", "#88c0d0", "#616e88", "#4c566a", "#22262f", "#a3be8c", "#bf616a"},
+	{"latte (claro)", "#8839ef", "#8c8fa1", "#bcc0cc", "#ebecf0", "#40a02b", "#d20f39"},
 }
 
 type styles struct {
-	accent, good                                          color.Color
+	accent, good, off                                     color.Color
 	title, muted, bad, ok, card, task, sel, tabOn, tabOff lipgloss.Style
 }
 
 func newStyles(t theme) styles {
 	c := lipgloss.Color
 	return styles{
-		accent: c(t.accent), good: c(t.good),
+		accent: c(t.accent), good: c(t.good), off: c(t.off),
 		title:  lipgloss.NewStyle().Bold(true).Foreground(c(t.accent)),
 		muted:  lipgloss.NewStyle().Foreground(c(t.muted)),
 		bad:    lipgloss.NewStyle().Foreground(c(t.bad)),
@@ -150,7 +152,8 @@ type model struct {
 	ccur     int             // linha escolhida no menu
 	mcur     int             // membro escolhido em passar/remover
 	cname    bool            // digitando o nome da sala na própria linha
-	cyes     bool            // "sim" escolhido na confirmação de encerrar
+	cyes     bool            // "sim" escolhido na confirmação de passar ou de encerrar
+	cwho     string          // quem vai receber a sala, na confirmação de passar
 	size     int             // tamanho escolhido para a sala nova
 	pcur     int             // item selecionado no menu
 	form     form            // formulário de sala em andamento

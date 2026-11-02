@@ -84,12 +84,27 @@ var art = [...][2]string{
   _,.---.
  ( T _ T )
  .'-----'`},
+	Sleeping: {`
+     ,   z
+     |
+   .---.
+  ( _ _ )
+  (  o  )
+   '---'`, `
+     ,  z
+     |
+  .-----.
+ ( _   _ )
+ (   o   )
+  '-----'`},
 }
 
 var (
-	MoodName   = [...]string{Wilted: "murcho", Tired: "cansado", Okay: "normal", Good: "bem", Radiant: "radiante"}
-	MoodColor  = [...]string{Wilted: "244", Tired: "180", Okay: "117", Good: "78", Radiant: "220"}
-	moodPeriod = [...]int{Wilted: 4, Tired: 3, Okay: 2, Good: 2, Radiant: 1} // ticks por quadro: quanto mais cansado, mais lenta a respiração
+	MoodName   = [...]string{Wilted: "murcho", Tired: "cansado", Okay: "normal", Good: "bem", Radiant: "radiante", Sleeping: "dormindo"}
+	MoodColor  = [...]string{Wilted: "244", Tired: "180", Okay: "117", Good: "78", Radiant: "220", Sleeping: "67"}
+	moodPeriod = [...]int{Wilted: 4, Tired: 3, Okay: 2, Good: 2, Radiant: 1, Sleeping: 3} // ticks por quadro: quanto mais cansado, mais lenta a respiração
+	// quadros de cada humor na folha: respirar são dois, e o sono usa quatro para o z subir
+	moodFrames = [...]int{Wilted: 2, Tired: 2, Okay: 2, Good: 2, Radiant: 2, Sleeping: 4}
 )
 
 // Colors: as cores que dá para escolher para o pet. O matiz é o escolhido e o humor continua
@@ -119,31 +134,35 @@ func ColorIndex(hex string) int {
 
 // body: a cor do corpo do pet em cada humor, base e sombra. São as únicas que a cor escolhida
 // troca: contorno, broto, flor e olhos ficam como estão.
-var body = [5][2]uint32{
-	Wilted:  {0x9A9A9A, 0x5C5C5C},
-	Tired:   {0xD9B98C, 0x8A6A3E},
-	Okay:    {0x8EC9F0, 0x3B78A8},
-	Good:    {0x8EE08A, 0x3D8B47},
-	Radiant: {0xFFD166, 0xB07818},
+var body = [...][2]uint32{
+	Wilted:   {0x9A9A9A, 0x5C5C5C},
+	Tired:    {0xD9B98C, 0x8A6A3E},
+	Okay:     {0x8EC9F0, 0x3B78A8},
+	Good:     {0x8EE08A, 0x3D8B47},
+	Radiant:  {0xFFD166, 0xB07818},
+	Sleeping: {0x8EC9F0, 0x3B78A8}, // o sono foi desenhado com as cores do normal
 }
 
 // Render desenha o pet: pixel art se o terminal tem 256 cores ou mais, senão ASCII.
 func Render(m Mood, tick int, pixel bool, hex string) string {
-	f := tick / moodPeriod[m] % 2
+	f := tick / moodPeriod[m] % moodFrames[m]
 	if pixel {
 		return skinOf(hex).small[m][f]
 	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color(MoodColor[m])).Width(11).Render(strings.TrimPrefix(art[m][f], "\n"))
+	// a arte ASCII tem dois quadros em todos os humores: o z do sono anda só na pixel art
+	return lipgloss.NewStyle().Foreground(lipgloss.Color(MoodColor[m])).Width(11).Render(strings.TrimPrefix(art[m][f%2], "\n"))
 }
 
-// pet.png: folha 32x80, linha = humor (murcho..radiante, 16px cada), coluna = quadro da respiração.
+// pet.png: folha 64x96, linha = humor (murcho..radiante, e dormindo por último, 16px cada),
+// coluna = quadro. Os humores usam as duas primeiras colunas (a respiração); o sono usa as quatro,
+// com o z saindo da cabeça. Quantos quadros cada linha tem está em moodFrames.
 // Edite no Piskel/Aseprite/Lospec à vontade; o servidor relê no próximo build.
 //
 //go:embed pet.png
 var petPNG []byte
 
 // skin: o pet inteiro numa cor. small vai nos cards, big no perfil.
-type skin struct{ small, big [5][2]string }
+type skin struct{ small, big [6][4]string }
 
 var (
 	sheet  image.Image
@@ -257,7 +276,7 @@ func rehue(c uint32, h float64) color.Color {
 
 func RenderBig(m Mood, tick int, pixel bool, hex string) string {
 	if pixel {
-		return skinOf(hex).big[m][tick/moodPeriod[m]%2]
+		return skinOf(hex).big[m][tick/moodPeriod[m]%moodFrames[m]]
 	}
 	return Render(m, tick, false, hex)
 }
