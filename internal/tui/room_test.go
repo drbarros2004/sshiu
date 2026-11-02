@@ -23,6 +23,15 @@ func TestRoomCode(t *testing.T) {
 	}
 }
 
+// O card conta as reações que o membro recebeu, menos as que ele mesmo deu no próprio evento.
+func TestReceived(t *testing.T) {
+	s := rooms.Snapshot{Events: []rooms.Event{{Who: "ana", Reacts: [rooms.Reactions][]string{
+		0: {"bia", "ana"}, 1: {"bia"}}}}}
+	if got := received(s)["ana"]; got != 2 {
+		t.Fatalf("recebidas: %d", got)
+	}
+}
+
 func TestSoloGardenWidth(t *testing.T) {
 	if got := soloGardenWidth(116); got != 60 { // terminal de 120 colunas
 		t.Fatalf("120 colunas: %d", got)

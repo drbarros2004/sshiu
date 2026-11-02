@@ -31,13 +31,13 @@ func TestReact(t *testing.T) {
 	rooms["t"] = &room{code: "t", members: []string{"ana", "bia"}, events: []*Event{{ID: 1, Who: "ana"}}}
 	defer delete(rooms, "t")
 	react("bia", "t", 1, 0)
-	react("ana", "t", 1, 0) // ninguém reage ao próprio evento
-	react("eve", "t", 1, 0) // nem quem não é da sala
-	if got := rooms["t"].events[0].Reacts[0]; len(got) != 1 || got[0] != "bia" {
+	react("ana", "t", 1, 0) // a mesma reação de outra pessoa soma, inclusive a de quem fez o evento
+	react("eve", "t", 1, 0) // quem não é da sala, não
+	if got := rooms["t"].events[0].Reacts[0]; len(got) != 2 || got[0] != "bia" || got[1] != "ana" {
 		t.Fatalf("reagiu: %v", got)
 	}
-	react("bia", "t", 1, 0) // de novo: desfaz
-	if got := rooms["t"].events[0].Reacts[0]; len(got) != 0 {
+	react("bia", "t", 1, 0) // de novo: desfaz só a sua
+	if got := rooms["t"].events[0].Reacts[0]; len(got) != 1 || got[0] != "ana" {
 		t.Fatalf("desfez: %v", got)
 	}
 }
@@ -161,6 +161,23 @@ func TestSoloNasceFechada(t *testing.T) {
 	}
 	if r := rooms[code]; r == nil || r.name != "a sala" || r.owner != "s1" || r.max != 5 || r.closed {
 		t.Fatalf("depois do restart: %+v", r)
+	}
+}
+
+// Fechar o terminal com uma tarefa de pé: a sala vê offline na hora, antes de a tolerância de
+// reconexão interromper a tarefa.
+func TestStatusOffline(t *testing.T) {
+	u := &user{id: "ana", online: 1, focus: &Focus{}}
+	if u.status() != Focusing {
+		t.Fatalf("focando: %v", u.status())
+	}
+	u.online = 0
+	if u.status() != Offline {
+		t.Fatalf("saiu: %v", u.status())
+	}
+	u.focus = nil
+	if u.online = 1; u.status() != Idle {
+		t.Fatalf("voltou sem tarefa: %v", u.status())
 	}
 }
 

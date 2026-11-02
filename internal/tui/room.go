@@ -41,9 +41,9 @@ func soloRows(height int) int { return max(12, height-9) }
 // minuteChoices: os tempos declarados que dá para escolher (na demo, 1 min para a plateia ver o fluxo).
 func minuteChoices() []int {
 	if rooms.Demo {
-		return []int{1, 10, 15, 25, 45, 60}
+		return []int{1, 5, 10, 15, 25, 45, 60}
 	}
-	return []int{10, 15, 25, 45, 60}
+	return []int{5, 10, 15, 25, 45, 60}
 }
 
 // events: os eventos navegáveis. A sala solo não tem nenhum (nem cursor, nem reações); o que
@@ -256,7 +256,7 @@ func (m model) roomView(w, h int) string {
 			case alone: // o convite vale mais que o feed vazio, e não encolhe
 				out += "\n\n" + m.invitePanel(s)
 			case n > 0:
-				out += "\n\n" + m.feed(n) + "\n" + m.legend()
+				out += "\n\n" + m.feed(n) + "\n\n" + m.legend()
 			}
 			if lipgloss.Height(out) <= h {
 				return out
@@ -402,8 +402,11 @@ func (m model) panelWidth() int {
 func received(s rooms.Snapshot) map[string]int {
 	n := map[string]int{}
 	for _, e := range s.Events {
-		for _, r := range e.Reacts {
-			n[e.Who] += len(r)
+		for _, who := range e.Reacts {
+			n[e.Who] += len(who)
+			if slices.Contains(who, e.Who) { // reagir ao próprio evento não enche o próprio contador
+				n[e.Who]--
+			}
 		}
 	}
 	return n
@@ -459,6 +462,9 @@ func (m model) card(x rooms.Member, got int, compact bool) string {
 		reacts = m.st.muted.Render("1 reação")
 	case got > 1:
 		reacts = m.st.muted.Render(fmt.Sprintf("%d reações", got))
+	}
+	if x.Status == rooms.Offline { // quem fechou o terminal dorme: o humor volta quando a pessoa volta
+		mood, st = pet.Sleeping, st.BorderForeground(m.st.off)
 	}
 	art := pet.Render(mood, m.tick, m.pixel)
 	if compact {
