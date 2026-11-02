@@ -156,6 +156,10 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case m.owns():
 			return m.openConfig()
 		}
+	case "o": // a obra sozinha na tela, para quem não tem altura para ela junto com os cards
+		if m.obraOf(m.w.Rooms[code]) != nil {
+			m.obraFull = !m.obraFull
+		}
 	case "y": // o servidor não sabe se o terminal aceitou o OSC 52: o aviso diz só que mandou
 		if !m.solo() && code != rooms.DemoCode { // as duas salas sem código para passar adiante
 			m.notice = "código enviado para a área de transferência"
@@ -173,6 +177,8 @@ func (m model) roomHelp() string {
 	me := m.me()
 	focusing := me.Status == rooms.Focusing
 	switch {
+	case m.obraFull:
+		return "o volta para a sala"
 	case m.cfg:
 		return m.cfgHelp()
 	case m.inPicker() && m.form == formNew:
@@ -190,12 +196,12 @@ func (m model) roomHelp() string {
 	case focusing && me.Focus.Expired(m.now): // as escolhas já estão em destaque no painel
 		return "s salas" + m.reactHelp()
 	case focusing:
-		return "f feito · t trocar · p parar · j modo jardim" + m.reactHelp() + m.cfgHint() + " · s salas"
+		return "f feito · t trocar · p parar · j modo jardim" + m.reactHelp() + m.obraHint() + m.cfgHint() + " · s salas"
 	}
 	if m.solo() { // na sala solo o jardim abre sem tarefa: é a outra versão da tela
 		return "enter começa uma tarefa · j modo jardim" + m.cfgHint() + " · s salas"
 	}
-	return "enter começa uma tarefa" + m.reactHelp() + m.cfgHint() + " · s salas"
+	return "enter começa uma tarefa" + m.reactHelp() + m.obraHint() + m.cfgHint() + " · s salas"
 }
 
 // cfgHint: a tecla do menu, que só o dono tem (ADR 0007). Fica de fora com o tempo esgotado,
@@ -205,6 +211,14 @@ func (m model) cfgHint() string {
 		return ""
 	}
 	return " · c configura"
+}
+
+// obraHint: a tecla da obra, que só existe onde há obra para ver.
+func (m model) obraHint() string {
+	if m.obraOf(m.w.Rooms[m.room]) == nil {
+		return ""
+	}
+	return " · o obra"
 }
 
 // reactHelp: as teclas de evento e reação, que a sala solo não tem.
@@ -247,26 +261,50 @@ func (m model) roomView(w, h int) string {
 	if m.notice != "" {
 		title += "\n" + m.st.ok.Render(m.notice)
 	}
+	if m.obraFull { // a obra sozinha, na tecla o
+		return m.obraView(s, w, h)
+	}
 	if m.solo() { // a sala solo tem uma pessoa e nenhum card: ela já cabe
 		return title + "\n\n" + m.soloView()
 	}
-	// A obra só entra quando a tela comporta ela inteira: num terminal baixo ela é a primeira
-	// coisa a sair, antes de o feed encurtar e de os pets virarem ponto (ADR 0008).
-	if ob := m.obraBlock(s, w); ob != "" {
-		if out := m.roomBody(s, title, w, shownEvents, false, ob); lipgloss.Height(out) <= h {
-			return out
-		}
-	}
 	var out string
-	for _, compact := range []bool{false, true} {
-		for n := shownEvents; n >= 0 && (compact || n > 0); n -= 2 { // sem eventos só com os pets já encolhidos
-			out = m.roomBody(s, title, w, n, compact, "")
+	for _, st := range m.fitSteps(s, w) {
+		// sem eventos só depois de a obra ou os pets já terem encolhido
+		for n := shownEvents; n >= 0 && (st.compact || st.ob != "" || n > 0); n -= 2 {
+			out = m.roomBody(s, title, w, n, st.compact, st.ob)
 			if lipgloss.Height(out) <= h {
 				return out
 			}
 		}
 	}
 	return out
+}
+
+// fitStep: uma tentativa de caber na altura, da tela cheia para a mais apertada.
+type fitStep struct {
+	ob      string // a obra desenhada, ou "" quando ela já não cabe
+	compact bool   // os pets viram um ponto da cor do humor
+}
+
+// fitSteps: a ordem em que a tela abre mão das coisas. Dentro de cada passo o feed encurta
+// primeiro; depois a obra troca o arranjo do tema por uma fileira só, depois os pets viram ponto,
+// e a obra sai por último — tirando ela, os pets voltam ao tamanho normal.
+//
+// Ela saía primeiro, e numa janela pequena isso queria dizer nunca aparecer: numa sala de seis
+// pessoas a obra pedia umas 50 linhas, que é mais do que um terminal costuma ter (ADR 0008).
+func (m model) fitSteps(s rooms.Snapshot, w int) []fitStep {
+	steps := []fitStep{{"", false}, {"", true}}
+	full := m.obraBlock(s, w, false)
+	if full == "" {
+		return steps
+	}
+	first := []fitStep{{full, false}}
+	if flat := m.obraBlock(s, w, true); flat != full { // o trem já é uma fileira: achatar não muda
+		first = append(first, fitStep{flat, false}, fitStep{flat, true})
+	} else {
+		first = append(first, fitStep{full, true})
+	}
+	return append(first, steps...)
 }
 
 // roomBody: a tela montada com n eventos, os pets do tamanho que couber e, se ob não for vazio,

@@ -6,7 +6,8 @@ package tui
 //   - O chão não é da peça. O bloco desenha ele de ponta a ponta, e é ele que emenda um vagão no
 //     outro e uma casa na vizinha. Peça com o próprio chão deixava buraco entre elas.
 //   - O arranjo é do tema. O trem é uma fileira que quebra quando não cabe; a cidade tem uma
-//     tabela escrita na mão para cada quantidade de gente.
+//     tabela escrita na mão para cada quantidade de gente. Em tela apertada a tabela dá lugar à
+//     fileira: perder o formato do conjunto é melhor que perder a obra inteira.
 
 import (
 	"bytes"
@@ -89,11 +90,16 @@ func (m model) obraOf(s rooms.Snapshot) *obra {
 }
 
 // obraBlock: a obra inteira em cols colunas — o cabeçalho com a meta e as fileiras de peças, cada
-// uma com o seu chão e os apelidos embaixo.
-func (m model) obraBlock(s rooms.Snapshot, cols int) string {
+// uma com o seu chão e os apelidos embaixo. Com flat, o arranjo do tema dá lugar a uma fileira só,
+// que é mais baixa: é o que a tela usa quando a tabela da cidade não cabe na altura.
+func (m model) obraBlock(s rooms.Snapshot, cols int, flat bool) string {
 	o := m.obraOf(s)
 	if o == nil {
 		return ""
+	}
+	rows := o.rows
+	if flat {
+		rows = fitRows
 	}
 	ms := orderedMembers(m.id, s)
 	col := pieceW
@@ -104,7 +110,7 @@ func (m model) obraBlock(s rooms.Snapshot, cols int) string {
 
 	var out []string
 	i := 0
-	for _, n := range o.rows(len(ms), cols) {
+	for _, n := range rows(len(ms), cols) {
 		group := ms[i : i+n]
 		var arts, names []string
 		for _, x := range group {
@@ -120,6 +126,18 @@ func (m model) obraBlock(s rooms.Snapshot, cols int) string {
 		i += n
 	}
 	return m.obraHead(s) + "\n" + strings.Join(out, "\n")
+}
+
+// obraView: a obra sozinha na tela, na tecla o. A tela da sala encolhe até a obra sair, e num
+// terminal pequeno ela sai sempre; aqui ela não divide espaço com nada, então existe em qualquer
+// tamanho. É o mesmo caminho do modo jardim, que também é uma tela inteira atrás de uma tecla.
+func (m model) obraView(s rooms.Snapshot, w, h int) string {
+	head := bold.Render(s.Name) + m.st.muted.Render(" · a obra de hoje") + "\n\n"
+	ob := m.obraBlock(s, w, false)
+	if lipgloss.Height(head+ob) > h { // a tabela do tema não cabe: vira uma fileira só
+		ob = m.obraBlock(s, w, true)
+	}
+	return head + ob
 }
 
 // obraHead: o tema e o que cada peça custa. Sem o passo, o desenho não diz o que falta para

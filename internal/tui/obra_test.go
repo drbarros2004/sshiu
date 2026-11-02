@@ -48,6 +48,49 @@ func TestFolhas(t *testing.T) {
 	}
 }
 
+// A tela abre mão das coisas na ordem certa quando falta altura: a obra encolhe antes de sair,
+// e sai por último, porque sair primeiro era o mesmo que nunca aparecer (ADR 0008).
+func TestFitSteps(t *testing.T) {
+	sala := rooms.Snapshot{Obra: "cidade", Meta: 60, Max: rooms.MaxMembers, Members: []rooms.Member{
+		{ID: "eu", Nick: "eu"}, {ID: "a", Nick: "ana"}, {ID: "b", Nick: "bruno"},
+	}}
+	m := model{id: "eu", room: "s", w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": sala}}}
+	steps := m.fitSteps(sala, 120)
+	if len(steps) < 4 {
+		t.Fatalf("passos de menos: %d", len(steps))
+	}
+	if steps[0].ob == "" || steps[0].compact {
+		t.Error("o primeiro passo tem que ser a tela cheia, com a obra")
+	}
+	if steps[len(steps)-1].ob != "" {
+		t.Error("o último passo tem que ser sem obra")
+	}
+	// a obra tem que encolher antes de os pets virarem ponto, e sumir depois deles
+	var achatou, pontinho, saiu int
+	for i, st := range steps {
+		switch {
+		case st.ob != "" && st.ob != steps[0].ob && !st.compact:
+			achatou = i
+		case st.ob != "" && st.compact:
+			pontinho = i
+		case st.ob == "" && saiu == 0:
+			saiu = i
+		}
+	}
+	if !(achatou < pontinho && pontinho < saiu) {
+		t.Errorf("ordem errada: achatou=%d pontinho=%d saiu=%d", achatou, pontinho, saiu)
+	}
+}
+
+// A sala sem obra não ganha passos a mais: a escada continua a de antes.
+func TestFitStepsSemObra(t *testing.T) {
+	sala := rooms.Snapshot{Max: rooms.MaxMembers, Members: []rooms.Member{{ID: "eu"}}}
+	m := model{id: "eu", room: "s", w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": sala}}}
+	if got := m.fitSteps(sala, 120); len(got) != 2 || got[0].ob != "" {
+		t.Errorf("passos %v", got)
+	}
+}
+
 // Todo tema que o dono pode escolher tem desenho (ADR 0008).
 func TestTemasTemArte(t *testing.T) {
 	for _, nome := range rooms.Obras {

@@ -180,8 +180,8 @@ Também marcada no código com comentários `ponytail:`.
 - **Migração ingênua:** o `ALTER TABLE` ignora o erro de "coluna já existe". Trocar por uma ferramenta de migração quando houver várias.
 - **Um lock só** para todas as salas e usuários em `internal/rooms`: dá para uma turma; um lock por sala se houver muitas.
 - **Sala sem rolagem** (`roomView` em `internal/tui/room.go`): quando falta altura, a lista de eventos encurta e os pets viram um ponto da cor do humor, mas com muita gente num terminal baixo (80×24 já com 6 membros) os cards passam da altura e são cortados. Rolagem nos cards se isso aparecer de verdade.
-- **A obra pede uma janela alta** (`roomView` em `internal/tui/room.go`): numa sala de seis pessoas
-  ela só aparece com umas 50 linhas, porque sai inteira em vez de encolher junto com o resto da
-  tela ([ADR 0008](docs/adr/0008-obra-da-sala.md)). Deixar ela sobreviver ao encolhimento do feed e
-  dos pets se ficar invisível demais na turma.
+- **O card não encolhe de verdade** (`card` em `internal/tui/room.go`): no modo compacto o pet vira
+  um ponto, mas a caixa continua com as duas linhas fixas da tarefa, então cada fileira de cards
+  custa 8 linhas mesmo vazia. É o que decide hoje se a obra cabe: em 120 colunas os cards cabem
+  numa fileira e a obra entra com 32 linhas; em 100 eles quebram em duas e ela só entra com 40.
 - **Contornos para servidor no Windows** (`lfWriter` e perfil de cores em `main.go`): só existem porque o Wish/Bubble Tea assumem Unix. No deploy em Linux, nem são usados.

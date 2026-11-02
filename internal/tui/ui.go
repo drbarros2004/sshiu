@@ -131,6 +131,7 @@ type model struct {
 	vis, visSaved store.Garden // modo jardim em prévia e salvo
 	vrow          int          // linha selecionada na aba visual
 	ncur, nobra   int          // linha e obra escolhidas na tela de criar sala
+	obraFull      bool         // a obra sozinha na tela (tecla o)
 	garden        *garden      // modo jardim em tela cheia (nil = desligado)
 	side          *garden      // o jardim da coluna da sala solo (nil = não tem)
 	lastKey       time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim
@@ -412,6 +413,7 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 	if m.tab == tabProfile && t != tabProfile { // idem para a cor do pet
 		m.pcolor, m.custom = m.pcSaved, false
 	}
+	m.obraFull = false
 	m.tab, m.err, m.notice, m.entering, m.choosing, m.picking, m.form = t, "", "", false, false, false, formNone
 	if t == tabProfile {
 		return m, m.loadProfile()
