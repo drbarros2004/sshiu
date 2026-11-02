@@ -40,17 +40,29 @@ Host sshiu
 - `HostKeyAlias sshiu` guarda a chave do host pelo nome, então trocar de IP ou de caminho (rede local → VPS) não pede a confirmação de novo, desde que a chave seja a mesma.
 - Vale o primeiro valor encontrado: um `Host *` no topo do arquivo vence o bloco.
 
+Como o `ssh terminal.shop`, que publica a linha de `known_hosts` dele, a colagem leva junto a chave do servidor. Com o `HostKeyAlias sshiu`, a linha é `sshiu` seguido das duas primeiras palavras do `.ssh/id_ed25519.pub` de quem hospeda (`awk '{print "sshiu "$1" "$2}' .ssh/id_ed25519.pub`). Com ela, a primeira conexão não pergunta "Are you sure you want to continue connecting?", e um servidor falso na rede é recusado (testado: sem a linha e com checagem estrita, "Host key verification failed"; com ela, conecta). Troque `AAAA...` pela chave de verdade.
+
 PowerShell (Windows):
 
 ```powershell
-New-Item -ItemType Directory -Force "$HOME\.ssh" | Out-Null; Add-Content "$HOME\.ssh\config" "`nHost sshiu`n    HostName sshiu.local`n    RequestTTY yes`n    HostKeyAlias sshiu"
+New-Item -ItemType Directory -Force "$HOME\.ssh" | Out-Null; Add-Content "$HOME\.ssh\config" "`nHost sshiu`n    HostName sshiu.local`n    RequestTTY yes`n    HostKeyAlias sshiu"; Add-Content "$HOME\.ssh\known_hosts" "sshiu ssh-ed25519 AAAA..."
 ```
 
 bash/zsh (Mac e Linux):
 
 ```bash
-mkdir -p ~/.ssh && printf '\nHost sshiu\n    HostName sshiu.local\n    RequestTTY yes\n    HostKeyAlias sshiu\n' >> ~/.ssh/config
+mkdir -p ~/.ssh && printf '\nHost sshiu\n    HostName sshiu.local\n    RequestTTY yes\n    HostKeyAlias sshiu\n' >> ~/.ssh/config && echo 'sshiu ssh-ed25519 AAAA...' >> ~/.ssh/known_hosts
 ```
+
+### O que cada colega digita
+
+| Situação | Comandos |
+|---|---|
+| já tem chave SSH (quem usa o GitHub por SSH, por exemplo) | `ssh sshiu.local`: um comando, como o `ssh terminal.shop`, mais o "yes" da primeira conexão |
+| ainda não tem chave | o sshiu responde com a instrução ([main.go:72](../../main.go#L72)): `ssh-keygen -t ed25519` (enter em tudo), depois `ssh sshiu.local`. Só na primeira vez; o `ssh-keygen` vem com o cliente OpenSSH do Windows |
+| quer `ssh sshiu` | colar a linha acima uma vez; daí em diante, `ssh sshiu`, sem a pergunta da primeira conexão |
+
+O que fica diferente do terminal.shop: a chave é obrigatória (ela é o login, [ADR 0001](../adr/0001-chave-ssh-e-a-identidade.md)), e só funciona na mesma rede.
 
 No Windows, o cliente lê `%userprofile%\.ssh\config` ([Microsoft](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh-server-configuration)). Quem não tiver o `ssh` (`ssh -V`) instala o Cliente OpenSSH em Configurações > Recursos opcionais ([Microsoft](https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse)).
 
