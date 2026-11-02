@@ -25,10 +25,13 @@ func weekIndex(t time.Time) int { return (int(t.Weekday()) + 6) % 7 }
 
 func dayKey(t time.Time) string { return t.Format("2006-01-02") }
 
-// dur: "45 min" ou "6h 20".
+// dur: "45 min", "6h 20" ou "1h" na hora redonda.
 func dur(min float64) string {
-	if min < 60 {
+	switch {
+	case min < 60:
 		return fmt.Sprintf("%d min", int(min))
+	case int(min)%60 == 0:
+		return fmt.Sprintf("%dh", int(min)/60)
 	}
 	return fmt.Sprintf("%dh %02d", int(min)/60, int(min)%60)
 }

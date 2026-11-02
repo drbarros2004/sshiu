@@ -19,11 +19,33 @@ const (
 	cfgName = iota
 	cfgSize
 	cfgEntries
+	cfgObra
+	cfgMeta
 	cfgGive
 	cfgKick
 	cfgEnd
-	cfgRows
 )
+
+// cfgList: as linhas que aparecem nesta sala. A sala solo não tem obra (ADR 0008), e a meta só
+// existe depois de haver um tema: configuração que não faz nada não ocupa linha.
+func cfgList(s rooms.Snapshot) []int {
+	rows := []int{cfgName, cfgSize, cfgEntries}
+	if s.Max > rooms.MinMembers {
+		rows = append(rows, cfgObra)
+		if s.Obra != "" {
+			rows = append(rows, cfgMeta)
+		}
+	}
+	return append(rows, cfgGive, cfgKick, cfgEnd)
+}
+
+// obraName: o tema como ele aparece no menu.
+func obraName(obra string) string {
+	if obra == "" {
+		return "nenhuma"
+	}
+	return obra
+}
 
 type cfgPage int
 
@@ -143,11 +165,14 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+	list := cfgList(s)
+	m.ccur = min(m.ccur, len(list)-1) // a meta some quando a obra desliga: o cursor acompanha
+	cur := list[m.ccur]
 	switch k {
 	case "up":
 		m.ccur = max(0, m.ccur-1)
 	case "down":
-		m.ccur = min(cfgRows-1, m.ccur+1)
+		m.ccur = min(len(list)-1, m.ccur+1)
 	case "esc", "c":
 		m.cfg, m.err = false, ""
 	case "left", "right":
@@ -155,16 +180,30 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if k == "left" {
 			d = -1
 		}
-		switch m.ccur {
+		switch cur {
 		case cfgSize:
 			n := s.Max + d
 			return m, do(func() error { return rooms.Resize(id, code, n) })
 		case cfgEntries:
 			closed := !s.Closed
 			return m, do(func() error { return rooms.SetClosed(id, code, closed) })
+		case cfgObra:
+			i := max(slices.Index(rooms.Obras, s.Obra), 0) + d
+			if i < 0 || i >= len(rooms.Obras) {
+				return m, nil
+			}
+			obra := rooms.Obras[i]
+			return m, do(func() error { return rooms.SetObra(id, code, obra) })
+		case cfgMeta:
+			i := max(slices.Index(rooms.ObraMetas, s.Meta), 0) + d
+			if i < 0 || i >= len(rooms.ObraMetas) {
+				return m, nil
+			}
+			meta := rooms.ObraMetas[i]
+			return m, do(func() error { return rooms.SetMeta(id, code, meta) })
 		}
 	case "enter":
-		switch m.ccur {
+		switch cur {
 		case cfgName:
 			m.cname, m.in, m.err = true, newInput("nome da sala", 30), ""
 			m.in.Prompt = "" // o ▸ da linha já diz onde o texto entra
@@ -239,15 +278,25 @@ func (m model) cfgView() string {
 	floor := max(len(s.Members), rooms.MinMembers)
 	size := bold.Render(fmt.Sprintf("%d", len(s.Members))) + m.st.muted.Render(" / ") +
 		m.arrows(m.ccur == cfgSize, fmt.Sprintf("%d", s.Max), s.Max > floor, s.Max < rooms.MaxMembers)
-	entries := m.arrows(m.ccur == cfgEntries, map[bool]string{true: "fechadas", false: "abertas"}[s.Closed], true, true)
+	list := cfgList(s)
+	cur := list[min(m.ccur, len(list)-1)]
+	entries := m.arrows(cur == cfgEntries, map[bool]string{true: "fechadas", false: "abertas"}[s.Closed], true, true)
+	io := max(slices.Index(rooms.Obras, s.Obra), 0)
+	im := max(slices.Index(rooms.ObraMetas, s.Meta), 0)
 
-	rows := []string{
-		cfgRow(m, m.ccur == cfgName, "nome", name),
-		cfgRow(m, m.ccur == cfgSize, "tamanho", size),
-		cfgRow(m, m.ccur == cfgEntries, "novas entradas", entries),
-		cfgRow(m, m.ccur == cfgGive, "passar a sala", ""),
-		cfgRow(m, m.ccur == cfgKick, "remover alguém", ""),
-		cfgRow(m, m.ccur == cfgEnd, "encerrar a sala", ""),
+	label := map[int]string{cfgName: "nome", cfgSize: "tamanho", cfgEntries: "novas entradas",
+		cfgObra: "obra", cfgMeta: "meta da obra", cfgGive: "passar a sala",
+		cfgKick: "remover alguém", cfgEnd: "encerrar a sala"}
+	value := map[int]string{
+		cfgName:    name,
+		cfgSize:    size,
+		cfgEntries: entries,
+		cfgObra:    m.arrows(cur == cfgObra, obraName(s.Obra), io > 0, io < len(rooms.Obras)-1),
+		cfgMeta:    m.arrows(cur == cfgMeta, dur(float64(s.Meta)), im > 0, im < len(rooms.ObraMetas)-1),
+	}
+	var rows []string
+	for _, r := range list {
+		rows = append(rows, cfgRow(m, r == cur, label[r], value[r]))
 	}
 	return bold.Render("configurar") + m.st.muted.Render(" · "+s.Name) + "\n\n" + strings.Join(rows, "\n")
 }

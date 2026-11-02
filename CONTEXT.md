@@ -91,6 +91,13 @@ Um número de 0 a 100 que sobe com minutos focados e tarefas cumpridas e decai a
 O estado visível do pet, derivado da energia: murcho, cansado, normal, bem ou radiante.
 _Evite_: estado, mood
 
+**Cor do pet**:
+O tom que cada usuário escolhe para a sua criatura, logo depois do apelido e depois disso na aba
+de perfil. A cor é da pessoa e o humor continua aparecendo no quanto ela é viva: murcho fica
+apagado e radiante fica vivo, os dois no tom escolhido. Quem não escolhe fica com a primeira cor
+da lista.
+_Evite_: skin, tema do pet
+
 **Streak**:
 Dias seguidos em que o usuário focou.
 _Evite_: sequência, ofensiva
@@ -108,3 +115,15 @@ _Evite_: notificação, post
 **Reação**:
 Uma resposta rápida, de um conjunto fixo e pequeno, a um evento. Não existe chat.
 _Evite_: curtida, like, mensagem
+
+**Obra**:
+O desenho que a sala constrói junto no dia: uma peça por membro, lado a lado ([ADR 0008](docs/adr/0008-obra-da-sala.md)). Zera todo dia e a sala solo não tem.
+_Evite_: projeto, conquista, missão
+
+**Peça**:
+A sua parte da obra — o vagão, o vaso, a casa. Cresce com os seus minutos focados no dia.
+_Evite_: item, pedaço, bloco
+
+**Meta da sala**:
+Quantos minutos focados completam uma peça. O dono escolhe; o padrão é 1 h.
+_Evite_: objetivo, cota

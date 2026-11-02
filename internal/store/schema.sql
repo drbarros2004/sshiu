@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
 	energy      REAL NOT NULL,
 	last_active INTEGER NOT NULL,
 	streak      INTEGER NOT NULL DEFAULT 0,
-	streak_day  TEXT NOT NULL DEFAULT ''
+	streak_day  TEXT NOT NULL DEFAULT '',
+	pet_color   TEXT NOT NULL DEFAULT ''   -- cor escolhida para o pet ("" = sai do humor)
 );
 CREATE TABLE IF NOT EXISTS tasks ( -- uma por tarefa encerrada
 	id           INTEGER PRIMARY KEY,
@@ -27,7 +28,9 @@ CREATE TABLE IF NOT EXISTS rooms (
 	owner       TEXT NOT NULL REFERENCES users(id), -- o dono da sala (ADR 0007)
 	slots       TEXT NOT NULL DEFAULT '',     -- do modelo antigo, sem uso
 	max_members INTEGER NOT NULL DEFAULT 10,  -- tamanho, mudado pelo dono
-	closed      INTEGER NOT NULL DEFAULT 0    -- 1 = não aceita mais ninguém, mesmo com vaga
+	closed      INTEGER NOT NULL DEFAULT 0,   -- 1 = não aceita mais ninguém, mesmo com vaga
+	obra        TEXT NOT NULL DEFAULT '',     -- o tema da obra ("" = sem obra, ADR 0008)
+	obra_meta   INTEGER NOT NULL DEFAULT 60   -- minutos focados que completam uma peça
 );
 CREATE TABLE IF NOT EXISTS room_members (
 	code    TEXT NOT NULL REFERENCES rooms(code),

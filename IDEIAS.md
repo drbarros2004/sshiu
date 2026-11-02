@@ -158,6 +158,22 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **Restrição:** não complicar. O núcleo continua sendo o terminal.
 - **O que já ajuda sem esforço extra:** o servidor já concentra tudo (salas, status); um app seria mais um cliente, como o web.
 
+## Temas de obra que faltam desenhar
+
+Cada tema custa quatro desenhos de 12×12 pixels ([ADR 0008](docs/adr/0008-obra-da-sala.md)). O gerador
+dos que existem é um mapa de caracteres, uma linha por linha de pixel.
+
+- **Horta:** vaso vazio, brotos com folhinhas, plantas com início de flor, vaso cheio de flores.
+- **Bolo de casamento:** cada pessoa faz um andar, e os andares se compõem numa escada. Quem não
+  focou deixa a escada desigual. Precisa de um arranjo vertical, que nenhum tema de hoje usa, e de
+  um teto de altura: com dez andares não cabe em terminal nenhum.
+- **Ponte:** pilar, viga, tabuleiro, guarda-corpo com lanternas. Quem não focou deixa um buraco no
+  meio da ponte, que é a ausência visível que o bolo queria, sem o problema de altura.
+- **Orquestra:** cadeira vazia, estante de partitura, músico sentado, músico tocando. A única em
+  que a peça não é intercambiável — o instrumento é de cada pessoa —, e por isso a mais cara:
+  os dois últimos estágios se multiplicam pelo número de instrumentos.
+- **Constelação, estante de livros, vitral:** anotadas na conversa, sem desenho.
+
 ## Dívida técnica conhecida
 
 Também marcada no código com comentários `ponytail:`.
@@ -165,4 +181,8 @@ Também marcada no código com comentários `ponytail:`.
 - **Migração ingênua:** o `ALTER TABLE` ignora o erro de "coluna já existe". Trocar por uma ferramenta de migração quando houver várias.
 - **Um lock só** para todas as salas e usuários em `internal/rooms`: dá para uma turma; um lock por sala se houver muitas.
 - **Sala sem rolagem** (`roomView` em `internal/tui/room.go`): quando falta altura, a lista de eventos encurta e os pets viram um ponto da cor do humor, mas com muita gente num terminal baixo (80×24 já com 6 membros) os cards passam da altura e são cortados. Rolagem nos cards se isso aparecer de verdade.
+- **O card não encolhe de verdade** (`card` em `internal/tui/room.go`): no modo compacto o pet vira
+  um ponto, mas a caixa continua com as duas linhas fixas da tarefa, então cada fileira de cards
+  custa 8 linhas mesmo vazia. É o que decide hoje se a obra cabe: em 120 colunas os cards cabem
+  numa fileira e a obra entra com 32 linhas; em 100 eles quebram em duas e ela só entra com 40.
 - **Contornos para servidor no Windows** (`lfWriter` e perfil de cores em `main.go`): só existem porque o Wish/Bubble Tea assumem Unix. No deploy em Linux, nem são usados.

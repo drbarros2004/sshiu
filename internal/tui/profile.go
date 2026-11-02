@@ -5,6 +5,7 @@ package tui
 import (
 	"fmt"
 	"plantao/internal/pet"
+	"plantao/internal/rooms"
 	"plantao/internal/store"
 	"strings"
 
@@ -26,7 +27,8 @@ func (m model) profileView() string {
 	info := bold.Render(m.nick) + "\n\n" +
 		"humor    " + moodSt.Render(pet.MoodName[mood]) + "\n" +
 		"energia  " + moodSt.Render(strings.Repeat("█", n)) + m.st.muted.Render(strings.Repeat("░", 20-n)) + fmt.Sprintf(" %.0f", e) + "\n" +
-		fmt.Sprintf("streak   %d %s", m.pet.StreakAt(m.now), plural(m.pet.StreakAt(m.now), "dia seguido", "dias seguidos")) + "\n\n" +
+		fmt.Sprintf("streak   %d %s", m.pet.StreakAt(m.now), plural(m.pet.StreakAt(m.now), "dia seguido", "dias seguidos")) + "\n" +
+		m.colorRow() + "\n\n" +
 		m.statsBlock(false) + "\n\n" +
 		bold.Render("últimas tarefas") + "\n"
 	if len(m.tasks) == 0 {
@@ -45,7 +47,59 @@ func (m model) profileView() string {
 		}
 		info += "\n"
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, pet.RenderBig(mood, m.tick, m.pixel), "    ", strings.TrimRight(info, "\n"))
+	return lipgloss.JoinHorizontal(lipgloss.Top, pet.RenderBig(mood, m.tick, m.pixel, m.myColor()), "    ",
+		strings.TrimRight(info, "\n"))
+}
+
+// myColor: a cor do pet em prévia — a salva, fora do modo personalizar.
+func (m model) myColor() string { return pet.Colors[m.pcolor].Hex }
+
+// colorRow: a linha da cor do pet. Fora do modo personalizar ela só diz qual é e como mexer;
+// dentro, é a linha que as setas mudam, com a prévia no pet grande ao lado.
+func (m model) colorRow() string {
+	c := pet.Colors[m.pcolor]
+	name := c.Name + " " + lipgloss.NewStyle().Foreground(lipgloss.Color(c.Hex)).Render("██")
+	if !m.custom {
+		return "cor      " + m.st.muted.Render(name)
+	}
+	return m.st.sel.Render("cor      ") + m.st.muted.Render("‹ ") + name + m.st.muted.Render(" ›")
+}
+
+func (m model) profileHelp() string {
+	if m.custom {
+		return "←/→ escolhe a cor · enter salva · esc volta"
+	}
+	return "c personaliza o pet"
+}
+
+// profileKey: por enquanto a personalização é só a cor, e c abre e fecha ela.
+func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	k := msg.String()
+	if !m.custom {
+		if k == "c" {
+			m.custom, m.notice = true, ""
+		}
+		return m, nil
+	}
+	switch k {
+	case "left":
+		m.pcolor = (m.pcolor + len(pet.Colors) - 1) % len(pet.Colors)
+	case "right":
+		m.pcolor = (m.pcolor + 1) % len(pet.Colors)
+	case "esc", "c":
+		m.pcolor, m.custom = m.pcSaved, false
+	case "enter":
+		id, hex := m.id, m.myColor()
+		m.pcSaved, m.custom, m.notice = m.pcolor, false, "salvo"
+		return m, act(func() {
+			if err := store.SetPetColor(id, hex); err != nil {
+				log.Error("setPetColor", "err", err)
+				return
+			}
+			rooms.SetColor(id, hex)
+		})
+	}
+	return m, nil
 }
 
 // visualRows: as linhas da aba visual, cada uma com o valor em prévia.

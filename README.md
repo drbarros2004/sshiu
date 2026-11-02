@@ -69,7 +69,17 @@ Por padrão o servidor só aceita quem está na própria máquina. Para outras p
 
 3. **Todo mundo na mesma rede.** De fora dela o roteador não deixa passar sem redirecionamento de porta, e alguns Wi-Fi de visitante isolam os aparelhos entre si.
 
-**Guarde a pasta `.ssh/`:** a chave do servidor nasce lá na primeira execução, e é ela que o cliente SSH memoriza. Se a chave mudar — pasta apagada, servidor recriado, outra máquina no mesmo endereço — todo mundo recebe `REMOTE HOST IDENTIFICATION HAS CHANGED` e só entra depois de limpar o `known_hosts`.
+**Guarde a pasta `.ssh/`:** a chave do servidor nasce lá na primeira execução, e é ela que o cliente SSH memoriza. Se a chave mudar — pasta apagada, servidor recriado, outra máquina no mesmo endereço — todo mundo recebe `REMOTE HOST IDENTIFICATION HAS CHANGED` e só entra depois de apagar a chave antiga:
+
+```bash
+ssh-keygen -R "[192.168.0.33]:23234"
+```
+
+Fora da porta 22, o endereço fica entre colchetes com a porta no fim: é assim que ele está gravado no `known_hosts`, e sem os colchetes o comando não acha nada para apagar. Na porta padrão basta `ssh-keygen -R 192.168.0.33`. Vale o mesmo para quem testa em `localhost`:
+
+```bash
+ssh-keygen -R "[localhost]:23234"
+```
 
 ## Mais
 

@@ -156,6 +156,10 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case m.owns():
 			return m.openConfig()
 		}
+	case "o": // a obra sozinha na tela, para quem não tem altura para ela junto com os cards
+		if m.obraOf(m.w.Rooms[code]) != nil {
+			m.obraFull = !m.obraFull
+		}
 	case "y": // o servidor não sabe se o terminal aceitou o OSC 52: o aviso diz só que mandou
 		if !m.solo() && code != rooms.DemoCode { // as duas salas sem código para passar adiante
 			m.notice = "código enviado para a área de transferência"
@@ -173,10 +177,12 @@ func (m model) roomHelp() string {
 	me := m.me()
 	focusing := me.Status == rooms.Focusing
 	switch {
+	case m.obraFull:
+		return "o volta para a sala"
 	case m.cfg:
 		return m.cfgHelp()
-	case m.inPicker() && m.form == formSize:
-		return "←/→ escolhe · enter cria · esc volta"
+	case m.inPicker() && m.form == formNew:
+		return "↑/↓ escolhe a linha · ←/→ muda · enter cria · esc volta"
 	case m.inPicker() && m.form == formJoin:
 		return "enter entra · esc volta"
 	case m.inPicker() && m.form != formNone:
@@ -190,12 +196,29 @@ func (m model) roomHelp() string {
 	case focusing && me.Focus.Expired(m.now): // as escolhas já estão em destaque no painel
 		return "s salas" + m.reactHelp()
 	case focusing:
-		return "f feito · t trocar · p parar · j modo jardim" + m.reactHelp() + " · s salas"
+		return "f feito · t trocar · p parar · j modo jardim" + m.reactHelp() + m.obraHint() + m.cfgHint() + " · s salas"
 	}
 	if m.solo() { // na sala solo o jardim abre sem tarefa: é a outra versão da tela
-		return "enter começa uma tarefa · j modo jardim · s salas"
+		return "enter começa uma tarefa · j modo jardim" + m.cfgHint() + " · s salas"
 	}
-	return "enter começa uma tarefa" + m.reactHelp() + " · s salas"
+	return "enter começa uma tarefa" + m.reactHelp() + m.obraHint() + m.cfgHint() + " · s salas"
+}
+
+// cfgHint: a tecla do menu, que só o dono tem (ADR 0007). Fica de fora com o tempo esgotado,
+// porque aí o c é "continuar" e o painel já diz isso.
+func (m model) cfgHint() string {
+	if !m.owns() {
+		return ""
+	}
+	return " · c configura"
+}
+
+// obraHint: a tecla da obra, que só existe onde há obra para ver.
+func (m model) obraHint() string {
+	if m.obraOf(m.w.Rooms[m.room]) == nil {
+		return ""
+	}
+	return " · o obra"
 }
 
 // reactHelp: as teclas de evento e reação, que a sala solo não tem.
@@ -228,40 +251,89 @@ func (m model) roomView(w, h int) string {
 			title += m.st.muted.Render(" · y copia")
 		}
 	}
-	if m.solo() && m.owns() && !busy { // é pelo menu que a sala solo cresce e ganha código
-		title += m.st.muted.Render(" · c configura")
-	}
 	if !m.solo() { // quanto a sala comporta, embaixo do nome; a solo é sempre uma pessoa
 		line := fmt.Sprintf("%d/%d pessoas", len(s.Members), s.Max)
 		if s.Closed {
 			line += " · fechada"
-		}
-		if m.owns() && !busy {
-			line += " · c configura"
 		}
 		title += "\n" + m.st.muted.Render(line)
 	}
 	if m.notice != "" {
 		title += "\n" + m.st.ok.Render(m.notice)
 	}
+	if m.obraFull { // a obra sozinha, na tecla o
+		return m.obraView(s, w, h)
+	}
 	if m.solo() { // a sala solo tem uma pessoa e nenhum card: ela já cabe
 		return title + "\n\n" + m.soloView()
 	}
-	alone := len(s.Members) == 1 && m.room != rooms.DemoCode // sozinho numa sala de mais
 	var out string
-	for _, compact := range []bool{false, true} {
-		for n := shownEvents; n >= 0 && (compact || n > 0); n -= 2 { // sem eventos só com os pets já encolhidos
-			out = title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s, w/18, compact)
-			switch {
-			case alone: // o convite vale mais que o feed vazio, e não encolhe
-				out += "\n\n" + m.invitePanel(s)
-			case n > 0:
-				out += "\n\n" + m.feed(n) + "\n\n" + m.legend()
-			}
+	for _, st := range m.fitSteps(s, w) {
+		// sem eventos só depois de a obra ou os pets já terem encolhido
+		for n := shownEvents; n >= 0 && (st.compact || st.ob != "" || n > 0); n -= 2 {
+			out = m.roomBody(s, title, w, n, st.compact, st.ob)
 			if lipgloss.Height(out) <= h {
 				return out
 			}
 		}
+	}
+	return out
+}
+
+// fitStep: uma tentativa de caber na altura, da tela cheia para a mais apertada.
+type fitStep struct {
+	ob      string // a obra desenhada, ou "" quando ela já não cabe
+	compact bool   // os pets viram um ponto da cor do humor
+}
+
+// fitSteps: a ordem em que a tela abre mão das coisas. Dentro de cada passo o feed encurta
+// primeiro; depois a obra troca o arranjo do tema por uma fileira só, depois os pets viram ponto,
+// e a obra sai por último — tirando ela, os pets voltam ao tamanho normal.
+//
+// Ela saía primeiro, e numa janela pequena isso queria dizer nunca aparecer: numa sala de seis
+// pessoas a obra pedia umas 50 linhas, que é mais do que um terminal costuma ter (ADR 0008).
+func (m model) fitSteps(s rooms.Snapshot, w int) []fitStep {
+	steps := []fitStep{{"", false}, {"", true}}
+	full := m.obraBlock(s, w, false)
+	if full == "" {
+		return steps
+	}
+	first := []fitStep{{full, false}}
+	if flat := m.obraBlock(s, w, true); flat != full { // o trem já é uma fileira: achatar não muda
+		first = append(first, fitStep{flat, false}, fitStep{flat, true})
+	} else {
+		first = append(first, fitStep{full, true})
+	}
+	return append(first, steps...)
+}
+
+// roomBody: a tela montada com n eventos, os pets do tamanho que couber e, se ob não for vazio,
+// a obra. O trem ocupa a largura e fica embaixo dos cards; a cidade cabe ao lado do log e vai
+// para o canto que hoje fica vazio, descendo para baixo dele quando a janela é estreita.
+func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, ob string) string {
+	out := title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s, w/18, compact)
+	alone := len(s.Members) == 1 && m.room != rooms.DemoCode // sozinho numa sala de mais
+	if alone {                                               // o convite vale mais que o feed vazio, e não encolhe
+		if ob != "" {
+			out += "\n\n" + ob
+		}
+		return out + "\n\n" + m.invitePanel(s)
+	}
+	var log string
+	if n > 0 {
+		log = m.feed(n) + "\n\n" + m.legend()
+	}
+	switch {
+	case ob == "":
+	case m.obraOf(s).wide:
+		out += "\n\n" + ob
+	case log == "" || w-lipgloss.Width(log)-obraGap < lipgloss.Width(ob):
+		out += "\n\n" + ob // não cabe ao lado: desce para baixo do log
+	default:
+		log = lipgloss.JoinHorizontal(lipgloss.Top, log, strings.Repeat(" ", obraGap), ob)
+	}
+	if log != "" {
+		out += "\n\n" + log
 	}
 	return out
 }
@@ -293,7 +365,7 @@ func (m model) soloView() string {
 	// o pet com quem você é ao lado, na altura dele: embaixo o nome ficava solto, longe do desenho
 	// (o sprite é centralizado numa caixa de 16, então ele nunca encosta na margem).
 	who := lipgloss.JoinHorizontal(lipgloss.Center,
-		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel)),
+		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel, m.me().Color)),
 		m.soloWho())
 	panel := strings.Join([]string{m.focusPanel(), "", who, "", m.soloLog()}, "\n")
 	if soloGardenWidth(max(m.width-4, 40)) == 0 {
@@ -466,7 +538,7 @@ func (m model) card(x rooms.Member, got int, compact bool) string {
 	if x.Status == rooms.Offline { // quem fechou o terminal dorme: o humor volta quando a pessoa volta
 		mood, st = pet.Sleeping, st.BorderForeground(m.st.off)
 	}
-	art := pet.Render(mood, m.tick, m.pixel)
+	art := pet.Render(mood, m.tick, m.pixel, x.Color)
 	if compact {
 		art = lipgloss.NewStyle().Foreground(lipgloss.Color(pet.MoodColor[mood])).Render("●")
 	}

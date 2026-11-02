@@ -42,10 +42,18 @@ func SeedBots() {
 		if err := store.PutUser("bot:"+b.nick, b.nick, b.energy); err != nil {
 			log.Fatal("seed bots", "err", err)
 		}
+		// os minutos de hoje saem da energia: é a escada que a demo precisa para a obra mostrar
+		// os quatro estágios ao mesmo tempo. Vai no banco, senão a primeira tarefa que o bot
+		// encerra lê de lá o zero e a obra esvazia enquanto a plateia olha.
+		if err := store.SetToday("bot:"+b.nick, time.Now().Format(time.DateOnly), b.energy); err != nil {
+			log.Fatal("seed bots", "err", err)
+		}
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	r := &room{code: DemoCode, name: "sala demo", max: MaxMembers}
+	// a demo é a vitrine: ela já chega com uma obra, senão a plateia não vê que existe
+	r := &room{code: DemoCode, name: "sala demo", max: MaxMembers,
+		obra: "trem", meta: store.DefaultObraMeta}
 	rooms[DemoCode] = r
 	for i, b := range bots {
 		u := load("bot:" + b.nick)
