@@ -113,6 +113,10 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	switch k {
+	case "left", "right": // na sala solo, trocam o wallpaper da coluna, como na tela cheia
+		if m.side != nil {
+			return m.swapWallpaper(m.side, map[string]int{"left": -1, "right": 1}[k])
+		}
 	case "up", "down":
 		ev := m.events()
 		if len(ev) == 0 {
@@ -196,7 +200,7 @@ func (m model) roomHelp() string {
 	case focusing && me.Focus.Expired(m.now): // as escolhas já estão em destaque no painel
 		return "s salas" + m.reactHelp()
 	case focusing:
-		return "f feito · t trocar · p parar · j modo jardim" + m.reactHelp() + m.obraHint() + m.cfgHint() + " · s salas"
+		return "f feito · t trocar · p parar · j modo jardim" + m.sideHint() + m.reactHelp() + m.obraHint() + m.cfgHint() + " · s salas"
 	}
 	if m.solo() { // na sala solo o jardim abre sem tarefa: é a outra versão da tela
 		return "enter começa uma tarefa · j modo jardim" + m.cfgHint() + " · s salas"
@@ -211,6 +215,14 @@ func (m model) cfgHint() string {
 		return ""
 	}
 	return " · c configura"
+}
+
+// sideHint: as setas do wallpaper, que só existem com a coluna do jardim na tela.
+func (m model) sideHint() string {
+	if m.side == nil {
+		return ""
+	}
+	return " · ←/→ wallpaper"
 }
 
 // obraHint: a tecla da obra, que só existe onde há obra para ver.
