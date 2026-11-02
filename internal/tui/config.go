@@ -1,7 +1,8 @@
 package tui
 
 // Menu do dono da sala, na tecla c (ADR 0007). O que se configura muda na própria página, com ←/→
-// na linha escolhida; passar a sala, remover alguém e encerrar abrem uma página própria.
+// na linha escolhida; passar a sala, remover alguém e encerrar abrem uma página própria. Passar e
+// encerrar não têm volta pelas mãos de quem fez, então pedem um "sim" antes.
 
 import (
 	"fmt"
@@ -31,6 +32,7 @@ const (
 	pageGive
 	pageKick
 	pageEnd
+	pageGiveYes // a confirmação de passar a sala para cwho
 )
 
 // owns: a sala que você está vendo é sua (ADR 0007). A demo não tem dono.
@@ -105,8 +107,23 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.cpage = pageMenu
 				return m, do(func() error { return rooms.Kick(id, code, who.ID) })
 			}
+			m.cpage, m.cwho, m.cyes = pageGiveYes, who.ID, false
+		}
+		return m, nil
+	case pageGiveYes:
+		who, ok := m.member(m.cwho)
+		switch k {
+		case "left", "right":
+			m.cyes = !m.cyes
+		case "esc":
+			m.cpage, m.cyes = pageGive, false
+		case "enter":
+			if !m.cyes || !ok { // "não", ou a pessoa saiu da sala enquanto a pergunta estava na tela
+				m.cpage, m.cyes = pageGive, false
+				return m, nil
+			}
 			// passar a sala tira os seus poderes: o menu fecha junto
-			m.cfg, m.cpage, m.notice = false, pageMenu, "a sala agora é de "+who.Nick
+			m.cfg, m.cpage, m.cyes, m.notice = false, pageMenu, false, "a sala agora é de "+who.Nick
 			return m, do(func() error { return rooms.Transfer(id, code, who.ID) })
 		}
 		return m, nil
@@ -178,7 +195,7 @@ func (m model) cfgHelp() string {
 			return "↑/↓ escolhe · enter remove · esc volta"
 		}
 		return "↑/↓ escolhe · enter passa a sala · esc volta"
-	case m.cpage == pageEnd:
+	case m.cpage == pageEnd, m.cpage == pageGiveYes:
 		return "←/→ escolhe · enter confirma · esc volta"
 	}
 	return "↑/↓ escolhe · ←/→ muda · enter abre · esc volta"
@@ -202,17 +219,17 @@ func (m model) cfgView() string {
 			b.WriteString(cfgRow(m, i == m.mcur, x.Nick, m.st.muted.Render(m.status(x))) + "\n")
 		}
 		return strings.TrimRight(b.String(), "\n")
+	case pageGiveYes:
+		who, _ := m.member(m.cwho)
+		aviso := "o menu de configurar passa a ser de " + who.Nick + ". você continua na sala, como os outros."
+		return bold.Render("passar "+s.Name+" para "+who.Nick+"?") + "\n\n" + m.st.muted.Render(aviso) +
+			"\n\n" + m.yesNo()
 	case pageEnd:
-		sim, nao := "sim", bold.Render("não")
-		if m.cyes {
-			sim, nao = bold.Render("sim"), "não"
-		}
 		aviso := "a sala some. o que você focou nela fica no seu histórico."
 		if n := len(s.Members); n > 1 {
 			aviso = fmt.Sprintf("a sala some para os %d membros. o histórico de cada um fica.", n)
 		}
-		return bold.Render("encerrar "+s.Name+"?") + "\n\n" + m.st.muted.Render(aviso) +
-			"\n\n" + m.st.muted.Render("‹ ") + nao + m.st.muted.Render(" · ") + sim + m.st.muted.Render(" ›")
+		return bold.Render("encerrar "+s.Name+"?") + "\n\n" + m.st.muted.Render(aviso) + "\n\n" + m.yesNo()
 	}
 
 	name := m.st.muted.Render(s.Name)
@@ -233,6 +250,24 @@ func (m model) cfgView() string {
 		cfgRow(m, m.ccur == cfgEnd, "encerrar a sala", ""),
 	}
 	return bold.Render("configurar") + m.st.muted.Render(" · "+s.Name) + "\n\n" + strings.Join(rows, "\n")
+}
+
+// yesNo: o "‹ não · sim ›" das confirmações, com a escolha em negrito. Começa no "não".
+func (m model) yesNo() string {
+	sim, nao := "sim", bold.Render("não")
+	if m.cyes {
+		sim, nao = bold.Render("sim"), "não"
+	}
+	return m.st.muted.Render("‹ ") + nao + m.st.muted.Render(" · ") + sim + m.st.muted.Render(" ›")
+}
+
+// member: o membro id da sala que você está vendo, se ele ainda estiver nela.
+func (m model) member(id string) (rooms.Member, bool) {
+	i := slices.IndexFunc(m.others(), func(x rooms.Member) bool { return x.ID == id })
+	if i < 0 {
+		return rooms.Member{}, false
+	}
+	return m.others()[i], true
 }
 
 // cfgRow: uma linha da lista, com o rótulo numa coluna fixa e o valor à direita. As linhas que

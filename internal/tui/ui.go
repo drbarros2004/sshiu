@@ -145,7 +145,8 @@ type model struct {
 	ccur     int             // linha escolhida no menu
 	mcur     int             // membro escolhido em passar/remover
 	cname    bool            // digitando o nome da sala na própria linha
-	cyes     bool            // "sim" escolhido na confirmação de encerrar
+	cyes     bool            // "sim" escolhido na confirmação de passar ou de encerrar
+	cwho     string          // quem vai receber a sala, na confirmação de passar
 	size     int             // tamanho escolhido para a sala nova
 	pcur     int             // item selecionado no menu
 	form     form            // formulário de sala em andamento
