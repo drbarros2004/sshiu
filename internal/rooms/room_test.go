@@ -41,6 +41,23 @@ func TestReact(t *testing.T) {
 	}
 }
 
+// Fechar o terminal com uma tarefa de pé: a sala vê offline na hora, antes de a tolerância de
+// reconexão interromper a tarefa.
+func TestStatusOffline(t *testing.T) {
+	u := &user{id: "ana", online: 1, focus: &Focus{}}
+	if u.status() != Focusing {
+		t.Fatalf("focando: %v", u.status())
+	}
+	u.online = 0
+	if u.status() != Offline {
+		t.Fatalf("saiu: %v", u.status())
+	}
+	u.focus = nil
+	if u.online = 1; u.status() != Idle {
+		t.Fatalf("voltou sem tarefa: %v", u.status())
+	}
+}
+
 // A sala demo é a única que não passa pelo banco, e os usuários já em memória não são procurados
 // lá: dá para testar o teto sem abrir o SQLite.
 func TestJoinFull(t *testing.T) {
