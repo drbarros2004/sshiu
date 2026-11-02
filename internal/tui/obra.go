@@ -14,10 +14,13 @@ import (
 	_ "embed"
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"plantao/internal/pet"
 	"plantao/internal/rooms"
+	"slices"
 	"strings"
+	"sync"
 
 	"charm.land/lipgloss/v2"
 )
@@ -176,13 +179,22 @@ func (m model) obraBlock(s rooms.Snapshot, cols int, flat bool) string {
 	col += pieceGap
 	vao := col - o.w()       // o que sobra da coluna é o vão, metade de cada lado da peça
 	avail := cols - pieceGap // margem para o bloco não encostar na borda da tela
+	per := avail / col
+	sozinha := false // a peça fixa não cabe ao lado de ninguém: ganha uma fileira só dela
 	if o.fixo > 0 {
-		avail -= o.fixo + vao // a peça fixa também ocupa espaço na fileira dela
+		if lado := (avail - o.fixo - vao) / col; lado >= 1 {
+			per = lado // a peça fixa também ocupa espaço na fileira dela
+		} else {
+			sozinha = true
+		}
 	}
 
 	var out [][3]string // cada fileira: o desenho, o chão e os apelidos
 	i := 0
-	rs := rows(len(ms), avail/col)
+	rs := rows(len(ms), per)
+	if slices.Max(append(rs, 0)) > max(per, 1) { // a tabela do tema é mais larga que a tela: vira fileira
+		rs = fitRows(len(ms), per)
+	}
 	fixo := -1 // a fileira da peça fixa, e onde ela entra: na frente ou no meio
 	at := func(int) int { return 0 }
 	switch {
@@ -191,9 +203,13 @@ func (m model) obraBlock(s rooms.Snapshot, cols int, flat bool) string {
 	case o.fixo > 0:
 		fixo = 0
 	}
+	if sozinha {
+		rs = slices.Insert(rs, fixo, 0)
+	}
 	for r, n := range rs {
-		// cada célula é uma peça com o seu rótulo; a fixa não é de ninguém e não leva nome
-		arts, names := []string{gapBlock(vao/2, nil)}, []string{strings.Repeat(" ", vao/2)}
+		// cada célula é uma peça com o seu rótulo; a fixa não é de ninguém e não leva nome. O desenho
+		// começa com meio vão e o apelido não: ele já é centrado na peça mais o vão inteiro dela
+		arts, names := []string{gapBlock(vao/2, nil)}, []string{}
 		floor := 0 // a largura do chão: cada célula é a peça mais o vão dela
 		add := func(art, nome string) {
 			if floor > 0 {
@@ -208,6 +224,9 @@ func (m model) obraBlock(s rooms.Snapshot, cols int, flat bool) string {
 				add(m.fixed(o), "")
 			}
 			add(m.piece(o, s, x), m.obraName(x))
+		}
+		if r == fixo && n == 0 { // a fileira só da peça fixa
+			add(m.fixed(o), "")
 		}
 		arts = append(arts, gapBlock(vao-vao/2, nil))
 		out = append(out, [3]string{
@@ -296,14 +315,38 @@ func stageFrame(o *obra, stage int, hex string) int {
 
 // frame: um quadro da folha do tema, com o corpo no tom de quem construiu.
 func (m model) frame(o *obra, i int, hex string) string {
-	return pet.Pixels(o.sheet, i*o.w(), 0, o.w(), pieceH, 1,
-		pet.Tint(pieceBody[0], pieceBody[1], hex))
+	return drawn(o, i*o.w(), o.w(), hex, true)
 }
 
 // fixed: a peça que não é de ninguém (a locomotiva, a fogueira), no fim da folha. Ela tem cores
 // próprias e não é tingida.
 func (m model) fixed(o *obra) string {
-	return pet.Pixels(o.sheet, o.sheet.Bounds().Dx()-o.fixo, 0, o.fixo, pieceH, 1, nil)
+	return drawn(o, o.sheet.Bounds().Dx()-o.fixo, o.fixo, "", false)
+}
+
+// quadros: cada quadro já desenhado, por tema, posição e cor. O desenho não muda, e cada sessão
+// redesenhava a obra inteira duas vezes a cada tick: numa sala de 10 eram 2 ms por sessão, o
+// mesmo custo quadrático dos cards (IDEIAS.md, "Atualização em tempo real").
+var quadros sync.Map
+
+type quadroKey struct {
+	o    *obra
+	x, w int
+	hex  string
+}
+
+func drawn(o *obra, x, w int, hex string, tinge bool) string {
+	k := quadroKey{o, x, w, hex}
+	if s, ok := quadros.Load(k); ok {
+		return s.(string)
+	}
+	var swap map[uint32]color.Color
+	if tinge {
+		swap = pet.Tint(pieceBody[0], pieceBody[1], hex)
+	}
+	s := pet.Pixels(o.sheet, x, 0, w, pieceH, 1, swap)
+	quadros.Store(k, s)
+	return s
 }
 
 // center: o desenho ou o apelido no meio de uma coluna de col células.

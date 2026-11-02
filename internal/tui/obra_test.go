@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 	"plantao/internal/pet"
@@ -9,7 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // O arranjo tem que dar conta de todo mundo: uma peça por pessoa, nem a mais nem a menos.
@@ -157,6 +160,69 @@ func TestFogueiraNoMeio(t *testing.T) {
 	// 1-2-1: a fogueira não tem nome, então a fileira do meio mostra só os dois de cada lado
 	if want := []string{"você", "ana bia", "caio"}; !slices.Equal(nomes, want) {
 		t.Errorf("fileiras %q, queria %q", nomes, want)
+	}
+}
+
+// salaCom: uma sala de n pessoas com apelidos de tamanho nick, em todos os estágios.
+func salaCom(obra string, n, nick int) (model, rooms.Snapshot) {
+	s := rooms.Snapshot{Obra: obra, Meta: 60, Max: rooms.MaxMembers}
+	for i := range n {
+		s.Members = append(s.Members, rooms.Member{ID: fmt.Sprint("m", i),
+			Nick: strings.Repeat(string(rune('a'+i)), nick), TodayMin: float64(i%4) * 20,
+			Color: pet.Colors[i%len(pet.Colors)].Hex})
+	}
+	return model{id: "m0", room: "s", w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": s}}}, s
+}
+
+// Nenhuma obra passa da largura que recebeu, em nenhum tamanho de sala, com apelido curto ou com
+// o mais comprido: a tabela da cidade e do acampamento cede para a fileira quando não cabe. Linha
+// que passa da tela o fit corta com "…" no meio do desenho.
+func TestObraCabeNaLargura(t *testing.T) {
+	for nome := range obras {
+		for n := 2; n <= rooms.MaxMembers; n++ {
+			for _, nick := range []int{3, 16} {
+				for _, w := range []int{30, 40, 50, 60, 80, 100, 120, 160} {
+					for _, flat := range []bool{false, true} {
+						m, s := salaCom(nome, n, nick)
+						for _, l := range strings.Split(m.obraBlock(s, w, flat), "\n")[1:] { // o cabeçalho é texto
+							if got := lipgloss.Width(l); got > w {
+								t.Fatalf("%s, %d pessoas, apelido %d, %d colunas, flat=%v: linha de %d",
+									nome, n, nick, w, flat, got)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// O apelido fica embaixo da peça dele, e não deslocado para a direita: com um apelido comprido o
+// vão cresce, e era aí que os nomes escorregavam.
+func TestApelidoEmbaixoDaPeca(t *testing.T) {
+	m, s := salaCom("horta", 2, 16)
+	lines := strings.Split(ansi.Strip(m.obraBlock(s, 120, true)), "\n")
+	art := []rune(lines[len(lines)-3]) // a última linha do desenho
+	names := lines[len(lines)-1]
+	var centros []float64 // o meio de cada vaso
+	for i := 0; i < len(art); {
+		if art[i] == ' ' {
+			i++
+			continue
+		}
+		j := i
+		for j < len(art) && art[j] != ' ' {
+			j++
+		}
+		centros = append(centros, float64(i+j-1)/2)
+		i = j
+	}
+	for k, nome := range []string{"você", strings.Repeat("b", 16)} {
+		ini := strings.Index(names, nome)
+		meio := float64(len([]rune(names[:ini]))) + float64(len([]rune(nome))-1)/2
+		if k >= len(centros) || math.Abs(meio-centros[k]) > 1 {
+			t.Errorf("%q no meio %.1f, peça no meio %v", nome, meio, centros)
+		}
 	}
 }
 
