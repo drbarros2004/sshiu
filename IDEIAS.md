@@ -100,6 +100,7 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 
 ### Tela "sobre"
 - **O quê:** um FAQ com perguntas e respostas sérias, misturadas com piadinhas. Tom de exemplo: "a focus app for real developers (or vibe-coders)".
+- **Créditos:** a tela leva o crédito do Minecraft parkour do wallpaper brainrot (canal Orbital, CC BY): a licença pede crédito para quem vê o vídeo, e o `CREDITS.md` só chega a quem lê o repo ([ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md)).
 
 ## Mais adiante
 

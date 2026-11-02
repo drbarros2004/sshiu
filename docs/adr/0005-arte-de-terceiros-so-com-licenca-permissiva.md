@@ -6,4 +6,4 @@ Os wallpapers do modo jardim (e qualquer arte que não seja nossa) vêm só de f
 
 - Nada do asciiart.eu nem da Joan Stark (jgs): os artistas mantêm os direitos e não há permissão publicada.
 - Projetos GPL (asciiquarium, cbonsai) servem só de inspiração: copiar a arte deles obrigaria o app inteiro a ser GPL.
-- Vídeo de gameplay entra quando quem publicou libera o uso por escrito: o Subway Surfers do canal oficial ("free to use - no copyright") e o Minecraft parkour em CC BY, ambos com permissão pedida aos autores. Eles ficam em `assets/videos/`, creditados em `CREDITS.md`.
+- Vídeo de gameplay entra quando quem publicou libera o uso por escrito, na descrição do vídeo: o Subway Surfers do canal oficial ("free to use - no copyright") e o Minecraft parkour em CC BY. Eles ficam em `assets/videos/`, creditados em `CREDITS.md`; o crédito do CC BY também precisa aparecer para quem usa o app, e vai na tela "sobre".
