@@ -2,6 +2,7 @@ package store
 
 import (
 	"plantao/internal/pet"
+	"slices"
 	"testing"
 	"time"
 )
@@ -59,5 +60,31 @@ func TestRecordTask(t *testing.T) {
 	}
 	if rs, _ := Rooms(); len(rs) != 0 { // o último saiu: a sala some
 		t.Fatalf("rooms %+v", rs)
+	}
+}
+
+// Os membros voltam do banco na ordem em que entraram, não na do id: é dela que sai o membro mais
+// antigo, que fica com a sala quando o dono sai (ADR 0007).
+func TestRoomMembersOrder(t *testing.T) {
+	if err := Open(t.TempDir() + "/t.db"); err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, id := range []string{"zeca", "ana", "mia"} {
+		if err := PutUser(id, id, pet.EnergyStart); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r, err := CreateRoom("zeca", "turma", 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"mia", "ana"} {
+		if err := JoinRoom(id, r.Code); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, err := RoomMembers(r.Code); err != nil || !slices.Equal(got, []string{"zeca", "mia", "ana"}) {
+		t.Fatalf("membros %v %v", got, err)
 	}
 }

@@ -102,12 +102,12 @@ func (u *user) minutesToday(now time.Time) float64 {
 
 func (u *user) status() Status {
 	switch {
+	case u.online == 0: // a tarefa ainda espera a tolerância, mas a sala vê a ausência na hora
+		return Offline
 	case u.focus != nil:
 		return Focusing
-	case u.online > 0:
-		return Idle
 	}
-	return Offline
+	return Idle
 }
 
 type Event struct {
@@ -323,7 +323,7 @@ func roomEvent(r *room, u *user, verb, task string) {
 	}
 }
 
-// React liga ou desliga a reação k de id a um evento. Ninguém reage ao próprio evento.
+// React liga ou desliga a reação k de id a um evento.
 func React(id, code string, eventID, k int) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -336,7 +336,7 @@ func react(id, code string, eventID, k int) {
 		return
 	}
 	for _, e := range r.events {
-		if e.ID != eventID || e.Who == id {
+		if e.ID != eventID {
 			continue
 		}
 		if i := slices.Index(e.Reacts[k], id); i >= 0 {

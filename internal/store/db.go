@@ -312,8 +312,10 @@ func DeleteRoom(code string) error {
 	return tx.Commit()
 }
 
+// RoomMembers: os membros na ordem em que entraram. É a ordem dos cards e a da sucessão do dono
+// (ADR 0007); sem o ORDER BY, o SQLite lê pelo índice da chave e devolve em ordem de id.
 func RoomMembers(code string) ([]string, error) {
-	rows, err := db.Query(`SELECT user_id FROM room_members WHERE code = ?`, code)
+	rows, err := db.Query(`SELECT user_id FROM room_members WHERE code = ? ORDER BY rowid`, code)
 	if err != nil {
 		return nil, err
 	}

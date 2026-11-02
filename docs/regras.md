@@ -30,10 +30,11 @@ Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indica
 
 | Regra | Valor | Por quê | Código |
 |---|---|---|---|
-| Tempos declarados | 10, 15, 25, 45 ou 60 min (padrão 25); na demo, também 1 min | A plateia da demo vê o fluxo inteiro. | [tui/room.go:42-45](../internal/tui/room.go#L42-L45) |
+| Tempos declarados | 5, 10, 15, 25, 45 ou 60 min (padrão 25); na demo, também 1 min | O 5 min é para a tarefa curta que também é concreta ("responder o e-mail da monitoria"); sem ele, quem ia fazer algo rápido declarava 10 e parava no meio. A plateia da demo vê o fluxo inteiro com 1 min. | [tui/room.go:42-46](../internal/tui/room.go#L42-L46) |
 | Tempo esgotado sem resposta | os minutos param de contar | Estar ausente nunca rende mais do que o tempo que o próprio usuário declarou. | [room.go:62](../internal/rooms/room.go#L62) |
 | Trocar, parar, desconectar | sem penalidade | Os minutos já contaram; punir faria os usuários declararem tempos folgados ou deixarem o terminal aberto. | [room.go:247](../internal/rooms/room.go#L247) |
 | Tolerância de reconexão | 2 min | Conexão instável não interrompe a tarefa. Sem volta, a tarefa é interrompida com os minutos até a desconexão. | [room.go:30](../internal/rooms/room.go#L30) |
+| Quem fechou o terminal | offline na hora, com o pet dormindo | A tolerância é da tarefa, não do que a sala mostra: ninguém "foca" com o terminal fechado, e o relógio parar de correr no card é o que avisa a sala. | [room.go:79](../internal/rooms/room.go#L79) |
 | Restart do servidor | desconexão de todo mundo na hora em que o servidor volta, com a mesma tolerância de 2 min | Uma atualização não derruba o foco da turma: quem reconecta a tempo vê o relógio onde estava. Sem volta, a tarefa é interrompida com os minutos até o restart. A tarefa em andamento fica no banco; eventos e reações se perdem. | [room.go:121](../internal/rooms/room.go#L121) |
 
 ## Na sala
@@ -52,7 +53,7 @@ Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indica
 | Regra | Valor | Por quê | Código |
 |---|---|---|---|
 | Tick da tela | 500 ms | Anima o pet e o relógio e atualiza a sala. | [ui.go:103](../internal/tui/ui.go#L103) |
-| Respiração do pet | 1 a 4 ticks por quadro (radiante rápido, murcho lento) | O cansaço aparece no ritmo, não só no desenho. | [render.go:89](../internal/pet/render.go#L89) |
+| Respiração do pet | 1 a 4 ticks por quadro (radiante rápido, murcho lento), 2 quadros; dormindo são 4, a 3 ticks | O cansaço aparece no ritmo, não só no desenho. No sono os dois quadros a mais são o z subindo da cabeça, num ciclo de 6 s. | [render.go:89](../internal/pet/render.go#L89) |
 | Modo jardim | liga depois de 30 s sem tecla, só durante o foco | | [garden.go:27](../internal/tui/garden.go#L27) |
 | Jardim na sala solo | ocupa a direita a partir de 96 colunas de terminal | Menos que isso e o painel fica apertado; aí a tela é só o painel. | [room.go:21-22](../internal/tui/room.go#L21-L22) |
 | Nome do wallpaper no modo jardim | 5 s, ao abrir e a cada troca (←/→) | Quem troca vê o nome do novo e descobre as setas, sem texto fixo na tela de descanso. | [garden.go:28](../internal/tui/garden.go#L28) |

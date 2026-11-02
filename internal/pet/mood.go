@@ -62,6 +62,7 @@ const (
 	Okay
 	Good
 	Radiant
+	Sleeping // o pet de quem está offline; não vem da energia, então MoodOf nunca o devolve
 )
 
 var moodMin = [...]float64{Wilted: 0, Tired: 20, Okay: 40, Good: 60, Radiant: 80} // energia mínima de cada estado

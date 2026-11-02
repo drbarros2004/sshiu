@@ -97,11 +97,12 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **O quê:** um wallpaper do modo jardim no estilo "brainrot": a tela dividida com um vídeo de Subway Surfers ou de corte de sabão, como nos cortes de vídeo que prendem a atenção. Só de piada, pensado para a demo.
 - **Como dá para fazer:** sem nada especial (nem Lua, nem protocolo de imagem do terminal). O mesmo truque do pet em pixel art: cada caractere `▀` mostra 2 pixels, um na cor da frente e outro no fundo. Os quadros do vídeo seriam convertidos antes (ffmpeg, em baixa resolução), embutidos no binário com `go:embed` e tocados no ritmo do modo jardim.
 - **Cuidados:**
-  - **Licença:** resolvida. Os dois vídeos do protótipo (Subway Surfers e Minecraft parkour) são sem copyright, conferido pelo usuário. Ao embutir os quadros, atualizar o [ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md), que hoje só aceita arte MIT/Apache/CC0, e o `CREDITS.md`.
+  - **Licença:** resolvida. Os dois vídeos do protótipo (Subway Surfers e Minecraft parkour) estão em `assets/videos/`, com fonte e licença no `CREDITS.md` e a exceção no [ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md). Falta trocar o `PLANTAO_VIDEOS` do protótipo por quadros gerados deles e embutidos com `go:embed`.
   - **Peso:** medido no protótipo ([PR #4](https://github.com/drbarros2004/ssh-focus-app/pull/4)): ~380 KB/s por usuário, 8× a chuva. Fica como está até a [passada de performance](#passada-de-performance).
 
 ### Tela "sobre"
 - **O quê:** um FAQ com perguntas e respostas sérias, misturadas com piadinhas. Tom de exemplo: "a focus app for real developers (or vibe-coders)".
+- **Créditos:** a tela leva o crédito do Minecraft parkour do wallpaper brainrot (canal Orbital, CC BY): a licença pede crédito para quem vê o vídeo, e o `CREDITS.md` só chega a quem lê o repo ([ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md)).
 
 ## Mais adiante
 
