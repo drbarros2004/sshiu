@@ -1,6 +1,6 @@
-# Plantão
+# sshiu
 
-> "Plantão" é um nome provisório, assim como "pet".
+> O nome tem o ssh dentro e o "shhh" de quem pede silêncio numa biblioteca. "Pet" ainda é um nome provisório.
 
 App de foco acessado por SSH, para uma turma estudar junto: cada usuário diz a próxima coisa concreta que vai fazer, foca por um tempo e cuida de um pet que reflete o próprio foco, à vista da sala.
 

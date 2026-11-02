@@ -2,9 +2,9 @@ package rooms
 
 import (
 	"fmt"
-	"plantao/internal/pet"
-	"plantao/internal/store"
 	"slices"
+	"sshiu/internal/pet"
+	"sshiu/internal/store"
 	"strings"
 	"testing"
 	"time"

@@ -1,8 +1,8 @@
 package store
 
 import (
-	"plantao/internal/pet"
 	"slices"
+	"sshiu/internal/pet"
 	"testing"
 	"time"
 )

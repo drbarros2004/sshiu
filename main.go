@@ -4,10 +4,10 @@ import (
 	"flag"
 	"io"
 	"net"
-	"plantao/internal/rooms"
-	"plantao/internal/store"
-	"plantao/internal/tui"
 	"runtime"
+	"sshiu/internal/rooms"
+	"sshiu/internal/store"
+	"sshiu/internal/tui"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -28,7 +28,7 @@ func main() {
 	host := flag.String("host", "localhost", "endereço de escuta (vazio = todas as interfaces)")
 	flag.Parse()
 
-	if err := store.Open("plantao.db"); err != nil {
+	if err := store.Open("sshiu.db"); err != nil {
 		log.Fatal("sqlite", "err", err)
 	}
 	if err := rooms.Load(); err != nil {
@@ -56,10 +56,10 @@ func main() {
 	}
 	ln, err := net.Listen("tcp", s.Addr)
 	if err != nil {
-		log.Fatal("porta ocupada? talvez o Plantão já esteja rodando", "err", err)
+		log.Fatal("porta ocupada? talvez o sshiu já esteja rodando", "err", err)
 	}
 	for _, h := range hosts(*host) {
-		log.Info("Plantão no ar: "+sshTo(h, *port), "demo", rooms.Demo)
+		log.Info("sshiu no ar: "+sshTo(h, *port), "demo", rooms.Demo)
 	}
 	log.Fatal(s.Serve(ln))
 }
@@ -68,7 +68,7 @@ func requireKey(next ssh.Handler) ssh.Handler {
 	return func(s ssh.Session) {
 		if s.PublicKey() == nil {
 			host, port, _ := net.SplitHostPort(s.LocalAddr().String()) // por onde esta sessão chegou
-			wish.Fatalln(s, "\nO Plantão usa sua chave SSH como login, e você ainda não tem uma.\n"+
+			wish.Fatalln(s, "\no sshiu usa sua chave SSH como login, e você ainda não tem uma.\n"+
 				"crie com:  ssh-keygen -t ed25519   (enter em tudo)\n"+
 				"depois entre de novo:  "+sshTo(host, port))
 			return
@@ -130,7 +130,7 @@ func programHandler(s ssh.Session) *tea.Program {
 	return tea.NewProgram(tui.New(id, sshCommand(s), roomCode(s)), opts...)
 }
 
-// roomCode: o código que veio no comando do ssh ("ssh -t plantao 49ae4z"), para quem recebe o convite
+// roomCode: o código que veio no comando do ssh ("ssh -t sshiu 49ae4z"), para quem recebe o convite
 // entrar na sala sem procurar o menu.
 func roomCode(s ssh.Session) string {
 	if cmd := s.Command(); len(cmd) > 0 {

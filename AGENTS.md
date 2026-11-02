@@ -1,6 +1,6 @@
-# Plantão
+# sshiu
 
-App de foco por SSH em Go (Wish v2 + Bubble Tea v2 + Lip Gloss v2, SQLite via `modernc.org/sqlite`) para uma turma. "Plantão" e "pet" são nomes provisórios.
+App de foco por SSH em Go (Wish v2 + Bubble Tea v2 + Lip Gloss v2, SQLite via `modernc.org/sqlite`) para uma turma. O nome é sshiu, sempre em minúsculas, como o comando `ssh sshiu`; "pet" ainda é provisório. A ideia de silêncio do nome aparece pouco e sem forçar (ver "O silêncio do sshiu" no [`IDEIAS.md`](IDEIAS.md)).
 
 - **Vocabulário**: use os termos de [`CONTEXT.md`](CONTEXT.md) na conversa, nos comentários e na interface.
 - **Decisões**: antes de mexer em identidade, no modelo de foco, nas salas, em chat/reações ou em arte de terceiros, leia o ADR correspondente em [`docs/adr/`](docs/adr/).
@@ -11,7 +11,7 @@ App de foco por SSH em Go (Wish v2 + Bubble Tea v2 + Lip Gloss v2, SQLite via `m
 
 - Responda em português. Código (identificadores, arquivos, pastas) em inglês; comentários e texto da interface em português.
 - Textos da interface não tratam ninguém no masculino: reestruture a frase em vez de usar "o(a)", "@" ou "x" (por exemplo, "qual vai ser o seu apelido?", não "Como quer ser chamado?").
-- Textos da interface começam com letra minúscula, inclusive títulos e a frase depois de um ponto. Siglas (SSH) e o logo (PLANTÃO) ficam como estão.
+- Textos da interface começam com letra minúscula, inclusive títulos e a frase depois de um ponto. Siglas (SSH) ficam como estão, e o logo (sshiu) também é minúsculo.
 - Pacotes em `internal/`, com dependência numa direção só: `tui` → `rooms` → `store` → `pet`. `main.go` sobe o servidor.
 - O schema do banco fica em [`internal/store/schema.sql`](internal/store/schema.sql), embutido com `go:embed`; coluna nova num banco que já existe também precisa do `ALTER TABLE` no `Open`.
 - Commits seguem o [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`), com a descrição em inglês. Commit e push só com o OK do usuário.
@@ -29,10 +29,10 @@ Toda mudança termina com `go vet ./...` e `go test ./...` passando, e toda feat
 
 ## Ver a TUI de verdade
 
-O usuário costuma deixar o próprio servidor rodando na porta 23234, com um binário também chamado `plantao.exe`.
+O usuário costuma deixar o próprio servidor rodando na porta 23234, com um binário também chamado `sshiu.exe` (antes, `plantao.exe`).
 
-- Suba o seu servidor na **porta 23235**, a partir de uma pasta de rascunho: `plantao.db` e `.ssh/` são lidos do diretório atual, então rodar na raiz mexe no banco do usuário. Ex.: `go build -o <rascunho>/plantao-teste.exe .` e rode dentro de `<rascunho>`.
-- Pare o seu servidor **pelo PID ou pelo caminho do executável**. Matar pelo nome `plantao.exe` já derrubou o servidor do usuário.
+- Suba o seu servidor na **porta 23235**, a partir de uma pasta de rascunho: `sshiu.db` e `.ssh/` são lidos do diretório atual, então rodar na raiz mexe no banco do usuário. Ex.: `go build -o <rascunho>/sshiu-teste.exe .` e rode dentro de `<rascunho>`.
+- Pare o seu servidor **pelo PID ou pelo caminho do executável**. Matar pelo nome do binário (`sshiu.exe`, ou o antigo `plantao.exe`) já derrubou o servidor do usuário.
 - O painel de terminal não dirige a TUI. Use um harness em Go na pasta de rascunho: cliente `golang.org/x/crypto/ssh` alimentando um emulador `github.com/charmbracelet/x/vt`, com passos como digitar, enter e esperar um texto.
 - Confira a tela **sem forçar redesenho** (`WindowChange`): o redesenho esconde bugs do renderer incremental. Para ver cores e pixel art, rasterize a tela num PNG.
 - No Windows, o OpenSSH recusa chave privada com permissões abertas ("UNPROTECTED PRIVATE KEY FILE"): `icacls <chave> /inheritance:r /grant:r "%USERNAME%:F"`.

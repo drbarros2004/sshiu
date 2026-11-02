@@ -1,9 +1,9 @@
 package tui
 
 import (
-	"plantao/internal/rooms"
-	"plantao/internal/store"
 	"slices"
+	"sshiu/internal/rooms"
+	"sshiu/internal/store"
 	"strings"
 	"testing"
 	"time"

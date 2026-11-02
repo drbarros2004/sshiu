@@ -1,6 +1,6 @@
-# Ideias de expansão do Plantão
+# Ideias de expansão do sshiu
 
-> **Plantão é um nome provisório (WIP).** O nome oficial do app ainda vai ser decidido com o grupo.
+> **O nome é sshiu**, decidido em 02/11/2026 ([#28](https://github.com/drbarros2004/ssh-focus-app/issues/28)): tem o ssh dentro e o "shhh" de quem pede silêncio numa biblioteca. "Pet" continua provisório.
 
 Backlog de ideias, sem compromisso de ordem (exceto onde indicado). Cada item diz o que é, por que importa e o que já se sabe sobre como fazer.
 Conceito e arquitetura originais: [doc "Plantão: infraestrutura e como evitar o vazio"](https://claude.ai/artifact/24PH3QwV6B6enMrD5Vv6x1). O vocabulário está em [`CONTEXT.md`](CONTEXT.md), as decisões em [`docs/adr/`](docs/adr/) e os números em [`docs/regras.md`](docs/regras.md).
@@ -60,16 +60,18 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **Prioridade:** essencial, mas depois dos gráficos.
 - **O quê:** em vez de um pet só, cada usuário escolhe o seu entre vários, cada um com os próprios humores.
 - **Por quê:** personalização. Pelo ritmo em que os sprites atuais saíram, 10 a 15 pets parece viável para o MVP.
+- **O nome "pet":** continua provisório. Ficou de fora da decisão do nome do app ([#28](https://github.com/drbarros2004/ssh-focus-app/issues/28)).
 
 ### Leaderboard da sala
 - **O quê:** um ranking dentro de cada sala.
 - **Por quê:** dá um motivo coletivo para voltar, além do pet de cada um.
 
-### Pôr no ar: `ssh <nome>`
-- **O quê:** um servidor público com domínio, ouvindo na porta 22, para entrar só com `ssh <nome>`, como o `ssh terminal.shop`. O convite de uma sala vira uma linha para colar no grupo da turma: `ssh -t <nome> <código>`. O `-t` está lá porque, com o código no fim, o ssh não pede terminal; ler o código do usuário (`ssh <código>@<nome>`) dispensaria o `-t` e deixaria o convite mais curto.
+### Pôr no ar: `ssh sshiu`
+- **O quê:** um servidor público com domínio, ouvindo na porta 22, para entrar só com `ssh sshiu` (ou `ssh sshiu.<domínio>`), como o `ssh terminal.shop`. O convite de uma sala vira uma linha para colar no grupo da turma: `ssh -t sshiu <código>`. O `-t` está lá porque, com o código no fim, o ssh não pede terminal; ler o código do usuário (`ssh <código>@<nome>`) dispensaria o `-t` e deixaria o convite mais curto.
 - **Como:** escutar em todas as interfaces (já dá, com `-host 0.0.0.0`), porta 22, chave do servidor fixa e fora do git (publicar o fingerprint para quem quiser conferir), binário compilado com `GOOS=linux`. Quem entra só precisa de um cliente SSH e de uma chave.
 - **A chave do servidor nunca muda:** o cliente SSH guarda a chave do servidor na primeira conexão. Se ela mudar (servidor recriado, `.ssh/` apagado, outra máquina no mesmo endereço), todo usuário recebe o aviso "REMOTE HOST IDENTIFICATION HAS CHANGED" e a conexão é recusada. Guardar a chave do servidor com backup e levá-la junto em qualquer migração.
-- **Quando:** sem pressa, mas o grupo precisa conseguir entrar e se ver antes da apresentação. Depende do nome do app (o domínio).
+- **Quando:** sem pressa, mas o grupo precisa conseguir entrar e se ver antes da apresentação. O nome já é sshiu; falta escolher o domínio ([#24](https://github.com/drbarros2004/ssh-focus-app/issues/24), [#25](https://github.com/drbarros2004/ssh-focus-app/issues/25)).
+- **O repositório:** ele ainda se chama `ssh-focus-app` no GitHub. Renomear para `sshiu` quando o app for ao ar; o GitHub redireciona os links antigos.
 
 ### Telas de tamanhos diferentes
 - **O quê:** testar o app em tamanhos de terminal diferentes e ver que adaptações cabem. Já foi testado em tela cheia num notebook e em parte da tela de um monitor maior.
@@ -97,12 +99,23 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **O quê:** um wallpaper do modo jardim no estilo "brainrot": a tela dividida com um vídeo de Subway Surfers ou de corte de sabão, como nos cortes de vídeo que prendem a atenção. Só de piada, pensado para a demo.
 - **Como dá para fazer:** sem nada especial (nem Lua, nem protocolo de imagem do terminal). O mesmo truque do pet em pixel art: cada caractere `▀` mostra 2 pixels, um na cor da frente e outro no fundo. Os quadros do vídeo seriam convertidos antes (ffmpeg, em baixa resolução), embutidos no binário com `go:embed` e tocados no ritmo do modo jardim.
 - **Cuidados:**
-  - **Licença:** resolvida. Os dois vídeos do protótipo (Subway Surfers e Minecraft parkour) estão em `assets/videos/`, com fonte e licença no `CREDITS.md` e a exceção no [ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md). Falta trocar o `PLANTAO_VIDEOS` do protótipo por quadros gerados deles e embutidos com `go:embed`.
+  - **Licença:** resolvida. Os dois vídeos do protótipo (Subway Surfers e Minecraft parkour) estão em `assets/videos/`, com fonte e licença no `CREDITS.md` e a exceção no [ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md). Falta trocar o `SSHIU_VIDEOS` do protótipo por quadros gerados deles e embutidos com `go:embed`.
   - **Peso:** medido no protótipo ([PR #4](https://github.com/drbarros2004/ssh-focus-app/pull/4)): ~380 KB/s por usuário, 8× a chuva. Fica como está até a [passada de performance](#passada-de-performance).
 
 ### Tela "sobre"
 - **O quê:** um FAQ com perguntas e respostas sérias, misturadas com piadinhas. Tom de exemplo: "a focus app for real developers (or vibe-coders)".
+- **O nome:** é o lugar natural para explicar o sshiu, com as respostas que ficaram do brainstorming do nome: "por que sshiu? é o ssh de quem pede silêncio" e "por que não tem chat? aqui é uma biblioteca" ([ADR 0004](docs/adr/0004-sem-chat-so-reacoes.md)).
 - **Créditos:** a tela leva o crédito do Minecraft parkour do wallpaper brainrot (canal Orbital, CC BY): a licença pede crédito para quem vê o vídeo, e o `CREDITS.md` só chega a quem lê o repo ([ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md)).
+
+### O silêncio do sshiu
+O nome pede silêncio, e a ideia aparece no app sem forçar. Do brainstorming de 02/11/2026 entraram só o feed vazio ("silêncio por aqui") e a linha embaixo do logo na primeira tela ("um lugar quieto para focar junto"). O resto ficou aqui, das mais discretas às mais ousadas:
+- **"reagir em silêncio":** a dica das reações. É verdade ao pé da letra: as reações estão lá para ninguém precisar falar ([ADR 0004](docs/adr/0004-sem-chat-so-reacoes.md)).
+- **"saiu na ponta dos pés":** o evento de saída no feed. Aparece muitas vezes por dia, então pode cansar.
+- **Plaquinha de silêncio:** "🤫 3 focando" no cabeçalho da sala, só quando duas ou mais pessoas estão focando, como a placa de uma biblioteca.
+- **Despedida ao sair:** "shhh… até a próxima." no terminal, depois do `q`. Seria o único lugar com o "shhh" escrito.
+- **O pet faz "shh":** um quadro do pet com o dedo na boca quando alguém reage enquanto você foca.
+- **Modo biblioteca:** durante o foco, as reações recebidas ficam guardadas e só aparecem quando a tarefa acaba.
+- **Cuidado:** o "shhh" é sutil. Uma ou duas dessas por vez, e só as que já são verdade no app.
 
 ## Mais adiante
 

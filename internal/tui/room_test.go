@@ -1,8 +1,8 @@
 package tui
 
 import (
-	"plantao/internal/rooms"
 	"slices"
+	"sshiu/internal/rooms"
 	"strings"
 	"testing"
 	"time"
@@ -12,10 +12,10 @@ import (
 
 func TestRoomCode(t *testing.T) {
 	for in, want := range map[string]string{
-		"fg7dhm":                         "fg7dhm",
-		"  FG7DHM\n":                     "fg7dhm", // colado com espaço e quebra de linha
-		"ssh -t -p 23234 plantao fg7dhm": "fg7dhm", // o convite inteiro
-		"":                               "",
+		"fg7dhm":                       "fg7dhm",
+		"  FG7DHM\n":                   "fg7dhm", // colado com espaço e quebra de linha
+		"ssh -t -p 23234 sshiu fg7dhm": "fg7dhm", // o convite inteiro
+		"":                             "",
 	} {
 		if got := roomCode(in); got != want {
 			t.Errorf("roomCode(%q) = %q, queria %q", in, got, want)
