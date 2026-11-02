@@ -6,7 +6,7 @@ import (
 )
 
 func TestSSHTo(t *testing.T) {
-	if got := sshTo("plantao.exemplo", "22"); got != "ssh plantao.exemplo" {
+	if got := sshTo("sshiu.exemplo", "22"); got != "ssh sshiu.exemplo" {
 		t.Errorf("porta 22 não precisa de -p: %q", got)
 	}
 	if got := sshTo("192.168.0.33", "23234"); got != "ssh -p 23234 192.168.0.33" {

@@ -16,9 +16,9 @@ import (
 	"image"
 	"image/color"
 	"image/png"
-	"plantao/internal/pet"
-	"plantao/internal/rooms"
 	"slices"
+	"sshiu/internal/pet"
+	"sshiu/internal/rooms"
 	"strings"
 	"sync"
 

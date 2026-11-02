@@ -5,9 +5,9 @@ package tui
 
 import (
 	"fmt"
-	"plantao/internal/pet"
-	"plantao/internal/rooms"
 	"slices"
+	"sshiu/internal/pet"
+	"sshiu/internal/rooms"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -365,7 +365,7 @@ func (m model) invitePanel(s rooms.Snapshot) string {
 		return bold.Render("você é o primeiro aqui.") + "\n\n" + aviso
 	}
 	return bold.Render("você é o primeiro aqui.") + m.st.muted.Render(" para a turma entrar na sala:") + "\n\n" +
-		row("no Plantão", m.st.muted.Render("aperta ")+"s"+m.st.muted.Render(", escolhe ")+"entrar com código"+
+		row("no sshiu", m.st.muted.Render("aperta ")+"s"+m.st.muted.Render(", escolhe ")+"entrar com código"+
 			m.st.muted.Render(" e digita o código da sala")) + "\n" +
 		row("no terminal", m.st.title.Render(m.invite+" "+s.Code))
 }
@@ -567,7 +567,7 @@ func (m model) feed(n int) string {
 	ev := m.events()
 	ev = ev[:min(max(n, 0), len(ev))]
 	if len(ev) == 0 {
-		return m.st.muted.Render("nada por aqui ainda: quando alguém começar ou cumprir uma tarefa, aparece aqui")
+		return m.st.muted.Render("silêncio por aqui. quando alguém começar ou cumprir uma tarefa, aparece aqui")
 	}
 	text := func(e rooms.Event) string {
 		nick := e.Nick

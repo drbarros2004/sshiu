@@ -1,4 +1,4 @@
--- O schema do Plantão, embutido no binário (go:embed em db.go) e rodado a cada Open.
+-- O schema do sshiu, embutido no binário (go:embed em db.go) e rodado a cada Open.
 -- Coluna nova entra aqui e também como ALTER TABLE no Open, para os bancos que já existem.
 -- As tabelas sprints e friends, do modelo antigo, ficam nos bancos que já as têm, sem uso.
 

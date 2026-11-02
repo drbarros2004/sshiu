@@ -5,9 +5,9 @@ package rooms
 
 import (
 	"math/rand/v2"
-	"plantao/internal/pet"
-	"plantao/internal/store"
 	"slices"
+	"sshiu/internal/pet"
+	"sshiu/internal/store"
 	"time"
 
 	"charm.land/log/v2"

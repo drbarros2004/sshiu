@@ -5,8 +5,8 @@ package tui
 
 import (
 	"fmt"
-	"plantao/internal/rooms"
 	"slices"
+	"sshiu/internal/rooms"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -145,7 +145,7 @@ func (m model) join(code string) tea.Cmd {
 }
 
 // roomCode: o código no que a pessoa escreveu ou colou. Quem cola o convite inteiro
-// ("ssh -t -p 23234 plantao fg7dhm") quer a sala do fim da linha, não uma sala chamada "ssh".
+// ("ssh -t -p 23234 sshiu fg7dhm") quer a sala do fim da linha, não uma sala chamada "ssh".
 func roomCode(s string) string {
 	f := strings.Fields(strings.ToLower(s))
 	if len(f) == 0 {

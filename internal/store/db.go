@@ -6,7 +6,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"plantao/internal/pet"
+	"sshiu/internal/pet"
 	"time"
 
 	_ "modernc.org/sqlite"

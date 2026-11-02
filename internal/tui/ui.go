@@ -7,10 +7,10 @@ package tui
 import (
 	"fmt"
 	"image/color"
-	"plantao/internal/pet"
-	"plantao/internal/rooms"
-	"plantao/internal/store"
 	"slices"
+	"sshiu/internal/pet"
+	"sshiu/internal/rooms"
+	"sshiu/internal/store"
 	"strings"
 	"time"
 
@@ -28,7 +28,7 @@ import (
 type theme struct{ name, accent, muted, border, off, good, bad string }
 
 var themes = []theme{
-	{"plantão", "#ff8700", "#7a7a7a", "#4a4a4a", "#212121", "#5fd787", "#ff5f5f"},
+	{"sshiu", "#ff8700", "#7a7a7a", "#4a4a4a", "#212121", "#5fd787", "#ff5f5f"},
 	{"catppuccin", "#cba6f7", "#7f849c", "#45475a", "#1f1f28", "#a6e3a1", "#f38ba8"},
 	{"dracula", "#bd93f9", "#6272a4", "#44475a", "#1e1f28", "#50fa7b", "#ff5555"},
 	{"gruvbox", "#fe8019", "#928374", "#665c54", "#2d2925", "#b8bb26", "#fb4934"},
@@ -460,7 +460,8 @@ func (m model) View() tea.View {
 	}
 	var body string
 	if m.nick == "" {
-		body = m.st.title.Render("PLANTÃO") + "\n\nprimeira vez por aqui. qual vai ser o seu apelido?\n\n" + m.in.View() +
+		body = m.st.title.Render("sshiu") + "\n" + m.st.muted.Render("um lugar quieto para focar junto") +
+			"\n\nprimeira vez por aqui. qual vai ser o seu apelido?\n\n" + m.in.View() +
 			m.errLine() + "\n\n" + m.st.muted.Render("enter confirma · sua chave SSH é o seu login")
 	} else {
 		var help string
@@ -535,7 +536,7 @@ func (m model) errLine() string {
 
 // header: abas à esquerda, o seu status à direita, sempre visível.
 func (m model) header() string {
-	parts := []string{m.st.title.Render("PLANTÃO") + " "}
+	parts := []string{m.st.title.Render("sshiu") + " "}
 	for i, name := range tabNames {
 		if tab(i) == m.tab {
 			parts = append(parts, m.st.tabOn.Render(name))

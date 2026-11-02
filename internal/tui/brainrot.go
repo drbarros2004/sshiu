@@ -2,11 +2,11 @@ package tui
 
 // PROTÓTIPO: o wallpaper de piada "para desenvolvedores de verdade" (IDEIAS.md). Dois vídeos, um em cada
 // borda, e o relógio e a tarefa no meio, como nos cortes com a tela dividida, só que em dobro.
-// ponytail: os quadros vêm de PLANTAO_VIDEOS (uma pasta por vídeo, PNGs feitos com o ffmpeg), fora do
+// ponytail: os quadros vêm de SSHIU_VIDEOS (uma pasta por vídeo, PNGs feitos com o ffmpeg), fora do
 // git, até a licença estar decidida; embutir com go:embed se o wallpaper ficar. Vertical, como no
 // celular: o centro do vídeo 16:9 cortado em 9:16, 54 colunas × 48 linhas no tamanho cheio.
 //
-//	ffmpeg -i subway.mp4 -vf "fps=8,crop=ih*9/16:ih,scale=54:96:flags=area" <PLANTAO_VIDEOS>/subway/%04d.png
+//	ffmpeg -i subway.mp4 -vf "fps=8,crop=ih*9/16:ih,scale=54:96:flags=area" <SSHIU_VIDEOS>/subway/%04d.png
 
 import (
 	"fmt"
@@ -21,7 +21,7 @@ import (
 )
 
 func init() {
-	dir := os.Getenv("PLANTAO_VIDEOS")
+	dir := os.Getenv("SSHIU_VIDEOS")
 	if dir == "" {
 		return
 	}

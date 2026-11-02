@@ -4,9 +4,9 @@ package tui
 
 import (
 	"fmt"
-	"plantao/internal/pet"
-	"plantao/internal/rooms"
-	"plantao/internal/store"
+	"sshiu/internal/pet"
+	"sshiu/internal/rooms"
+	"sshiu/internal/store"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"

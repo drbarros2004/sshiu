@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"image/color"
 	"math"
-	"plantao/internal/pet"
-	"plantao/internal/rooms"
 	"slices"
+	"sshiu/internal/pet"
+	"sshiu/internal/rooms"
 	"strings"
 	"testing"
 

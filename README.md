@@ -1,6 +1,4 @@
-# Plantão
-
-> Nome provisório (WIP): o nome oficial ainda vai ser decidido com o grupo.
+# sshiu
 
 Um app de foco que roda no terminal, por SSH, para uma turma estudar junto. Você diz a próxima coisa concreta que vai fazer e por quanto tempo, foca, e marca "feito" quando terminar. A sua sala vê quem está focando e em quê, e reage. O seu pet floresce quando você foca e murcha quando você some.
 
@@ -36,7 +34,7 @@ Precisa de Go 1.27 ou mais novo e de um cliente SSH.
    ```bash
    go run . -demo
    ```
-   Com `-demo`, aparece uma sala demo com bots e dá para escolher tarefas de 1 minuto. Na primeira vez, o servidor cria a própria chave em `.ssh/` e o banco `plantao.db`.
+   Com `-demo`, aparece uma sala demo com bots e dá para escolher tarefas de 1 minuto. Na primeira vez, o servidor cria a própria chave em `.ssh/` e o banco `sshiu.db`.
 
 3. **Conecte** em outro terminal:
    ```bash
@@ -63,7 +61,7 @@ Por padrão o servidor só aceita quem está na própria máquina. Para outras p
 
 2. **Libere a porta no firewall do Windows**, num PowerShell como administrador:
    ```powershell
-   New-NetFirewallRule -DisplayName "Plantão" -Direction Inbound -Protocol TCP -LocalPort 23234 -Action Allow -Profile Private
+   New-NetFirewallRule -DisplayName "sshiu" -Direction Inbound -Protocol TCP -LocalPort 23234 -Action Allow -Profile Private
    ```
    Veja em que perfil você está com `Get-NetConnectionProfile`: numa rede **pública** o Windows recusa conexões de entrada, então ou a regra vai com `-Profile Public`, ou a rede passa a privada.
 

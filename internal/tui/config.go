@@ -6,8 +6,8 @@ package tui
 
 import (
 	"fmt"
-	"plantao/internal/rooms"
 	"slices"
+	"sshiu/internal/rooms"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
