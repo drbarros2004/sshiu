@@ -144,7 +144,7 @@ func (m model) obraBlock(s rooms.Snapshot, cols int, flat bool) string {
 			strings.Join(names, ""))
 		i += n
 	}
-	return m.obraHead(s) + "\n" + strings.Join(out, "\n")
+	return m.obraHead(s) + "\n\n" + strings.Join(out, "\n")
 }
 
 // gapBlock: o vão entre duas peças, da altura do desenho. Com o tema que engata — o trem — ele
