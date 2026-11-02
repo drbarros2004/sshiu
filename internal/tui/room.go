@@ -190,12 +190,21 @@ func (m model) roomHelp() string {
 	case focusing && me.Focus.Expired(m.now): // as escolhas já estão em destaque no painel
 		return "s salas" + m.reactHelp()
 	case focusing:
-		return "f feito · t trocar · p parar · j modo jardim" + m.reactHelp() + " · s salas"
+		return "f feito · t trocar · p parar · j modo jardim" + m.reactHelp() + m.cfgHint() + " · s salas"
 	}
 	if m.solo() { // na sala solo o jardim abre sem tarefa: é a outra versão da tela
-		return "enter começa uma tarefa · j modo jardim · s salas"
+		return "enter começa uma tarefa · j modo jardim" + m.cfgHint() + " · s salas"
 	}
-	return "enter começa uma tarefa" + m.reactHelp() + " · s salas"
+	return "enter começa uma tarefa" + m.reactHelp() + m.cfgHint() + " · s salas"
+}
+
+// cfgHint: a tecla do menu, que só o dono tem (ADR 0007). Fica de fora com o tempo esgotado,
+// porque aí o c é "continuar" e o painel já diz isso.
+func (m model) cfgHint() string {
+	if !m.owns() {
+		return ""
+	}
+	return " · c configura"
 }
 
 // reactHelp: as teclas de evento e reação, que a sala solo não tem.
@@ -228,16 +237,10 @@ func (m model) roomView(w, h int) string {
 			title += m.st.muted.Render(" · y copia")
 		}
 	}
-	if m.solo() && m.owns() && !busy { // é pelo menu que a sala solo cresce e ganha código
-		title += m.st.muted.Render(" · c configura")
-	}
 	if !m.solo() { // quanto a sala comporta, embaixo do nome; a solo é sempre uma pessoa
 		line := fmt.Sprintf("%d/%d pessoas", len(s.Members), s.Max)
 		if s.Closed {
 			line += " · fechada"
-		}
-		if m.owns() && !busy {
-			line += " · c configura"
 		}
 		title += "\n" + m.st.muted.Render(line)
 	}
