@@ -34,7 +34,8 @@ var Demo bool // flag -demo: a sala demo, com bots
 
 // Obras: os temas que a sala pode construir, na ordem em que o dono escolhe ("" = sem obra).
 // O desenho de cada peça está na interface; aqui só mora o nome (ADR 0008).
-var Obras = []string{"", "trem", "cidade"}
+var Obras = []string{"", "trem", "cidade", "horta", "estante", "feira", "acampamento", "orquestra",
+	"passarinhos", "porto", "foguetes"}
 
 // ObraMetas: as metas que dá para escolher, em minutos focados por pessoa (docs/regras.md).
 var ObraMetas = []int{30, 60, 90, 120, 180}
