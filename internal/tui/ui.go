@@ -136,7 +136,7 @@ type model struct {
 	obraFull      bool         // a obra sozinha na tela (tecla o)
 	garden        *garden      // modo jardim em tela cheia (nil = desligado)
 	side          *garden      // o jardim da coluna da sala solo (nil = não tem)
-	lastKey       time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim
+	lastKey       time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim, se a aba visual deixar
 	wall          int          // o wallpaper trocado no jardim, que vale para a tarefa...
 	wallFor       time.Time    // ...que começou neste instante
 
@@ -296,7 +296,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case m.garden != nil && !m.garden.keep && !active: // o foco acabou ou esgotou: volta para responder
 			m.garden = nil
-		case m.garden == nil && active && m.nick != "" && m.now.Sub(m.lastKey) >= gardenIdle:
+		case m.garden == nil && active && m.nick != "" && m.vis.Auto && m.now.Sub(m.lastKey) >= gardenIdle:
 			var cmd tea.Cmd
 			m, cmd = m.openGarden(false)
 			return m, tea.Batch(doTick(), cmd)

@@ -115,6 +115,7 @@ func (m model) visualRows() [][2]string {
 		{"relógio", clockModes[m.vis.Clock]},
 		{"tarefa", shown[m.vis.Task]},
 		{"quem mais está focando", shown[m.vis.Room]},
+		{"liga sozinho", map[bool]string{true: fmt.Sprintf("depois de %.0f s", gardenIdle.Seconds()), false: "nunca"}[m.vis.Auto]},
 	}
 }
 
@@ -160,6 +161,8 @@ func (m model) visualKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.vis.Task = !m.vis.Task
 	case 4:
 		m.vis.Room = !m.vis.Room
+	case 5:
+		m.vis.Auto = !m.vis.Auto
 	}
 	return m, nil
 }

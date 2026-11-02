@@ -8,7 +8,7 @@ Um app de foco que roda no terminal, por SSH, para uma turma estudar junto. Voc�
 
 ![A sala demo com cinco bots](docs/telas/sala.png)
 
-**Modo jardim:** a tela de descanso durante o foco, que liga com `j` ou depois de 30 s sem tecla. Um wallpaper animado e calmo, com o tempo restante, a tarefa e quem mais está focando por cima.
+**Modo jardim:** a tela de descanso durante o foco, que liga com `j` ou, se você deixar, depois de 30 s sem tecla. Um wallpaper animado e calmo, com o tempo restante, a tarefa e quem mais está focando por cima.
 
 ![O modo jardim com o wallpaper da estrada à noite](docs/telas/jardim.webp)
 
