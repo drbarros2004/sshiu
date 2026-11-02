@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 //go:embed obra-trem.png
@@ -78,6 +79,7 @@ type obra struct {
 	centro bool                   // a peça fixa fica no meio da fileira do meio; senão, na frente
 	inst   bool                   // do terceiro estágio em diante, um par de quadros por cor do pet
 	anim   int                    // ticks por quadro do movimento (0 = parado); o quadro B fica embaixo na folha
+	nota   bool                   // a peça que toca canta: um ♫ onde a folha marca com notaCor
 	wide   bool                   // ocupa a largura da tela (o trem); senão cabe no canto, centrada
 	rows   func(n, per int) []int // quantas peças em cada fileira, cabendo per peças numa
 }
@@ -122,10 +124,10 @@ func init() {
 		fixo: pieceW, centro: true, anim: 1, rows: campRows}
 	// o instrumento sai da cor do pet, na ordem de pet.Colors: quem é azul toca violino
 	obras["orquestra"] = &obra{sheet: read(orquestraPNG), chao: [2]string{"#8A6A3E", "#5A4529"},
-		inst: true, anim: 2, wide: true, rows: fitRows}
+		inst: true, anim: 2, nota: true, wide: true, rows: fitRows}
 	// o fio é o engate: ele sai do poste, que não é de ninguém, e passa por todo mundo
 	obras["passarinhos"] = &obra{sheet: read(passarinhosPNG), chao: [2]string{"#6E6E78", "#3A3A44"},
-		engate: "#8A8A94", linkY: 4, fixo: pieceW, anim: 2, wide: true, rows: fitRows}
+		engate: "#8A8A94", linkY: 4, fixo: pieceW, anim: 2, nota: true, wide: true, rows: fitRows}
 	obras["porto"] = &obra{sheet: read(portoPNG), chao: [2]string{"#3E7CB1", "#2A5580"},
 		anim: 3, wide: true, rows: fitRows}
 	obras["foguetes"] = &obra{sheet: read(foguetesPNG), chao: [2]string{"#8A8A94", "#44444E"},
@@ -358,9 +360,46 @@ func drawn(o *obra, x, y, w int, hex string, tinge bool) string {
 	if tinge {
 		swap = pet.Tint(pieceBody[0], pieceBody[1], hex)
 	}
+	if o.nota {
+		if swap == nil {
+			swap = map[uint32]color.Color{}
+		}
+		swap[notaCor] = color.RGBA{} // o marcador some do desenho; quem aparece é o ♫ (cantando)
+	}
 	s := pet.Pixels(o.sheet, x, y, w, pieceH, 1, swap)
+	if o.nota {
+		s = cantando(o, s, x, y, w)
+	}
 	quadros.Store(k, s)
 	return s
+}
+
+// Nos temas que cantam, os pixels de notaCor na folha não são desenho: marcam onde sai o ♫, na
+// célula do pixel mais baixo da marca. Assim cada quadro diz onde fica a nota: no quadro A ela
+// sai encostada no bico ou no instrumento, e no B sobe uma linha se afastando. É texto, e não
+// pixel, porque a nota em pixel era um triângulo amarelo; e é o ♫, não o ♪, porque ele é o único
+// símbolo musical de largura fixa: o ♪ ocupa duas colunas em terminal configurado para chinês
+// ou japonês e desalinha a fileira.
+const notaCor = 0xFFD166
+
+var notaMusical = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD166")).Render("♫")
+
+func cantando(o *obra, s string, x0, y0, w int) string {
+	cx, cy := -1, -1
+	for y := y0; y < y0+pieceH; y++ {
+		for x := x0; x < x0+w; x++ {
+			if r, g, b, a := o.sheet.At(x, y).RGBA(); a > 0 && r>>8<<16|g>>8<<8|b>>8 == notaCor && y > cy {
+				cx, cy = x-x0, y // o primeiro da esquerda na linha mais baixa
+			}
+		}
+	}
+	if cy < 0 { // este quadro não canta
+		return s
+	}
+	l := strings.Split(s, "\n")
+	i := (cy - y0) / 2
+	l[i] = ansi.Truncate(l[i], cx, "") + notaMusical + ansi.TruncateLeft(l[i], cx+1, "")
+	return strings.Join(l, "\n")
 }
 
 // center: o desenho ou o apelido no meio de uma coluna de col células.

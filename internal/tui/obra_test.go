@@ -131,6 +131,51 @@ func TestPassarinhoSeAbaixa(t *testing.T) {
 	}
 }
 
+// O ♫ sai só de quem toca, onde a folha marca: encostado no instrumento (ou no bico do pássaro)
+// no quadro A, e uma linha acima, se afastando, no B. Quadro fora da tabela não canta.
+func TestNota(t *testing.T) {
+	type pos struct{ x, y int } // coluna e linha do ♫; {-1, -1} é sem nota
+	sem := pos{-1, -1}
+	casos := []struct {
+		tema   string
+		quadro map[int][2]pos // quadro da folha: onde fica o ♫ no A e no B
+	}{
+		{"passarinhos", map[int][2]pos{rooms.ObraStages - 1: {{0, 1}, {0, 0}}}},
+		{"orquestra", map[int][2]pos{
+			3:  {{4, 2}, {3, 1}},   // violino: sai das cordas e sobe pelo arco
+			5:  {{9, 2}, {10, 1}},  // violão: do ombro do corpo
+			7:  {{9, 1}, {10, 0}},  // trompete: da campana
+			9:  {{5, 1}, {5, 0}},   // tambor: do couro, entre as baquetas
+			11: {{10, 2}, {11, 1}}, // violoncelo: do ombro do corpo
+			13: {{7, 2}, {8, 1}},   // harpa: das cordas, por cima do braço
+			15: {{10, 2}, {10, 1}}, // saxofone: da campana, que abre para cima
+			17: {{11, 1}, {11, 0}}, // piano: pelo lado do tampo
+		}},
+	}
+	onde := func(s string) pos {
+		for y, l := range strings.Split(ansi.Strip(s), "\n") {
+			if x := slices.Index([]rune(l), '♫'); x >= 0 {
+				return pos{x, y}
+			}
+		}
+		return sem
+	}
+	for _, c := range casos {
+		o, cor := obras[c.tema], pet.Colors[0].Hex
+		for q := range (o.sheet.Bounds().Dx() - o.fixo) / o.w() {
+			quer, canta := c.quadro[q]
+			if !canta {
+				quer = [2]pos{sem, sem}
+			}
+			for i, tick := range []int{0, o.anim} {
+				if got := onde((model{tick: tick}).frame(o, q, cor)); got != quer[i] {
+					t.Errorf("%s, quadro %d, tick %d: ♫ em %v, queria %v", c.tema, q, tick, got, quer[i])
+				}
+			}
+		}
+	}
+}
+
 // Toda cor das folhas, e o corpo tingido em cada cor do pet, sobrevive ao terminal de 256 cores:
 // não vira cinza nem troca de matiz. Era assim que a pétala rosa saía cinza e a sombra da
 // estante saía marrom. Os cinzas de propósito (trilho, prata, teto) ficam de fora.
