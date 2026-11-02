@@ -56,8 +56,25 @@ func TestFolhas(t *testing.T) {
 		if w := o.sheet.Bounds().Dx(); w != want {
 			t.Errorf("%s: folha de %d px, queria %d", nome, w, want)
 		}
-		if h := o.sheet.Bounds().Dy(); h != pieceH {
-			t.Errorf("%s: folha de %d px de altura, queria %d", nome, h, pieceH)
+		faixas := 1
+		if o.anim > 0 { // o tema que se mexe tem a faixa do quadro B embaixo
+			faixas = 2
+		}
+		if h := o.sheet.Bounds().Dy(); h != pieceH*faixas {
+			t.Errorf("%s: folha de %d px de altura, queria %d", nome, h, pieceH*faixas)
+		}
+	}
+}
+
+// O tema que se mexe mexe de verdade: o quadro B da peça pronta é outro desenho, e o tick troca
+// um pelo outro. Os parados dão o mesmo desenho em qualquer tick.
+func TestMovimento(t *testing.T) {
+	for nome, o := range obras {
+		m, s := salaCom(nome, 4, 3)
+		a := m.obraBlock(s, 120, false)
+		m.tick = max(o.anim, 1)
+		if b := m.obraBlock(s, 120, false); (a != b) != (o.anim > 0) {
+			t.Errorf("%s: anim=%d, mas o desenho mudou=%v", nome, o.anim, a != b)
 		}
 	}
 }

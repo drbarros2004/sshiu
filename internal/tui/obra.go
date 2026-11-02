@@ -77,6 +77,7 @@ type obra struct {
 	fixo   int                    // largura em pixels da peça que não é de ninguém, no fim da folha (0 = sem)
 	centro bool                   // a peça fixa fica no meio da fileira do meio; senão, na frente
 	inst   bool                   // do terceiro estágio em diante, um par de quadros por cor do pet
+	anim   int                    // ticks por quadro do movimento (0 = parado); o quadro B fica embaixo na folha
 	wide   bool                   // ocupa a largura da tela (o trem); senão cabe no canto, centrada
 	rows   func(n, per int) []int // quantas peças em cada fileira, cabendo per peças numa
 }
@@ -102,8 +103,11 @@ func init() {
 	// o engate cai na linha do estrado, que é igual nos vagões e na locomotiva. O vagão é mais
 	// comprido que as outras peças, como um carro de passageiros, e a maria-fumaça mais ainda,
 	// porque é o que cabe as rodas dela
+	// Quatro temas se mexem, como o pet respira: o trem anda (rodas, biela e fumaça), o porto
+	// balança na água, a orquestra toca e o passarinho se abaixa no fio e canta. O movimento é
+	// pequeno de propósito: é um app de foco, e a obra fica no canto do olho (docs/regras.md).
 	obras["trem"] = &obra{sheet: read(tremPNG), pw: 16, chao: [2]string{"#8A8A94", "#44444E"},
-		engate: "#8A8A94", linkY: 4, fixo: 24, wide: true, rows: fitRows}
+		engate: "#8A8A94", linkY: 4, fixo: 24, anim: 1, wide: true, rows: fitRows}
 	obras["cidade"] = &obra{sheet: read(cidadePNG), chao: [2]string{"#6E6E78", "#3A3A44"},
 		rows: cityRows}
 	obras["horta"] = &obra{sheet: read(hortaPNG), chao: [2]string{"#6B4A2E", "#3E2A1A"},
@@ -116,12 +120,12 @@ func init() {
 		fixo: pieceW, centro: true, rows: campRows}
 	// o instrumento sai da cor do pet, na ordem de pet.Colors: quem é azul toca violino
 	obras["orquestra"] = &obra{sheet: read(orquestraPNG), chao: [2]string{"#8A6A3E", "#5A4529"},
-		inst: true, wide: true, rows: fitRows}
+		inst: true, anim: 2, wide: true, rows: fitRows}
 	// o fio é o engate: ele sai do poste, que não é de ninguém, e passa por todo mundo
 	obras["passarinhos"] = &obra{sheet: read(passarinhosPNG), chao: [2]string{"#6E6E78", "#3A3A44"},
-		engate: "#8A8A94", linkY: 4, fixo: pieceW, wide: true, rows: fitRows}
+		engate: "#8A8A94", linkY: 4, fixo: pieceW, anim: 2, wide: true, rows: fitRows}
 	obras["porto"] = &obra{sheet: read(portoPNG), chao: [2]string{"#3E7CB1", "#2A5580"},
-		wide: true, rows: fitRows}
+		anim: 3, wide: true, rows: fitRows}
 	obras["foguetes"] = &obra{sheet: read(foguetesPNG), chao: [2]string{"#8A8A94", "#44444E"},
 		wide: true, rows: fitRows}
 }
@@ -315,13 +319,21 @@ func stageFrame(o *obra, stage int, hex string) int {
 
 // frame: um quadro da folha do tema, com o corpo no tom de quem construiu.
 func (m model) frame(o *obra, i int, hex string) string {
-	return drawn(o, i*o.w(), o.w(), hex, true)
+	return drawn(o, i*o.w(), m.animY(o), o.w(), hex, true)
 }
 
 // fixed: a peça que não é de ninguém (a locomotiva, a fogueira), no fim da folha. Ela tem cores
 // próprias e não é tingida.
 func (m model) fixed(o *obra) string {
-	return drawn(o, o.sheet.Bounds().Dx()-o.fixo, o.fixo, "", false)
+	return drawn(o, o.sheet.Bounds().Dx()-o.fixo, m.animY(o), o.fixo, "", false)
+}
+
+// animY: a faixa da folha do quadro de agora — a de cima, ou a do quadro B nos temas que se mexem.
+func (m model) animY(o *obra) int {
+	if o.anim > 0 && m.tick/o.anim%2 == 1 {
+		return pieceH
+	}
+	return 0
 }
 
 // quadros: cada quadro já desenhado, por tema, posição e cor. O desenho não muda, e cada sessão
@@ -330,13 +342,13 @@ func (m model) fixed(o *obra) string {
 var quadros sync.Map
 
 type quadroKey struct {
-	o    *obra
-	x, w int
-	hex  string
+	o       *obra
+	x, y, w int
+	hex     string
 }
 
-func drawn(o *obra, x, w int, hex string, tinge bool) string {
-	k := quadroKey{o, x, w, hex}
+func drawn(o *obra, x, y, w int, hex string, tinge bool) string {
+	k := quadroKey{o, x, y, w, hex}
 	if s, ok := quadros.Load(k); ok {
 		return s.(string)
 	}
@@ -344,7 +356,7 @@ func drawn(o *obra, x, w int, hex string, tinge bool) string {
 	if tinge {
 		swap = pet.Tint(pieceBody[0], pieceBody[1], hex)
 	}
-	s := pet.Pixels(o.sheet, x, 0, w, pieceH, 1, swap)
+	s := pet.Pixels(o.sheet, x, y, w, pieceH, 1, swap)
 	quadros.Store(k, s)
 	return s
 }
