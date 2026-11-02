@@ -41,10 +41,13 @@ var pieceBody = [2]uint32{0xC09A6E, 0x8A6A45}
 
 // obra: o que um tema tem além dos quatro desenhos.
 type obra struct {
-	sheet image.Image
-	chao  [2]string               // as duas cores do chão: a de cima e a de baixo do meio-bloco
-	wide  bool                    // ocupa a largura da tela (o trem); senão cabe no canto, ao lado do log
-	rows  func(n, cols int) []int // quantas peças em cada fileira
+	sheet  image.Image
+	chao   [2]string               // as duas cores do chão: a de cima e a de baixo do meio-bloco
+	engate string                  // a cor do traço que liga uma peça na outra ("" = não liga)
+	linkY  int                     // em que linha do desenho o engate cai
+	lead   bool                    // tem uma peça fixa na frente, que não é de ninguém
+	wide   bool                    // ocupa a largura da tela (o trem); senão cabe no canto
+	rows   func(n, cols int) []int // quantas peças em cada fileira
 }
 
 var obras = map[string]*obra{}
@@ -57,8 +60,9 @@ func init() {
 		}
 		return img
 	}
+	// o engate cai na linha do estrado, que é igual nos cinco quadros do trem
 	obras["trem"] = &obra{sheet: read(tremPNG), chao: [2]string{"#8A8A94", "#44444E"},
-		wide: true, rows: fitRows}
+		engate: "#8A8A94", linkY: 4, lead: true, wide: true, rows: fitRows}
 	obras["cidade"] = &obra{sheet: read(cidadePNG), chao: [2]string{"#6E6E78", "#3A3A44"},
 		rows: cityRows}
 }
@@ -107,25 +111,57 @@ func (m model) obraBlock(s rooms.Snapshot, cols int, flat bool) string {
 		col = max(col, lipgloss.Width(m.obraName(x)))
 	}
 	col += pieceGap
+	vao := col - pieceW      // o que sobra da coluna é o vão, metade de cada lado da peça
+	avail := cols - pieceGap // margem para o bloco não encostar na borda da tela
+	if o.lead {
+		avail -= col // a peça da frente também ocupa uma coluna
+	}
 
 	var out []string
 	i := 0
-	for _, n := range rows(len(ms), cols) {
-		group := ms[i : i+n]
-		var arts, names []string
-		for _, x := range group {
-			arts = append(arts, m.piece(o, s, x, col))
-			names = append(names, center(m.obraName(x), col))
+	for r, n := range rows(len(ms), avail) {
+		// cada célula é uma peça com o seu rótulo; a da frente não é de ninguém e não leva nome
+		arts, names := []string{gapBlock(vao/2, nil)}, []string{strings.Repeat(" ", vao/2)}
+		cells := 0
+		add := func(art, nome string) {
+			if cells > 0 {
+				arts = append(arts, gapBlock(vao, o))
+			}
+			arts, names = append(arts, art), append(names, center(nome, col))
+			cells++
 		}
-		w := col*n - pieceGap // o chão para antes do vão que separa a última peça da margem
+		if o.lead && r == 0 {
+			add(m.frame(o, rooms.ObraStages, ""), "")
+		}
+		for _, x := range ms[i : i+n] {
+			add(m.piece(o, s, x), m.obraName(x))
+		}
+		arts = append(arts, gapBlock(vao-vao/2, nil))
 		out = append(out,
 			lipgloss.JoinHorizontal(lipgloss.Top, arts...),
 			lipgloss.NewStyle().Foreground(lipgloss.Color(o.chao[0])).Background(lipgloss.Color(o.chao[1])).
-				Render(strings.Repeat("▀", max(w, 1))),
+				Render(strings.Repeat("▀", max(col*cells, 1))),
 			strings.Join(names, ""))
 		i += n
 	}
 	return m.obraHead(s) + "\n" + strings.Join(out, "\n")
+}
+
+// gapBlock: o vão entre duas peças, da altura do desenho. Com o tema que engata — o trem — ele
+// leva um traço na altura do estrado, que é o que liga um vagão no outro sem colar os dois.
+func gapBlock(w int, o *obra) string {
+	if w <= 0 {
+		return ""
+	}
+	lines := make([]string, pieceH/2)
+	for i := range lines {
+		lines[i] = strings.Repeat(" ", w)
+	}
+	if o != nil && o.engate != "" && o.linkY >= 0 && o.linkY < len(lines) {
+		lines[o.linkY] = lipgloss.NewStyle().Foreground(lipgloss.Color(o.engate)).
+			Render(strings.Repeat("▄", w))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // obraView: a obra sozinha na tela, na tecla o. A tela da sala encolhe até a obra sair, e num
@@ -156,10 +192,15 @@ func (m model) obraName(x rooms.Member) string {
 }
 
 // piece: a peça de alguém, no estágio dos minutos que a pessoa focou hoje e no tom dela.
-func (m model) piece(o *obra, s rooms.Snapshot, x rooms.Member, col int) string {
-	art := pet.Pixels(o.sheet, rooms.Stage(x.TodayMin, s.Meta)*pieceW, 0, pieceW, pieceH, 1,
-		pet.Tint(pieceBody[0], pieceBody[1], x.Color))
-	return center(art, col)
+func (m model) piece(o *obra, s rooms.Snapshot, x rooms.Member) string {
+	return m.frame(o, rooms.Stage(x.TodayMin, s.Meta), x.Color)
+}
+
+// frame: um quadro da folha do tema. hex "" não tinge nada — é o caso da locomotiva, que é
+// desenhada com cores próprias e não com o marcador do corpo.
+func (m model) frame(o *obra, i int, hex string) string {
+	return pet.Pixels(o.sheet, i*pieceW, 0, pieceW, pieceH, 1,
+		pet.Tint(pieceBody[0], pieceBody[1], hex))
 }
 
 // center: o desenho ou o apelido no meio de uma coluna de col células.

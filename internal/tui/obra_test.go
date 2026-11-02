@@ -39,8 +39,12 @@ func TestTremQuebra(t *testing.T) {
 // Os quatro estágios existem na folha de cada tema, senão a peça pronta sai em branco.
 func TestFolhas(t *testing.T) {
 	for nome, o := range obras {
-		if w := o.sheet.Bounds().Dx(); w != pieceW*rooms.ObraStages {
-			t.Errorf("%s: folha de %d px, queria %d", nome, w, pieceW*rooms.ObraStages)
+		quadros := rooms.ObraStages
+		if o.lead { // o tema com peça fixa na frente tem um quadro a mais
+			quadros++
+		}
+		if w := o.sheet.Bounds().Dx(); w != pieceW*quadros {
+			t.Errorf("%s: folha de %d px, queria %d", nome, w, pieceW*quadros)
 		}
 		if h := o.sheet.Bounds().Dy(); h != pieceH {
 			t.Errorf("%s: folha de %d px de altura, queria %d", nome, h, pieceH)
