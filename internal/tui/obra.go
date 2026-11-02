@@ -103,9 +103,10 @@ func init() {
 	// o engate cai na linha do estrado, que é igual nos vagões e na locomotiva. O vagão é mais
 	// comprido que as outras peças, como um carro de passageiros, e a maria-fumaça mais ainda,
 	// porque é o que cabe as rodas dela
-	// Quatro temas se mexem, como o pet respira: o trem anda (rodas, biela e fumaça), o porto
-	// balança na água, a orquestra toca e o passarinho se abaixa no fio e canta. O movimento é
-	// pequeno de propósito: é um app de foco, e a obra fica no canto do olho (docs/regras.md).
+	// Cinco temas se mexem, como o pet respira: o trem anda (rodas, biela e fumaça), o porto
+	// balança na água, a orquestra toca, o passarinho se abaixa no fio e canta, e a chama da
+	// fogueira baixa e sobe. O movimento é pequeno de propósito: é um app de foco, e a obra fica
+	// no canto do olho (docs/regras.md).
 	obras["trem"] = &obra{sheet: read(tremPNG), pw: 16, chao: [2]string{"#8A8A94", "#44444E"},
 		engate: "#8A8A94", linkY: 4, fixo: 24, anim: 1, wide: true, rows: fitRows}
 	obras["cidade"] = &obra{sheet: read(cidadePNG), chao: [2]string{"#6E6E78", "#3A3A44"},
@@ -116,8 +117,9 @@ func init() {
 		wide: true, rows: fitRows}
 	obras["feira"] = &obra{sheet: read(feiraPNG), chao: [2]string{"#9A8A78", "#5E5246"},
 		wide: true, rows: fitRows}
+	// só a fogueira se mexe: barraca e cabana são iguais nas duas faixas da folha
 	obras["acampamento"] = &obra{sheet: read(acampamentoPNG), chao: [2]string{"#3D8B47", "#24602C"},
-		fixo: pieceW, centro: true, rows: campRows}
+		fixo: pieceW, centro: true, anim: 1, rows: campRows}
 	// o instrumento sai da cor do pet, na ordem de pet.Colors: quem é azul toca violino
 	obras["orquestra"] = &obra{sheet: read(orquestraPNG), chao: [2]string{"#8A6A3E", "#5A4529"},
 		inst: true, anim: 2, wide: true, rows: fitRows}

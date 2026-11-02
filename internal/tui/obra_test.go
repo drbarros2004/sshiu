@@ -79,6 +79,58 @@ func TestMovimento(t *testing.T) {
 	}
 }
 
+// O quadro B só mexe no desenho, não pinta: toda cor dele já está no quadro A da mesma peça. Cor
+// nova ali é pixel escrito na mão com a paleta errada: o passarinho se abaixaria com as cores
+// de outro tema e perderia o tom do pet.
+func TestQuadroBNaoInventaCor(t *testing.T) {
+	cores := func(o *obra, x0, w, y0 int) map[color.RGBA]bool {
+		c := map[color.RGBA]bool{}
+		for x := x0; x < x0+w; x++ {
+			for y := y0; y < y0+pieceH; y++ {
+				if p := color.RGBAModel.Convert(o.sheet.At(x, y)).(color.RGBA); p.A > 0 {
+					c[p] = true
+				}
+			}
+		}
+		return c
+	}
+	for nome, o := range obras {
+		if o.anim == 0 {
+			continue
+		}
+		dx := o.sheet.Bounds().Dx()
+		var pecas [][2]int // x e largura de cada peça na folha; a fixa vem no fim
+		for x := 0; x < dx-o.fixo; x += o.w() {
+			pecas = append(pecas, [2]int{x, o.w()})
+		}
+		if o.fixo > 0 {
+			pecas = append(pecas, [2]int{dx - o.fixo, o.fixo})
+		}
+		for _, p := range pecas {
+			a := cores(o, p[0], p[1], 0)
+			for c := range cores(o, p[0], p[1], pieceH) {
+				if !a[c] {
+					t.Errorf("%s, peça em x=%d: o quadro B tem #%02X%02X%02X, que o A não tem", nome, p[0], c.R, c.G, c.B)
+				}
+			}
+		}
+	}
+}
+
+// O passarinho se abaixa em todo estágio em que já existe. As duas primeiras linhas ficam de
+// fora: lá mora a nota do estágio 3, que sozinha já mudava o desenho enquanto o pássaro daquele
+// estágio continuava em pé, e o TestMovimento não via a diferença.
+func TestPassarinhoSeAbaixa(t *testing.T) {
+	aves, cor := obras["passarinhos"], pet.Colors[0].Hex
+	parado, mexendo := model{}, model{tick: aves.anim}
+	corpo := func(s string) string { return strings.Join(strings.Split(s, "\n")[2:], "\n") }
+	for stage := 1; stage < rooms.ObraStages; stage++ { // no estágio 0 o fio ainda está vazio
+		if corpo(parado.frame(aves, stage, cor)) == corpo(mexendo.frame(aves, stage, cor)) {
+			t.Errorf("o pássaro do estágio %d não se abaixa", stage)
+		}
+	}
+}
+
 // Toda cor das folhas, e o corpo tingido em cada cor do pet, sobrevive ao terminal de 256 cores:
 // não vira cinza nem troca de matiz. Era assim que a pétala rosa saía cinza e a sombra da
 // estante saía marrom. Os cinzas de propósito (trilho, prata, teto) ficam de fora.
