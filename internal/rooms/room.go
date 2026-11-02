@@ -284,7 +284,7 @@ func roomEvent(r *room, u *user, verb, task string) {
 	}
 }
 
-// React liga ou desliga a reação k de id a um evento. Ninguém reage ao próprio evento.
+// React liga ou desliga a reação k de id a um evento.
 func React(id, code string, eventID, k int) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -297,7 +297,7 @@ func react(id, code string, eventID, k int) {
 		return
 	}
 	for _, e := range r.events {
-		if e.ID != eventID || e.Who == id {
+		if e.ID != eventID {
 			continue
 		}
 		if i := slices.Index(e.Reacts[k], id); i >= 0 {

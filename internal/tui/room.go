@@ -232,7 +232,7 @@ func (m model) roomView(w, h int) string {
 			case alone: // o convite vale mais que o feed vazio, e não encolhe
 				out += "\n\n" + m.invitePanel(s)
 			case n > 0:
-				out += "\n\n" + m.feed(n) + "\n" + m.legend()
+				out += "\n\n" + m.feed(n) + "\n\n" + m.legend()
 			}
 			if lipgloss.Height(out) <= h {
 				return out
@@ -371,8 +371,11 @@ func (m model) panelWidth() int {
 func received(s rooms.Snapshot) map[string]int {
 	n := map[string]int{}
 	for _, e := range s.Events {
-		for _, r := range e.Reacts {
-			n[e.Who] += len(r)
+		for _, who := range e.Reacts {
+			n[e.Who] += len(who)
+			if slices.Contains(who, e.Who) { // reagir ao próprio evento não enche o próprio contador
+				n[e.Who]--
+			}
 		}
 	}
 	return n

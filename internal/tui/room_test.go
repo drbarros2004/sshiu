@@ -10,14 +10,23 @@ import (
 
 func TestRoomCode(t *testing.T) {
 	for in, want := range map[string]string{
-		"fg7dhm":                      "fg7dhm",
-		"  FG7DHM\n":                  "fg7dhm", // colado com espaço e quebra de linha
+		"fg7dhm":                         "fg7dhm",
+		"  FG7DHM\n":                     "fg7dhm", // colado com espaço e quebra de linha
 		"ssh -t -p 23234 plantao fg7dhm": "fg7dhm", // o convite inteiro
-		"":                            "",
+		"":                               "",
 	} {
 		if got := roomCode(in); got != want {
 			t.Errorf("roomCode(%q) = %q, queria %q", in, got, want)
 		}
+	}
+}
+
+// O card conta as reações que o membro recebeu, menos as que ele mesmo deu no próprio evento.
+func TestReceived(t *testing.T) {
+	s := rooms.Snapshot{Events: []rooms.Event{{Who: "ana", Reacts: [rooms.Reactions][]string{
+		0: {"bia", "ana"}, 1: {"bia"}}}}}
+	if got := received(s)["ana"]; got != 2 {
+		t.Fatalf("recebidas: %d", got)
 	}
 }
 
