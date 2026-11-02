@@ -36,6 +36,10 @@ func Open(path string) error {
 	d.Exec(`ALTER TABLE users ADD COLUMN garden_task INTEGER NOT NULL DEFAULT 1`)
 	d.Exec(`ALTER TABLE users ADD COLUMN garden_room INTEGER NOT NULL DEFAULT 1`)
 	d.Exec(`ALTER TABLE rooms ADD COLUMN max_members INTEGER NOT NULL DEFAULT 10`)
+	if _, err := d.Exec(`ALTER TABLE rooms ADD COLUMN closed INTEGER NOT NULL DEFAULT 0`); err == nil {
+		// só quando a coluna nasce: as salas solo que já existiam também ficam fechadas (ADR 0006)
+		d.Exec(`UPDATE rooms SET closed = 1 WHERE max_members = 1`)
+	}
 	d.Exec(`ALTER TABLE tasks ADD COLUMN room_code TEXT NOT NULL DEFAULT ''`)
 	db = d
 	return nil
@@ -229,8 +233,9 @@ func GetTotals(id string) (Totals, error) {
 }
 
 type RoomRow struct {
-	Code, Name string
-	Max        int // quantos membros a sala aceita
+	Code, Name, Owner string
+	Max               int  // quantos membros a sala aceita
+	Closed            bool // fechada para novas entradas
 }
 
 // newCode: 6 letras sem as ambíguas (0/o, 1/l/i), fácil de ditar para um colega.
@@ -246,7 +251,7 @@ func newCode() string {
 
 // Rooms lista todas as salas.
 func Rooms() ([]RoomRow, error) {
-	rows, err := db.Query(`SELECT code, name, max_members FROM rooms`)
+	rows, err := db.Query(`SELECT code, name, owner, max_members, closed FROM rooms`)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +259,7 @@ func Rooms() ([]RoomRow, error) {
 	var out []RoomRow
 	for rows.Next() {
 		var r RoomRow
-		if err := rows.Scan(&r.Code, &r.Name, &r.Max); err != nil {
+		if err := rows.Scan(&r.Code, &r.Name, &r.Owner, &r.Max, &r.Closed); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -262,8 +267,33 @@ func Rooms() ([]RoomRow, error) {
 	return out, rows.Err()
 }
 
+// SetRoom grava o que o dono mudou na sala: nome, tamanho, dono e se ela está fechada.
+func SetRoom(r RoomRow) error {
+	_, err := db.Exec(`UPDATE rooms SET name = ?, owner = ?, max_members = ?, closed = ? WHERE code = ?`,
+		r.Name, r.Owner, r.Max, r.Closed, r.Code)
+	return err
+}
+
+// DeleteRoom apaga a sala e os membros dela. As tarefas ficam, com o código da sala que existiu.
+func DeleteRoom(code string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM room_members WHERE code = ?`, code); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM rooms WHERE code = ?`, code); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// RoomMembers: os membros na ordem em que entraram. É a ordem dos cards e a da sucessão do dono
+// (ADR 0007); sem o ORDER BY, o SQLite lê pelo índice da chave e devolve em ordem de id.
 func RoomMembers(code string) ([]string, error) {
-	rows, err := db.Query(`SELECT user_id FROM room_members WHERE code = ?`, code)
+	rows, err := db.Query(`SELECT user_id FROM room_members WHERE code = ? ORDER BY rowid`, code)
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +310,7 @@ func RoomMembers(code string) ([]string, error) {
 }
 
 func CreateRoom(owner, name string, max int) (RoomRow, error) {
-	r := RoomRow{newCode(), name, max}
+	r := RoomRow{Code: newCode(), Name: name, Owner: owner, Max: max}
 	tx, err := db.Begin()
 	if err != nil {
 		return r, err

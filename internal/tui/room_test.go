@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestRoomCode(t *testing.T) {
@@ -36,6 +38,47 @@ func TestSoloGardenWidth(t *testing.T) {
 	}
 	if got := soloGardenWidth(76); got != 0 { // 80 colunas: o jardim não cabe
 		t.Fatalf("80 colunas: %d", got)
+	}
+}
+
+// Passar a sala e remover alguém listam os outros, na ordem dos cards: ninguém passa a sala nem
+// a própria vaga para si mesmo (ADR 0007).
+func TestOthers(t *testing.T) {
+	m := model{id: "eu", room: "s", w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": {Members: []rooms.Member{
+		{ID: "sumiu", Status: rooms.Offline},
+		{ID: "eu", Status: rooms.Idle},
+		{ID: "foca", Status: rooms.Focusing},
+	}}}}}
+	var got []string
+	for _, x := range m.others() {
+		got = append(got, x.ID)
+	}
+	if want := []string{"foca", "sumiu"}; !slices.Equal(got, want) {
+		t.Fatalf("outros %v, queria %v", got, want)
+	}
+}
+
+// Passar a sala pede um "sim": o enter na pessoa só abre a pergunta, que começa no "não", e
+// nada vai para o servidor antes de a resposta ser "sim" (ADR 0007).
+func TestGiveConfirm(t *testing.T) {
+	m := model{id: "eu", room: "s", cfg: true, cpage: pageGive, w: rooms.World{Rooms: map[string]rooms.Snapshot{
+		"s": {Name: "turma", Owner: "eu", Members: []rooms.Member{{ID: "eu"}, {ID: "bia", Nick: "bia"}}}}}}
+	press := func(code rune) tea.Cmd {
+		t.Helper()
+		next, cmd := m.cfgKey(tea.KeyPressMsg{Code: code})
+		m = next.(model)
+		return cmd
+	}
+	if cmd := press(tea.KeyEnter); cmd != nil || m.cpage != pageGiveYes || m.cwho != "bia" || m.cyes {
+		t.Fatalf("escolher a pessoa já passou a sala: page %v, cmd %v", m.cpage, cmd != nil)
+	}
+	if cmd := press(tea.KeyEnter); cmd != nil || m.cpage != pageGive { // enter no "não"
+		t.Fatalf("o não passou a sala: page %v", m.cpage)
+	}
+	press(tea.KeyEnter)
+	press(tea.KeyRight)
+	if cmd := press(tea.KeyEnter); cmd == nil || m.cfg {
+		t.Fatalf("o sim não passou a sala: cfg %v", m.cfg)
 	}
 }
 

@@ -95,7 +95,9 @@ type Event struct {
 
 type room struct {
 	code, name string
-	max        int // membros que a sala aceita, escolhido na criação
+	owner      string // quem muda a sala (ADR 0007); a demo não tem dono
+	max        int    // membros que a sala aceita, escolhido na criação e mudado pelo dono
+	closed     bool   // fechada para novas entradas, mesmo com vaga
 	members    []string
 	events     []*Event // mais novo primeiro
 }
@@ -113,7 +115,8 @@ func Load() error {
 		if err != nil {
 			return err
 		}
-		rooms[r.Code] = &room{code: r.Code, name: r.Name, max: ClampSize(r.Max), members: ids}
+		rooms[r.Code] = &room{code: r.Code, name: r.Name, owner: r.Owner, max: ClampSize(r.Max),
+			closed: r.Closed, members: ids}
 		for _, id := range ids {
 			load(id)
 		}
@@ -308,6 +311,127 @@ func react(id, code string, eventID, k int) {
 	}
 }
 
+// owned: a sala do código, se id for o dono dela. Chame com mu travado.
+func owned(id, code string) (*room, error) {
+	r := rooms[code]
+	if r == nil {
+		return nil, fmt.Errorf("nenhuma sala com o código %q", code)
+	}
+	if r.owner != id {
+		return nil, errors.New("só o dono muda a sala")
+	}
+	return r, nil
+}
+
+// saveRoom grava a sala como ela está agora. A demo só existe em memória. Chame com mu travado.
+func saveRoom(r *room) {
+	if r.code == DemoCode {
+		return
+	}
+	if err := store.SetRoom(store.RoomRow{Code: r.code, Name: r.name, Owner: r.owner,
+		Max: r.max, Closed: r.closed}); err != nil {
+		log.Error("setRoom", "err", err)
+	}
+}
+
+// Rename troca o nome da sala.
+func Rename(id, code, name string) error {
+	mu.Lock()
+	defer mu.Unlock()
+	r, err := owned(id, code)
+	if err != nil {
+		return err
+	}
+	if name = strings.TrimSpace(name); name == "" {
+		return errors.New("a sala precisa de um nome")
+	}
+	r.name = name
+	saveRoom(r)
+	return nil
+}
+
+// Resize muda quantos membros a sala aceita, de quantos já estão lá até o teto de todas: ninguém
+// é expulso por uma mudança de tamanho, então o chão é a sala como ela está (ADR 0007).
+func Resize(id, code string, n int) error {
+	mu.Lock()
+	defer mu.Unlock()
+	r, err := owned(id, code)
+	if err != nil {
+		return err
+	}
+	r.max = min(max(n, len(r.members), MinMembers), MaxMembers)
+	saveRoom(r)
+	return nil
+}
+
+// SetClosed fecha ou abre a sala para novas entradas. Quem já é membro não é afetado.
+func SetClosed(id, code string, closed bool) error {
+	mu.Lock()
+	defer mu.Unlock()
+	r, err := owned(id, code)
+	if err != nil {
+		return err
+	}
+	r.closed = closed
+	saveRoom(r)
+	return nil
+}
+
+// Kick tira um membro da sala e abre a vaga. Não é bloqueio: com o código a pessoa entra de novo.
+func Kick(id, code, who string) error {
+	mu.Lock()
+	defer mu.Unlock()
+	r, err := owned(id, code)
+	if err != nil {
+		return err
+	}
+	if who == id {
+		return errors.New("para sair da sala, use sair")
+	}
+	if !slices.Contains(r.members, who) {
+		return errors.New("essa pessoa não está na sala")
+	}
+	if code != DemoCode {
+		if err := store.LeaveRoom(who, code); err != nil {
+			return err
+		}
+	}
+	r.members = slices.DeleteFunc(r.members, func(m string) bool { return m == who })
+	roomEvent(r, load(who), "perdeu a vaga", "")
+	return nil
+}
+
+// Transfer passa a sala para outro membro. Quem passa continua na sala, como os outros.
+func Transfer(id, code, to string) error {
+	mu.Lock()
+	defer mu.Unlock()
+	r, err := owned(id, code)
+	if err != nil {
+		return err
+	}
+	if !slices.Contains(r.members, to) {
+		return errors.New("essa pessoa não está na sala")
+	}
+	r.owner = to
+	saveRoom(r)
+	roomEvent(r, load(to), "ficou com a sala", "")
+	return nil
+}
+
+// Dissolve encerra a sala: ela some para todo mundo. As tarefas ficam no histórico de cada um.
+func Dissolve(id, code string) error {
+	mu.Lock()
+	defer mu.Unlock()
+	if _, err := owned(id, code); err != nil { // a demo não tem dono: ninguém a encerra
+		return err
+	}
+	if err := store.DeleteRoom(code); err != nil {
+		return err
+	}
+	delete(rooms, code)
+	return nil
+}
+
 // ClampSize: o tamanho que a sala pode ter. Quem cria escolhe, dentro do teto de todas.
 func ClampSize(n int) int { return max(MinMembers, min(n, MaxMembers)) }
 
@@ -320,7 +444,14 @@ func Create(id, name string, size int) (string, error) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	rooms[r.Code] = &room{code: r.Code, name: r.Name, max: size, members: []string{id}}
+	// a sala solo nasce fechada: o código existe como em qualquer sala, e quem aumentar o tamanho
+	// depois vê o código aparecer e decide quando abrir a porta (ADR 0006 e 0007)
+	n := &room{code: r.Code, name: r.Name, owner: id, max: size, closed: size == MinMembers,
+		members: []string{id}}
+	rooms[r.Code] = n
+	if n.closed {
+		saveRoom(n)
+	}
 	load(id)
 	return r.Code, nil
 }
@@ -339,6 +470,9 @@ func Join(id, code string) error {
 	}
 	if len(r.members) >= r.max {
 		return fmt.Errorf("%s já está cheia (%d membros)", r.name, r.max)
+	}
+	if r.closed {
+		return fmt.Errorf("%s não está aceitando mais ninguém", r.name)
 	}
 	if code != DemoCode {
 		if err := store.JoinRoom(id, code); err != nil {
@@ -366,6 +500,11 @@ func Leave(id, code string) error {
 			delete(rooms, code) // o último saiu: a sala e os eventos somem com ela
 		} else {
 			roomEvent(r, load(id), "saiu", "")
+			if r.owner == id { // a sala nunca fica órfã: vai para o membro mais antigo (ADR 0007)
+				r.owner = r.members[0]
+				saveRoom(r)
+				roomEvent(r, load(r.owner), "ficou com a sala", "")
+			}
 		}
 	}
 	return nil
@@ -383,7 +522,9 @@ type Member struct {
 
 type Snapshot struct {
 	Code, Name string
-	Max        int // membros que a sala aceita
+	Owner      string // o dono da sala (ADR 0007); "" na demo
+	Max        int    // membros que a sala aceita
+	Closed     bool   // não aceita mais ninguém
 	Members    []Member
 	Events     []Event // cópias: seguras para ler fora do lock
 }
@@ -410,7 +551,7 @@ func SnapshotWorld() World {
 		w.Users[id] = member(u)
 	}
 	for code, r := range rooms {
-		s := Snapshot{Code: code, Name: r.name, Max: r.max}
+		s := Snapshot{Code: code, Name: r.name, Owner: r.owner, Max: r.max, Closed: r.closed}
 		for _, id := range r.members {
 			s.Members = append(s.Members, w.Users[id])
 		}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"plantao/internal/pet"
 	"plantao/internal/store"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -38,6 +39,128 @@ func TestReact(t *testing.T) {
 	react("bia", "t", 1, 0) // de novo: desfaz só a sua
 	if got := rooms["t"].events[0].Reacts[0]; len(got) != 1 || got[0] != "ana" {
 		t.Fatalf("desfez: %v", got)
+	}
+}
+
+// Só o dono muda a sala, e remover abre a vaga sem bloquear quem saiu (ADR 0007).
+func TestDono(t *testing.T) {
+	rooms[DemoCode] = &room{code: DemoCode, name: "sala", owner: "ana", max: MaxMembers,
+		members: []string{"ana", "bia", "cris"}}
+	defer delete(rooms, DemoCode)
+	for _, id := range []string{"ana", "bia", "cris", "dan"} {
+		users[id] = &user{id: id, nick: id}
+		defer delete(users, id)
+	}
+	r := rooms[DemoCode]
+	if err := Rename("bia", DemoCode, "outro nome"); err == nil || r.name != "sala" {
+		t.Fatalf("quem não é dono mudou o nome: %v", err)
+	}
+	if err := Rename("ana", DemoCode, "turma de cálculo"); err != nil || r.name != "turma de cálculo" {
+		t.Fatalf("o dono não mudou o nome: %v", err)
+	}
+	if err := Resize("ana", DemoCode, 99); err != nil || r.max != MaxMembers {
+		t.Fatalf("tamanho fora do teto: %v %d", err, r.max)
+	}
+	if err := Resize("ana", DemoCode, 1); err != nil || r.max != 3 { // 3 membros é o chão
+		t.Fatalf("tamanho abaixo de quem já está na sala: %v %d", err, r.max)
+	}
+	if err := Kick("ana", DemoCode, "ana"); err == nil {
+		t.Fatal("o dono se removeu da própria sala")
+	}
+	if err := Kick("ana", DemoCode, "cris"); err != nil || slices.Contains(r.members, "cris") {
+		t.Fatalf("remover: %v %v", err, r.members)
+	}
+	if err := Join("cris", DemoCode); err != nil { // sem bloqueio: com o código, volta
+		t.Fatalf("voltar depois de removido: %v", err)
+	}
+	if err := SetClosed("ana", DemoCode, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := Join("dan", DemoCode); err == nil { // tem vaga, mas a sala está fechada
+		t.Fatal("entrou numa sala fechada")
+	}
+	if err := Transfer("ana", DemoCode, "bia"); err != nil || r.owner != "bia" {
+		t.Fatalf("passar a sala: %v %q", err, r.owner)
+	}
+	if err := Rename("ana", DemoCode, "sem poderes"); err == nil {
+		t.Fatal("quem passou a sala continuou mandando")
+	}
+}
+
+// Sair sendo dono passa a sala para o membro mais antigo que ficou: ela nunca fica órfã.
+func TestSucessao(t *testing.T) {
+	if err := store.Open(":memory:"); err != nil { // sem arquivo: nada para limpar depois
+		t.Fatal(err)
+	}
+	for _, id := range []string{"a", "b", "c"} {
+		if err := store.PutUser(id, id, pet.EnergyStart); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, err := Create("a", "turma", MaxMembers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer delete(rooms, code)
+	for _, id := range []string{"b", "c"} {
+		if err := Join(id, code); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := Leave("a", code); err != nil {
+		t.Fatal(err)
+	}
+	if got := rooms[code].owner; got != "b" {
+		t.Fatalf("dono depois da saída: %q", got)
+	}
+	if err := Leave("b", code); err != nil { // de novo: a sala segue com quem sobrou
+		t.Fatal(err)
+	}
+	if got := rooms[code].owner; got != "c" {
+		t.Fatalf("dono depois da segunda saída: %q", got)
+	}
+}
+
+// A sala solo nasce fechada, e crescer não abre a porta sozinho (ADR 0006 e 0007).
+func TestSoloNasceFechada(t *testing.T) {
+	if err := store.Open(":memory:"); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"s1", "s2"} {
+		if err := store.PutUser(id, id, pet.EnergyStart); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, err := Create("s1", "só eu", MinMembers)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer delete(rooms, code)
+	if r := rooms[code]; !r.closed || r.max != MinMembers {
+		t.Fatalf("sala solo: fechada=%v tamanho=%d", r.closed, r.max)
+	}
+	if err := Resize("s1", code, 5); err != nil {
+		t.Fatal(err)
+	}
+	if err := Join("s2", code); err == nil { // tem vaga, mas a porta continua fechada
+		t.Fatal("a sala abriu sozinha ao crescer")
+	}
+	if err := SetClosed("s1", code, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := Join("s2", code); err != nil {
+		t.Fatalf("entrar depois de aberta: %v", err)
+	}
+	// o que o dono mudou tem que voltar igual depois de um restart
+	if err := Rename("s1", code, "a sala"); err != nil {
+		t.Fatal(err)
+	}
+	clear(rooms)
+	if err := Load(); err != nil {
+		t.Fatal(err)
+	}
+	if r := rooms[code]; r == nil || r.name != "a sala" || r.owner != "s1" || r.max != 5 || r.closed {
+		t.Fatalf("depois do restart: %+v", r)
 	}
 }
 

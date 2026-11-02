@@ -142,6 +142,13 @@ type model struct {
 	mins     int             // índice em minuteChoices()
 	sel      int             // evento selecionado (ID)
 	picking  bool            // menu de salas aberto
+	cfg      bool            // menu do dono da sala aberto (tecla c)
+	cpage    cfgPage         // página dentro dele: o menu, passar, remover ou encerrar
+	ccur     int             // linha escolhida no menu
+	mcur     int             // membro escolhido em passar/remover
+	cname    bool            // digitando o nome da sala na própria linha
+	cyes     bool            // "sim" escolhido na confirmação de passar ou de encerrar
+	cwho     string          // quem vai receber a sala, na confirmação de passar
 	size     int             // tamanho escolhido para a sala nova
 	pcur     int             // item selecionado no menu
 	form     form            // formulário de sala em andamento
@@ -157,12 +164,19 @@ func (m model) me() rooms.Member { return m.w.Users[m.id] }
 
 // setWorld guarda o retrato e garante que a sala vista é uma das suas.
 func (m *model) setWorld(w rooms.World) {
+	was := ""
+	if s, ok := m.w.Rooms[m.room]; ok {
+		was = s.Name
+	}
 	m.w = w
 	mine := w.MyRooms(m.id)
 	if !slices.Contains(mine, m.room) {
 		m.room = ""
 		if len(mine) > 0 {
 			m.room = mine[0]
+		}
+		if was != "" { // encerrada pelo dono, ou a sua vaga foi removida (ADR 0007)
+			m.notice, m.cfg, m.cname = "você não está mais em "+was, false, false
 		}
 	}
 }
@@ -395,7 +409,9 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 // typing: algum campo de texto está recebendo as teclas (então "q", "a" e "d" são texto).
 // Os formulários sem campo (o tamanho da sala, a confirmação de saída) não entram: neles as
 // teclas de sempre valem, inclusive o q.
-func (m model) typing() bool { return m.entering || m.form == formName || m.form == formCode }
+func (m model) typing() bool {
+	return m.entering || m.cname || m.form == formName || m.form == formCode
+}
 
 func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if msg.String() != "enter" {
