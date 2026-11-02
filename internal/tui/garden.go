@@ -2,8 +2,8 @@ package tui
 
 // Modo jardim: a tela de descanso do foco. Um wallpaper animado em tela cheia, com o relógio, a
 // tarefa e quem mais está focando por cima, conforme a aba visual (IDEIAS.md, docs/regras.md).
-// Liga com j ou depois de 30 s sem tecla, só durante o foco. ←/→ trocam o wallpaper (a troca vale
-// para a tarefa); qualquer outra tecla volta sem executar nada.
+// Liga com j ou, se a aba visual deixar, depois de 30 s sem tecla, só durante o foco. ←/→ trocam o
+// wallpaper (a troca vale para a tarefa); qualquer outra tecla volta sem executar nada.
 //
 // Wallpapers escritos do zero (ADR 0005, créditos em CREDITS.md): céu noturno, chuva e lâmpada de
 // lava inspirados em projetos MIT/Apache; café, árvore e estrada são desenhos nossos, em pixels

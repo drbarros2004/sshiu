@@ -75,7 +75,7 @@ Tarefa encerrada porque o usuário desconectou e não voltou a tempo. Não é pu
 _Evite_: abandono, falta, desistência
 
 **Modo jardim**:
-A tela de descanso do foco: um wallpaper animado com, se o usuário quiser, o relógio, a tarefa e quem mais está focando por cima. Ligada por tecla ou depois de um tempo sem tecla.
+A tela de descanso do foco: um wallpaper animado com, se o usuário quiser, o relógio, a tarefa e quem mais está focando por cima. Ligada por tecla ou, se o usuário deixar, depois de um tempo sem tecla.
 _Evite_: screensaver, modo zen
 
 ### O pet
