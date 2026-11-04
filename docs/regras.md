@@ -46,6 +46,7 @@ Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indica
 | Meta da obra | 30 min, 1 h, 1 h 30, 2 h ou 3 h por pessoa (padrão 1 h), escolhida pelo dono | O dia de estudo de uma turma: perto o bastante para a peça andar numa tarde, longe o bastante para a obra não acabar no primeiro intervalo. | [room.go:28](../internal/rooms/room.go#L28) |
 | Estágios da peça | 4, contando o vazio (muda nos terços da meta) | Com 1 h de meta, a peça muda aos 20, 40 e 60 min: mudança que dá para ver numa sessão de foco, sem virar animação. São 4 desenhos por tema ([ADR 0008](adr/0008-obra-da-sala.md)). | [room.go:29](../internal/rooms/room.go#L29) |
 | Eventos guardados | 20 por sala, 6 na tela | O bastante para reagir ao que acabou de acontecer. | [room.go:27](../internal/rooms/room.go#L27), [tui/room.go:20](../internal/tui/room.go#L20) |
+| Reinício diário da obra | meia-noite no horário local do servidor; contador HH:MM:SS no cabeçalho | Usa o tick existente da tela e arredonda o tempo restante para cima. Na virada, minutos de tarefas encerradas ontem saem do progresso; a tarefa em andamento continua contando, conforme a regra atual. | [obra.go](../internal/tui/obra.go), [room.go](../internal/rooms/room.go) |
 | Bots da demo | tarefas de 40 a 90 s, uns 90 s parados entre uma e outra | A sala parece viva sem empurrar os seus eventos para fora da tela. | [bots.go:78-79](../internal/rooms/bots.go#L78-L79) |
 
 ## Ritmo da tela

@@ -27,6 +27,27 @@ func TestFocused(t *testing.T) {
 	}
 }
 
+// A virada descarta minutos encerrados ontem e preserva a tarefa em andamento (ADR 0008).
+func TestObraMidnight(t *testing.T) {
+	before := time.Date(2026, 11, 4, 23, 59, 59, 0, time.FixedZone("servidor", -3*60*60))
+	after := before.Add(time.Second)
+	u := user{today: before.Format(time.DateOnly), todayMin: 60}
+	if Stage(u.minutesToday(before), 60) != ObraStages-1 || u.minutesToday(after) != 0 {
+		t.Fatal("os minutos do dia anterior não foram descartados na virada")
+	}
+	start := after.Add(-10 * time.Minute)
+	u.focus = &Focus{Start: start, SegStart: start, Ends: after.Add(15 * time.Minute), Declared: 25}
+	if got := u.minutesToday(after); got != 10 || Stage(got, 60) != 0 {
+		t.Fatalf("a tarefa atravessando a meia-noite não foi preservada: %v", got)
+	}
+	if got := u.minutesToday(after.Add(10 * time.Minute)); got != 20 || Stage(got, 60) != 1 {
+		t.Fatalf("a obra não continuou crescendo no novo dia: %v", got)
+	}
+	if u.focus.Start != start || u.focus.Declared != 25 {
+		t.Fatal("a virada alterou a tarefa")
+	}
+}
+
 func TestReact(t *testing.T) {
 	rooms["t"] = &room{code: "t", members: []string{"ana", "bia"}, events: []*Event{{ID: 1, Who: "ana"}}}
 	defer delete(rooms, "t")
