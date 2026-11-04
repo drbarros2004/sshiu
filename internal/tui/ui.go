@@ -130,6 +130,7 @@ type model struct {
 	pcolor        int          // cor do pet em prévia (índice em pet.Colors)
 	pcSaved       int          // a cor do pet que está no banco
 	custom        bool         // aba de perfil no modo personalizar
+	previewMood   pet.Mood     // só o desenho da personalização; nunca vai para o banco ou para a sala
 	vis, visSaved store.Garden // modo jardim em prévia e salvo
 	vrow          int          // linha selecionada na aba visual
 	ncur, nobra   int          // linha e obra escolhidas na tela de criar sala
@@ -348,6 +349,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// escolher a cor do pet é o passo seguinte ao apelido: o perfil abre já no modo
 			// personalizar, com o pet grande do lado mudando junto com a escolha
 			m.tab, m.custom = tabProfile, true
+			m.previewMood = pet.MoodOf(pet.EnergyStart)
 			cmds := []tea.Cmd{m.loadProfile()}
 			if m.pending != "" { // o código do comando esperava o apelido do primeiro acesso
 				code := m.pending

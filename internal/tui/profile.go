@@ -47,7 +47,18 @@ func (m model) profileView() string {
 		}
 		info += "\n"
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, pet.RenderBig(mood, m.tick, m.pixel, m.myColor()), "    ",
+	drawing := pet.RenderBig(mood, m.tick, m.pixel, m.myColor())
+	if m.custom {
+		preview := pet.RenderBig(m.previewMood, m.tick, m.pixel, m.myColor())
+		if m.height > 0 && m.height < 30 { // o desenho menor mantém os avisos visíveis em 80×24
+			preview = pet.Render(m.previewMood, m.tick, m.pixel, m.myColor())
+		}
+		drawing = bold.Render("prévia do pet") + "\n\n" +
+			preview + "\n\n" +
+			m.st.muted.Render("↑/↓ ") + pet.MoodName[m.previewMood] + "\n" +
+			m.st.muted.Render("apenas para visualização\n(não altera humor ou energia)")
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, drawing, "    ",
 		strings.TrimRight(info, "\n"))
 }
 
@@ -67,21 +78,26 @@ func (m model) colorRow() string {
 
 func (m model) profileHelp() string {
 	if m.custom {
-		return "←/→ escolhe a cor · enter salva · esc volta"
+		return "←/→ cor · ↑/↓ prévia do humor · enter salva a cor · esc volta"
 	}
 	return "c personaliza o pet"
 }
 
-// profileKey: por enquanto a personalização é só a cor, e c abre e fecha ela.
+// profileKey: a cor é salva; o humor escolhido só troca o desenho da prévia.
 func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
 	if !m.custom {
 		if k == "c" {
 			m.custom, m.notice = true, ""
+			m.previewMood = pet.MoodOf(m.pet.EnergyAt(m.now))
 		}
 		return m, nil
 	}
 	switch k {
+	case "up":
+		m.previewMood = (m.previewMood + pet.Sleeping) % (pet.Sleeping + 1)
+	case "down":
+		m.previewMood = (m.previewMood + 1) % (pet.Sleeping + 1)
 	case "left":
 		m.pcolor = (m.pcolor + len(pet.Colors) - 1) % len(pet.Colors)
 	case "right":
