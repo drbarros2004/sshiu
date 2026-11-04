@@ -21,6 +21,7 @@ import (
 	"sshiu/internal/rooms"
 	"strings"
 	"sync"
+	"time"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -260,7 +261,7 @@ func (m model) obraBlock(s rooms.Snapshot, cols int, flat bool) string {
 			lines = append(lines, pad.Render(l))
 		}
 	}
-	return m.obraHead(s) + "\n\n" + strings.Join(lines, "\n")
+	return m.obraHead(s, cols) + "\n\n" + strings.Join(lines, "\n")
 }
 
 // gapBlock: o vão entre duas peças, da altura do desenho. Com o tema que engata — o trem — ele
@@ -294,9 +295,18 @@ func (m model) obraView(s rooms.Snapshot, w, h int) string {
 
 // obraHead: o tema e o que cada peça custa. Sem o passo, o desenho não diz o que falta para
 // crescer; com ele, quem está a dez minutos da próxima mudança sabe disso.
-func (m model) obraHead(s rooms.Snapshot) string {
-	return m.st.muted.Render(fmt.Sprintf("%s · meta %s · a peça muda a cada %s",
-		s.Obra, dur(float64(s.Meta)), dur(float64(s.Meta/(rooms.ObraStages-1)))))
+func (m model) obraHead(s rooms.Snapshot, cols int) string {
+	return m.st.muted.Width(max(cols, 1)).Render(fmt.Sprintf("%s · meta %s · a peça muda a cada %s · reinicia em %s",
+		s.Obra, dur(float64(s.Meta)), dur(float64(s.Meta/(rooms.ObraStages-1))), obraResetIn(m.now)))
+}
+
+// obraResetIn segue o dia local do servidor, como minutesToday. Construir a próxima data
+// (em vez de somar 24 h) também respeita dias com mudança de horário de verão.
+func obraResetIn(now time.Time) string {
+	next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
+	// Arredondar para cima evita mostrar zero antes da virada do dia.
+	seconds := int((next.Sub(now) + time.Second - 1) / time.Second)
+	return fmt.Sprintf("%02d:%02d:%02d", seconds/3600, seconds/60%60, seconds%60)
 }
 
 // obraName: o apelido embaixo da peça, que é o que deixa a sala ver quem focou e quem não focou.

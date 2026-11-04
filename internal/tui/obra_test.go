@@ -9,11 +9,67 @@ import (
 	"sshiu/internal/rooms"
 	"strings"
 	"testing"
+	"time"
+	_ "time/tzdata"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/x/ansi"
 )
+
+func TestObraResetIn(t *testing.T) {
+	zone := time.FixedZone("servidor", -3*60*60)
+	for _, tc := range []struct{ at, want string }{
+		{"2026-11-04T20:17:42", "03:42:18"},
+		{"2026-11-04T23:59:58", "00:00:02"},
+		{"2026-11-04T23:59:59.5", "00:00:01"},
+		{"2026-11-05T00:00:00", "24:00:00"},
+		{"2026-11-05T00:00:01", "23:59:59"},
+		{"2026-12-31T23:59:59", "00:00:01"},
+	} {
+		now, err := time.ParseInLocation("2006-01-02T15:04:05", tc.at, zone)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := obraResetIn(now); got != tc.want {
+			t.Errorf("%s: %s, queria %s", tc.at, got, tc.want)
+		}
+	}
+	// O dia pode ter 23 ou 25 horas; não se pode assumir uma duração fixa de 24 h.
+	dst, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		month time.Month
+		day   int
+		want  string
+	}{
+		{time.March, 8, "23:00:00"}, {time.November, 1, "25:00:00"},
+	} {
+		now := time.Date(2026, tc.month, tc.day, 0, 0, 0, 0, dst)
+		if got := obraResetIn(now); got != tc.want {
+			t.Errorf("horário de verão: %s, queria %s", got, tc.want)
+		}
+	}
+}
+
+func TestObraHeadCountdown(t *testing.T) {
+	m := model{now: time.Date(2026, 11, 4, 23, 59, 59, 0, time.Local), st: newStyles(themes[0])}
+	s := rooms.Snapshot{Obra: "trem", Meta: 60}
+	if text := ansi.Strip(m.obraHead(s, 120)); !strings.Contains(text, "a peça muda a cada 20 min · reinicia em 00:00:01") {
+		t.Fatalf("cabeçalho: %s", text)
+	}
+	// Em janelas estreitas o texto deve quebrar, em vez de cortar o contador.
+	text := m.obraHead(s, 36)
+	if lipgloss.Width(text) > 36 || !strings.Contains(ansi.Strip(text), "00:00:01") {
+		t.Fatalf("contador cortado na janela estreita: %s", text)
+	}
+	m.now = m.now.Add(time.Second)
+	if !strings.Contains(ansi.Strip(m.obraHead(s, 120)), "reinicia em 24:00:00") {
+		t.Fatal("o cabeçalho não acompanhou a virada")
+	}
+}
 
 // O arranjo tem que dar conta de todo mundo: uma peça por pessoa, nem a mais nem a menos.
 func TestObraRows(t *testing.T) {
