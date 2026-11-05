@@ -133,6 +133,12 @@ O nome pede silêncio, e a ideia aparece no app sem forçar. Do brainstorming de
 - **Por onde começar:** o brainrot a 4 fps (metade da banda); por que dois vídeos custam 3× um só (117 KB/s), e não 2×; por que a sala parada manda 90 KB/s; e o custo de desenhar o modo jardim em si, que já é a maior parte da CPU da chuva.
 - **Como medir:** o harness em duas rodadas com durações diferentes (5 s e 35 s), diferença dos bytes recebidos e do `TotalProcessorTime` do servidor ÷ 30 s; para CPU, vários usuários ao mesmo tempo, porque um só fica no ruído.
 
+### Tempo declarado personalizado
+
+As opções fixas incluem 20 e 30 min. Se ainda faltar precisão, avaliar uma opção
+"outro tempo" para digitar minutos, preservando os atalhos da lista. Definir limites e validação
+antes de implementar; não transformar cada minuto em mais uma opção para percorrer com as setas.
+
 ### Sessões marcadas
 - Um horário opcional e configurável da sala para focar todo mundo junto, sem ser o único jeito de focar ([ADR 0002](docs/adr/0002-foco-individual-sem-horario-marcado.md)).
 

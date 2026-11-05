@@ -41,9 +41,9 @@ func soloRows(height int) int { return max(12, height-9) }
 // minuteChoices: os tempos declarados que dá para escolher (na demo, 1 min para a plateia ver o fluxo).
 func minuteChoices() []int {
 	if rooms.Demo {
-		return []int{1, 5, 10, 15, 25, 45, 60}
+		return []int{1, 5, 10, 15, 20, 25, 30, 45, 60}
 	}
-	return []int{5, 10, 15, 25, 45, 60}
+	return []int{5, 10, 15, 20, 25, 30, 45, 60}
 }
 
 // events: os eventos navegáveis. A sala solo não tem nenhum (nem cursor, nem reações); o que
