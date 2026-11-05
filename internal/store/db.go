@@ -94,7 +94,7 @@ func SetToday(id, day string, min float64) error {
 	return err
 }
 
-// SetPetColor guarda a cor escolhida para o pet ("" volta para a cor do humor).
+// SetPetColor guarda o ID da paleta escolhida para o pet ("" usa azul).
 func SetPetColor(id, c string) error {
 	_, err := db.Exec(`UPDATE users SET pet_color = ? WHERE id = ?`, c, id)
 	return err

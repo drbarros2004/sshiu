@@ -63,13 +63,13 @@ func (m model) profileView() string {
 }
 
 // myColor: a cor do pet em prévia — a salva, fora do modo personalizar.
-func (m model) myColor() string { return pet.Colors[m.pcolor].Hex }
+func (m model) myColor() string { return pet.Colors[m.pcolor].ID }
 
 // colorRow: a linha da cor do pet. Fora do modo personalizar ela só diz qual é e como mexer;
 // dentro, é a linha que as setas mudam, com a prévia no pet grande ao lado.
 func (m model) colorRow() string {
 	c := pet.Colors[m.pcolor]
-	name := c.Name + " " + lipgloss.NewStyle().Foreground(lipgloss.Color(c.Hex)).Render("██")
+	name := c.Name + " " + lipgloss.NewStyle().Foreground(c.Body).Render("██")
 	if !m.custom {
 		return "cor      " + m.st.muted.Render(name)
 	}
@@ -105,14 +105,14 @@ func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "esc", "c":
 		m.pcolor, m.custom = m.pcSaved, false
 	case "enter":
-		id, hex := m.id, m.myColor()
+		id, paletteID := m.id, m.myColor()
 		m.pcSaved, m.custom, m.notice = m.pcolor, false, "salvo"
 		return m, act(func() {
-			if err := store.SetPetColor(id, hex); err != nil {
+			if err := store.SetPetColor(id, paletteID); err != nil {
 				log.Error("setPetColor", "err", err)
 				return
 			}
-			rooms.SetColor(id, hex)
+			rooms.SetColor(id, paletteID)
 		})
 	}
 	return m, nil

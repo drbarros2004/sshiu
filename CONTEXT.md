@@ -92,10 +92,10 @@ O estado visível do pet, derivado da energia: murcho, cansado, normal, bem ou r
 _Evite_: estado, mood
 
 **Cor do pet**:
-O tom que cada usuário escolhe para a sua criatura, logo depois do apelido e depois disso na aba
-de perfil. A cor é da pessoa e o humor continua aparecendo no quanto ela é viva: murcho fica
-apagado e radiante fica vivo, os dois no tom escolhido. Quem não escolhe fica com a primeira cor
-da lista.
+A paleta que cada usuário escolhe para o pet, logo depois do apelido e depois disso na aba
+de perfil. Cada parte tem uma cor fixa em todos os humores: o humor muda o desenho e o ritmo
+da animação, sem mudar a paleta. Quem não escolhe fica com azul. Veja o
+[guia de paletas](docs/pets-paletas.md).
 _Evite_: skin, tema do pet
 
 **Streak**:

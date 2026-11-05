@@ -177,7 +177,7 @@ func TestQuadroBNaoInventaCor(t *testing.T) {
 // fora: lá mora a nota do estágio 3, que sozinha já mudava o desenho enquanto o pássaro daquele
 // estágio continuava em pé, e o TestMovimento não via a diferença.
 func TestPassarinhoSeAbaixa(t *testing.T) {
-	aves, cor := obras["passarinhos"], pet.Colors[0].Hex
+	aves, cor := obras["passarinhos"], pet.Colors[0].ID
 	parado, mexendo := model{}, model{tick: aves.anim}
 	corpo := func(s string) string { return strings.Join(strings.Split(s, "\n")[2:], "\n") }
 	for stage := 1; stage < rooms.ObraStages; stage++ { // no estágio 0 o fio ainda está vazio
@@ -217,7 +217,7 @@ func TestNota(t *testing.T) {
 		return sem
 	}
 	for _, c := range casos {
-		o, cor := obras[c.tema], pet.Colors[0].Hex
+		o, cor := obras[c.tema], pet.Colors[0].ID
 		for q := range (o.sheet.Bounds().Dx() - o.fixo) / o.w() {
 			quer, canta := c.quadro[q]
 			if !canta {
@@ -262,7 +262,7 @@ func TestCoresEm256(t *testing.T) {
 		}
 	}
 	for _, pc := range pet.Colors {
-		for _, c := range pet.Tint(pieceBody[0], pieceBody[1], pc.Hex) {
+		for _, c := range pet.ArtworkColorMap(pieceBody[0], pieceBody[1], pc.ID) {
 			check("corpo "+pc.Name, c)
 		}
 	}
@@ -297,19 +297,19 @@ func TestStageFrame(t *testing.T) {
 		hex   string
 		want  int
 	}{
-		{0, pet.Colors[3].Hex, 0},
-		{1, pet.Colors[3].Hex, 1},
+		{0, pet.Colors[3].ID, 0},
+		{1, pet.Colors[3].ID, 1},
 		{2, "", 2},
 		{3, "", 3},
-		{2, pet.Colors[1].Hex, 4},
-		{3, pet.Colors[7].Hex, 17},
+		{2, pet.Colors[1].ID, 4},
+		{3, pet.Colors[7].ID, 17},
 	}
 	for _, c := range cases {
 		if got := stageFrame(o, c.stage, c.hex); got != c.want {
 			t.Errorf("estágio %d, cor %q: quadro %d, queria %d", c.stage, c.hex, got, c.want)
 		}
 	}
-	if got := stageFrame(obras["horta"], 3, pet.Colors[7].Hex); got != 3 {
+	if got := stageFrame(obras["horta"], 3, pet.Colors[7].ID); got != 3 {
 		t.Errorf("horta: quadro %d, queria 3", got)
 	}
 }
@@ -339,7 +339,7 @@ func salaCom(obra string, n, nick int) (model, rooms.Snapshot) {
 	for i := range n {
 		s.Members = append(s.Members, rooms.Member{ID: fmt.Sprint("m", i),
 			Nick: strings.Repeat(string(rune('a'+i)), nick), TodayMin: float64(i%4) * 20,
-			Color: pet.Colors[i%len(pet.Colors)].Hex})
+			Color: pet.Colors[i%len(pet.Colors)].ID})
 	}
 	return model{id: "m0", room: "s", w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": s}}}, s
 }

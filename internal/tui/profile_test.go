@@ -59,7 +59,7 @@ func TestMoodPreviewIsolation(t *testing.T) {
 	}
 	cmd()
 	_, saved, _, err := store.GetUser("preview")
-	if err != nil || saved.Color != pet.Colors[1].Hex {
+	if err != nil || saved.Color != pet.Colors[1].ID {
 		t.Fatalf("a cor não foi salva: %+v, %v", saved, err)
 	}
 	saved.Color = original.Color

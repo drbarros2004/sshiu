@@ -193,13 +193,20 @@ descartada em 01/11/2026.
   grande para cada tamanho de sala, cortada em peças.
 - **Constelação, vitral:** anotadas na conversa, sem desenho.
 
+## Paletas do pet: revisar aproximações em 256 cores
+
+As oito paletas já seguem os PNGs desenhados para as partes do pet.
+Os miolos das flores de verde e turquesa e as estrelinhas do rosa usam HEX que são aproximados
+em 256 cores; decidir se as cores do editor devem ser ajustadas à tabela xterm.
+Os valores originais e convertidos estão no [guia](docs/pets-paletas.md).
+
 ## Dívida técnica conhecida
 
 Também marcada no código com comentários `ponytail:`.
 
 - **Migração ingênua:** o `ALTER TABLE` ignora o erro de "coluna já existe". Trocar por uma ferramenta de migração quando houver várias.
 - **Um lock só** para todas as salas e usuários em `internal/rooms`: dá para uma turma; um lock por sala se houver muitas.
-- **Sala sem rolagem** (`roomView` em `internal/tui/room.go`): quando falta altura, a lista de eventos encurta e os pets viram um ponto da cor do humor, mas com muita gente num terminal baixo (80×24 já com 6 membros) os cards passam da altura e são cortados. Rolagem nos cards se isso aparecer de verdade.
+- **Sala sem rolagem** (`roomView` em `internal/tui/room.go`): quando falta altura, a lista de eventos encurta e os pets viram um ponto da cor do corpo do pet, mas com muita gente num terminal baixo (80×24 já com 6 membros) os cards passam da altura e são cortados. Rolagem nos cards se isso aparecer de verdade.
 - **O card não encolhe de verdade** (`card` em `internal/tui/room.go`): no modo compacto o pet vira
   um ponto, mas a caixa continua com as duas linhas fixas da tarefa, então cada fileira de cards
   custa 8 linhas mesmo vazia. É o que decide hoje se a obra cabe: em 120 colunas os cards cabem
