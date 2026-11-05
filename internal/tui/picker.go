@@ -111,7 +111,7 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k {
 	case "up", "k":
 		m.pcur = max(m.pcur-1, 0)
-	case "down", "j":
+	case "down":
 		m.pcur = min(m.pcur+1, len(items)-1)
 	case "esc", "s":
 		m.picking = false
