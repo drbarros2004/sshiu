@@ -242,7 +242,7 @@ func (m model) reactHelp() string {
 }
 
 // roomView: a sala em w×h células. Quando falta altura, a lista de eventos encurta e depois os
-// pets viram um ponto da cor do humor.
+// pets viram um ponto da cor do corpo do pet.
 // ponytail: com muita gente num terminal baixo os cards ainda passam da altura e são cortados;
 // rolagem nos cards se isso aparecer de verdade.
 func (m model) roomView(w, h int) string {
@@ -295,7 +295,7 @@ func (m model) roomView(w, h int) string {
 // fitStep: uma tentativa de caber na altura, da tela cheia para a mais apertada.
 type fitStep struct {
 	ob      string // a obra desenhada, ou "" quando ela já não cabe
-	compact bool   // os pets viram um ponto da cor do humor
+	compact bool   // os pets viram um ponto da cor do corpo do pet
 }
 
 // fitSteps: a ordem em que a tela abre mão das coisas. Dentro de cada passo o feed encurta
@@ -515,7 +515,7 @@ func orderedMembers(id string, s rooms.Snapshot) []rooms.Member {
 	return ms
 }
 
-// cards: per cards por fileira; compact troca o desenho do pet por um ponto da cor do humor.
+// cards: per cards por fileira; compact troca o desenho do pet por um ponto da cor do corpo do pet.
 func (m model) cards(s rooms.Snapshot, per int, compact bool) string {
 	ms := orderedMembers(m.id, s)
 	got := received(s)
@@ -552,7 +552,7 @@ func (m model) card(x rooms.Member, got int, compact bool) string {
 	}
 	art := pet.Render(mood, m.tick, m.pixel, x.Color)
 	if compact {
-		art = lipgloss.NewStyle().Foreground(lipgloss.Color(pet.MoodColor[mood])).Render("●")
+		art = lipgloss.NewStyle().Foreground(pet.Colors[pet.ColorIndex(x.Color)].Body).Render("●")
 	}
 	return st.Render(lipgloss.JoinVertical(lipgloss.Center,
 		art,

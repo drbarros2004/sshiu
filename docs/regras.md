@@ -24,6 +24,21 @@ var moodMin = [...]float64{Wilted: 0, Tired: 20, Okay: 40, Good: 60, Radiant: 80
 
 A energia mostrada é a guardada, menos o decaimento, mais o bônus de streak, sempre entre 0 e 100 ([mood.go:89](../internal/pet/mood.go#L89)). Cada tarefa encerrada soma os seus minutos e o bônus na hora ([mood.go:34](../internal/pet/mood.go#L34)).
 
+## Cores e folha do pet
+
+- Cada paleta tem uma cor por parte, fixa nos 6 humores visuais (incluindo dormindo).
+  Energia e humor não alteram as cores. Os nomes e os valores ficam em
+  [`palettes.json`](../internal/pet/palettes.json).
+- O template mede 64×96 pixels: 6 linhas de quadros 16×16; 2 quadros por humor e 4 no sono.
+  As cores de marcador identificam partes e não são as cores mostradas no terminal.
+- Os 8 IDs existentes são mantidos, para preservar escolhas salvas e os instrumentos da obra.
+  As 8 paletas reproduzem os PNGs de referência.
+- HEX pode ser convertido pelo terminal de 256 cores; há 3 aproximações nos PNGs atuais,
+  descritas no [guia de paletas](pets-paletas.md). `xterm:0` a `xterm:255` também são aceitos;
+  os primeiros 16 índices dependem do tema do terminal.
+
+Veja [como editar cores e adicionar grupos](pets-paletas.md).
+
 ## A tarefa
 
 Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indicado.

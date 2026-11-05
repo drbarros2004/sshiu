@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
 	last_active INTEGER NOT NULL,
 	streak      INTEGER NOT NULL DEFAULT 0,
 	streak_day  TEXT NOT NULL DEFAULT '',
-	pet_color   TEXT NOT NULL DEFAULT ''   -- cor escolhida para o pet ("" = sai do humor)
+	pet_color   TEXT NOT NULL DEFAULT ''   -- ID da paleta do pet ("" = azul)
 );
 CREATE TABLE IF NOT EXISTS tasks ( -- uma por tarefa encerrada
 	id           INTEGER PRIMARY KEY,

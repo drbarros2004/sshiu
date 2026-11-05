@@ -44,7 +44,7 @@ func SeedBots() {
 		}
 		// cada bot numa cor, a partir da segunda: quem entra fica com a primeira, e a obra mostra
 		// um tom (e, na orquestra, um instrumento) por pessoa
-		if err := store.SetPetColor("bot:"+b.nick, pet.Colors[(i+1)%len(pet.Colors)].Hex); err != nil {
+		if err := store.SetPetColor("bot:"+b.nick, pet.Colors[(i+1)%len(pet.Colors)].ID); err != nil {
 			log.Fatal("seed bots", "err", err)
 		}
 		// os minutos de hoje saem da energia: é a escada que a demo precisa para a obra mostrar

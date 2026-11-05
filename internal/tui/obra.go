@@ -368,7 +368,7 @@ func drawn(o *obra, x, y, w int, hex string, tinge bool) string {
 	}
 	var swap map[uint32]color.Color
 	if tinge {
-		swap = pet.Tint(pieceBody[0], pieceBody[1], hex)
+		swap = pet.ArtworkColorMap(pieceBody[0], pieceBody[1], hex)
 	}
 	if o.nota {
 		if swap == nil {
