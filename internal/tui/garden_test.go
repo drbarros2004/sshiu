@@ -15,7 +15,7 @@ import (
 func TestGardenEditorModes(t *testing.T) {
 	settings := store.DefaultGarden
 	settings.Wallpaper = "sky"
-	m := model{nick: "ana", tab: tabVisual, width: 80, height: 24, now: time.Now(),
+	m := model{nick: "ana", tab: tabVisual, width: 120, height: 36, now: time.Now(),
 		vis: settings, visSaved: settings, st: newStyles(themes[0])}
 	press := func(code rune) {
 		t.Helper()
@@ -23,7 +23,7 @@ func TestGardenEditorModes(t *testing.T) {
 		m = next.(model)
 	}
 	panelVisible := func() bool {
-		return strings.Contains(ansi.Strip(m.garden.frame), "1/7 · tema")
+		return strings.Contains(ansi.Strip(m.garden.frame), "espaço oculta")
 	}
 	press('j')
 	if m.garden.mode != gardenPreview || panelVisible() {
@@ -34,20 +34,38 @@ func TestGardenEditorModes(t *testing.T) {
 	if m.garden.mode != gardenEditor || !panelVisible() {
 		t.Fatal("v deveria abrir o editor com painel")
 	}
+	strip := ansi.Strip(m.garden.frame)
+	if !strings.Contains(strip, "permitir wallpapers para devs de verdade?") || strings.Contains(strip, "tema") {
+		t.Fatal("o painel completo deveria mostrar só as opções do jardim")
+	}
+	m.width--
+	m.garden.render(m)
+	strip = ansi.Strip(m.garden.frame)
+	if !strings.Contains(strip, "wallpaper ‹ céu noturno ›") || strings.Contains(strip, "permitir wallpapers") {
+		t.Fatal("abaixo da largura mínima deveria aparecer o painel compacto")
+	}
+	press(tea.KeyUp)
 	press(tea.KeyRight)
-	if m.theme != 1 || m.saved != 0 {
-		t.Fatal("a seta deveria mudar o tema em prévia")
+	if m.theme != 0 || m.vis.Wallpaper != "rain" || m.visSaved != settings {
+		t.Fatal("a primeira opção deveria mudar o wallpaper em prévia")
 	}
 	press(tea.KeySpace)
 	if panelVisible() || m.garden.mode != gardenEditorHidden {
 		t.Fatal("espaço deveria ocultar o painel")
 	}
 	press(tea.KeyRight)
-	if !panelVisible() || m.theme != 1 {
+	if !panelVisible() || m.vis.Wallpaper != "rain" {
 		t.Fatal("a primeira tecla só deveria trazer o painel de volta")
 	}
+	for range 2 {
+		press(tea.KeyRight)
+	}
+	strip = ansi.Strip(m.garden.frame)
+	if !strings.Contains(strip, "1/6") || !strings.Contains(strip, "wallpaper ‹ café ›") {
+		t.Fatal("a opção selecionada deveria aparecer no painel compacto")
+	}
 	press(tea.KeyEscape)
-	if m.garden != nil || m.tab != tabVisual || m.theme != 1 {
+	if m.garden != nil || m.tab != tabVisual || m.vis.Wallpaper != "coffee" {
 		t.Fatal("esc deveria voltar aos controles com a edição em prévia")
 	}
 }

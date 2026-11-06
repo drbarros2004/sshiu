@@ -148,6 +148,9 @@ func (m model) openGarden(mode gardenMode) (model, tea.Cmd) {
 		m.notice = gardenEditorSizeHint
 		return m, nil
 	}
+	if mode == gardenEditor {
+		m.vrow = max(1, m.vrow) // a primeira opção do jardim vem depois do tema
+	}
 	m.gardenGen++
 	gen := m.gardenGen
 	preview := mode != gardenFocus
@@ -349,7 +352,7 @@ func (g *garden) render(m model) {
 	if g.mode == gardenEditor {
 		var protected image.Rectangle
 		if len(lines) > 0 {
-			protected = image.Rect(cx-wd/2-3, y0-1, cx+(wd+1)/2+3, y0+len(lines)+1)
+			protected = image.Rect(cx-wd/2-3, y0, cx+(wd+1)/2+3, y0+len(lines))
 		}
 		c.gardenSettingsPanel(m, wallpapers[g.wall].id, protected)
 	}
