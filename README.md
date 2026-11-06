@@ -1,89 +1,107 @@
+<div align="center">
+
 # sshiu
 
-Um app de foco que roda no terminal, por SSH, para uma turma estudar junto. Você diz a próxima coisa concreta que vai fazer e por quanto tempo, foca, e marca "feito" quando terminar. A sua sala vê quem está focando e em quê, e reage. O seu pet floresce quando você foca e murcha quando você some.
+**a quiet focus room in your terminal, over ssh.**
 
-## Telas
+![the demo room with five bots](docs/telas/sala.png)
 
-**Sala:** o seu foco em cima, um card por membro (pet, humor, tarefa, status e reações recebidas) e os eventos da sala embaixo, com as reações.
+</div>
 
-![A sala demo com cinco bots](docs/telas/sala.png)
+a focus app for a study group, living in the terminal. you say the next concrete thing you're going to do and for how long, you focus, and you mark it done when you finish. your room sees who's focusing and on what, and reacts. your pet blooms when you focus and wilts when you disappear.
 
-**Modo jardim:** a tela de descanso durante o foco, que liga com `j` ou, se você deixar, depois de 30 s sem tecla. Um wallpaper animado e calmo, com o tempo restante, a tarefa e quem mais está focando por cima.
+## screens
 
-![O modo jardim com o wallpaper da estrada à noite](docs/telas/jardim.webp)
+**room:** your focus on top, one card per member (pet, mood, task, status and the reactions they got) and the room's events below, with reactions.
 
-**Perfil:** o seu pet, a energia, o streak e as últimas tarefas.
+**garden mode:** the rest screen while you focus. press `j`, or let it turn on by itself after 30 s without a keystroke. a calm animated wallpaper, with the time left, your task and who else is focusing on top.
 
-![O perfil de um usuário novo](docs/telas/perfil.png)
+![garden mode with the night road wallpaper](docs/telas/jardim.webp)
 
-**Visual:** o tema e o que aparece no modo jardim, a tela de descanso durante o foco.
+<table>
+  <tr>
+    <td width="50%"><b>profile:</b> your pet, energy, streak and latest tasks.</td>
+    <td width="50%"><b>visual:</b> the theme and what shows up in garden mode.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/telas/perfil.png" alt="the profile of a new user"></td>
+    <td><img src="docs/telas/visual.png" alt="the visual tab with the dracula theme"></td>
+  </tr>
+</table>
 
-![A aba visual com o tema dracula](docs/telas/visual.png)
+## run it
 
-## Rodar
+you need go 1.27 or newer and an ssh client.
 
-Precisa de Go 1.27 ou mais novo e de um cliente SSH.
-
-1. **Crie a sua chave SSH**, se ainda não tiver uma. Ela é o seu login:
+1. **create your ssh key**, if you don't have one yet. it's your login:
    ```bash
    ssh-keygen -t ed25519
    ```
-   Pode apertar enter em todas as perguntas.
+   you can just hit enter on every question.
 
-2. **Suba o servidor** na raiz do repositório:
+2. **start the server** from the repo root:
    ```bash
    go run . -demo
    ```
-   Com `-demo`, aparece uma sala demo com bots e dá para escolher tarefas de 1 minuto. Na primeira vez, o servidor cria a própria chave em `.ssh/` e o banco `sshiu.db`.
+   with `-demo` you get a demo room full of bots, and you can pick 1-minute tasks. on the first run, the server creates its own key in `.ssh/` and the `sshiu.db` database.
 
-3. **Conecte** em outro terminal:
+3. **connect** from another terminal:
    ```bash
    ssh -p 23234 localhost
    ```
-   Na primeira conexão, o SSH pergunta se você confia no servidor: responda `yes`. Depois escolha um apelido e crie uma sala, entre numa com o código de um colega ou abra a sala demo.
+   on the first connection, ssh asks whether you trust the server: answer `yes`. then pick a nickname and create a room, join one with a friend's room code, or open the demo room.
 
-   O código da sala também pode vir no comando, e aí você entra direto nela. O `-t` é obrigatório: sem ele, o SSH não abre o terminal quando o comando tem algo depois do endereço.
+   the room code can also go in the command, and you land straight in the room. the `-t` is required: without it, ssh doesn't open a terminal when there's something after the address.
    ```bash
    ssh -t -p 23234 localhost 49ae4z
    ```
 
-Para usar outra porta, passe `-port`. Para rodar os testes, use `go test ./...`.
+to use another port, pass `-port`. to run the tests, use `go test ./...`.
 
-## Abrir para a turma
+## open it to your group
 
-Por padrão o servidor só aceita quem está na própria máquina. Para outras pessoas entrarem:
+by default the server only accepts connections from the same machine. to let other people in:
 
-1. **Suba escutando em todas as interfaces:**
+1. **listen on every interface:**
    ```bash
    go run . -host 0.0.0.0
    ```
-   O log mostra o comando de entrada com cada endereço desta máquina — por exemplo `ssh -p 23234 192.168.0.33`. O convite da sala usa o mesmo endereço, com `-t` e o código da sala no fim.
+   the log prints the join command for each address of this machine, like `ssh -p 23234 192.168.0.33`. the room invite uses the same address, with `-t` and the room code at the end.
 
-2. **Libere a porta no firewall do Windows**, num PowerShell como administrador:
+2. **open the port in the windows firewall**, in a powershell running as administrator:
    ```powershell
    New-NetFirewallRule -DisplayName "sshiu" -Direction Inbound -Protocol TCP -LocalPort 23234 -Action Allow -Profile Private
    ```
-   Veja em que perfil você está com `Get-NetConnectionProfile`: numa rede **pública** o Windows recusa conexões de entrada, então ou a regra vai com `-Profile Public`, ou a rede passa a privada.
+   check which profile you're on with `Get-NetConnectionProfile`: on a **public** network windows refuses incoming connections, so either the rule goes with `-Profile Public` or the network becomes private.
 
-3. **Todo mundo na mesma rede.** De fora dela o roteador não deixa passar sem redirecionamento de porta, e alguns Wi-Fi de visitante isolam os aparelhos entre si.
+3. **everyone on the same network.** from outside it, the router won't let anyone through without port forwarding, and some guest wi-fi networks isolate devices from each other.
 
-**Guarde a pasta `.ssh/`:** a chave do servidor nasce lá na primeira execução, e é ela que o cliente SSH memoriza. Se a chave mudar — pasta apagada, servidor recriado, outra máquina no mesmo endereço — todo mundo recebe `REMOTE HOST IDENTIFICATION HAS CHANGED` e só entra depois de apagar a chave antiga:
+<details>
+<summary><b>keep the <code>.ssh/</code> folder</b> (or everyone gets <code>REMOTE HOST IDENTIFICATION HAS CHANGED</code>)</summary>
+
+<br>
+
+the server's key is born there on the first run, and it's the key every ssh client remembers. if it changes (folder deleted, server recreated, another machine on the same address), everyone gets `REMOTE HOST IDENTIFICATION HAS CHANGED` and can only get in after deleting the old key:
 
 ```bash
 ssh-keygen -R "[192.168.0.33]:23234"
 ```
 
-Fora da porta 22, o endereço fica entre colchetes com a porta no fim: é assim que ele está gravado no `known_hosts`, e sem os colchetes o comando não acha nada para apagar. Na porta padrão basta `ssh-keygen -R 192.168.0.33`. Vale o mesmo para quem testa em `localhost`:
+outside port 22, the address goes in brackets with the port at the end: that's how it's stored in `known_hosts`, and without the brackets the command finds nothing to delete. on the default port, `ssh-keygen -R 192.168.0.33` is enough. same goes for anyone testing on `localhost`:
 
 ```bash
 ssh-keygen -R "[localhost]:23234"
 ```
 
-## Mais
+</details>
 
-- [`IDEIAS.md`](IDEIAS.md): o backlog e a dívida técnica conhecida.
-- [`CONTEXT.md`](CONTEXT.md): o vocabulário do app.
-- [`docs/adr/`](docs/adr/): as decisões de arquitetura e o porquê de cada uma.
-- [`docs/regras.md`](docs/regras.md): as regras numéricas, com links para o código.
-- [`CREDITS.md`](CREDITS.md): de onde vem a arte de terceiros.
-- [`AGENTS.md`](AGENTS.md): instruções para agentes de código.
+## more
+
+the internal docs are in portuguese, for now.
+
+- [`IDEIAS.md`](IDEIAS.md): the backlog and the known tech debt.
+- [`CONTEXT.md`](CONTEXT.md): the app's vocabulary.
+- [`docs/adr/`](docs/adr/): the architecture decisions and the why behind each one.
+- [`docs/regras.md`](docs/regras.md): the numeric rules, with links to the code.
+- [`CREDITS.md`](CREDITS.md): where third-party art comes from.
+- [`AGENTS.md`](AGENTS.md): instructions for coding agents.
