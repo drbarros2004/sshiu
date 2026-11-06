@@ -147,7 +147,9 @@ func (m model) visualKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "right":
 		step = 1
 	case "j":
-		return m.openGarden(true)
+		return m.openGarden(gardenPreview)
+	case "v":
+		return m.openGarden(gardenEditor)
 	case "enter":
 		id, name, g := m.id, themes[m.theme].name, m.vis
 		m.saved, m.visSaved, m.notice = m.theme, m.vis, "salvo"

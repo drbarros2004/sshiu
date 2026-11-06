@@ -136,6 +136,7 @@ type model struct {
 	ncur, nobra   int          // linha e obra escolhidas na tela de criar sala
 	obraFull      bool         // a obra sozinha na tela (tecla o)
 	garden        *garden      // modo jardim em tela cheia (nil = desligado)
+	gardenGen     int          // distingue os ticks de cada abertura
 	side          *garden      // o jardim da coluna da sala solo (nil = não tem)
 	lastKey       time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim, se a aba visual deixar
 	wall          int          // o wallpaper trocado no jardim, que vale para a tarefa...
@@ -287,6 +288,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		if m.garden != nil && m.garden.mode >= gardenEditor && !m.gardenEditorFits() {
+			m.garden, m.notice = nil, gardenEditorSizeHint
+		}
 	case tea.ColorProfileMsg:
 		m.pixel = msg.Profile >= colorprofile.ANSI256
 	case tickMsg:
@@ -299,7 +303,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.garden = nil
 		case m.garden == nil && active && m.nick != "" && m.vis.Auto && m.now.Sub(m.lastKey) >= gardenIdle:
 			var cmd tea.Cmd
-			m, cmd = m.openGarden(false)
+			m, cmd = m.openGarden(gardenFocus)
 			return m, tea.Batch(doTick(), cmd)
 		}
 		m = m.syncSide()
@@ -378,6 +382,9 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
 	m.lastKey = time.Now()
 	if m.garden != nil && k != "ctrl+c" { // ←/→ trocam o wallpaper; qualquer outra tecla sai, sem executar nada
+		if m.garden.mode >= gardenEditor {
+			return m.gardenEditorKey(msg)
+		}
 		switch k {
 		case "left":
 			return m.swapWallpaper(m.garden, -1)
@@ -474,7 +481,7 @@ func (m model) View() tea.View {
 		case tabProfile:
 			content, help = func(int, int) string { return m.profileView() }, m.profileHelp()
 		case tabVisual:
-			content, help = func(int, int) string { return m.visualView() }, "↑/↓ escolhe · ←/→ muda · j vê o modo jardim · enter salva"
+			content, help = func(int, int) string { return m.visualView() }, "↑/↓ escolhe · ←/→ muda · j prévia · v editar no jardim · enter salva"
 		}
 		nav := "a/d troca de aba · q sai"
 		if m.typing() {

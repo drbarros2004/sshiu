@@ -171,7 +171,7 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "j": // na sala solo o jardim é a outra versão da tela, e abre a qualquer momento
 		if m.solo() || focusing && !expired {
-			return m.openGarden(false)
+			return m.openGarden(gardenFocus)
 		}
 	}
 	return m, nil
