@@ -41,6 +41,7 @@ func Open(path string) error {
 	d.Exec(`ALTER TABLE users ADD COLUMN garden_task INTEGER NOT NULL DEFAULT 1`)
 	d.Exec(`ALTER TABLE users ADD COLUMN garden_room INTEGER NOT NULL DEFAULT 1`)
 	d.Exec(`ALTER TABLE users ADD COLUMN garden_auto INTEGER NOT NULL DEFAULT 1`)
+	d.Exec(`ALTER TABLE users ADD COLUMN garden_joke INTEGER NOT NULL DEFAULT 0`)
 	d.Exec(`ALTER TABLE rooms ADD COLUMN max_members INTEGER NOT NULL DEFAULT 10`)
 	if _, err := d.Exec(`ALTER TABLE rooms ADD COLUMN closed INTEGER NOT NULL DEFAULT 0`); err == nil {
 		// só quando a coluna nasce: as salas solo que já existiam também ficam fechadas (ADR 0006)
@@ -59,6 +60,7 @@ type Garden struct {
 	Clock      int    // 0 mm:ss, 1 só os minutos, 2 nenhum
 	Task, Room bool   // mostrar a tarefa e quem mais está focando
 	Auto       bool   // liga sozinho depois de um tempo sem tecla durante o foco
+	Joke       bool   // os wallpapers de piada, como o brainrot, aparecem (#36)
 }
 
 // DefaultGarden: os padrões de quem nunca mexeu na aba visual (IDEIAS.md).
@@ -66,14 +68,14 @@ var DefaultGarden = Garden{Clock: 1, Task: true, Room: true, Auto: true}
 
 func GetGarden(id string) Garden {
 	g := DefaultGarden
-	db.QueryRow(`SELECT garden_wallpaper, garden_clock, garden_task, garden_room, garden_auto FROM users WHERE id = ?`, id).
-		Scan(&g.Wallpaper, &g.Clock, &g.Task, &g.Room, &g.Auto) // sem usuário ainda: os padrões
+	db.QueryRow(`SELECT garden_wallpaper, garden_clock, garden_task, garden_room, garden_auto, garden_joke FROM users WHERE id = ?`, id).
+		Scan(&g.Wallpaper, &g.Clock, &g.Task, &g.Room, &g.Auto, &g.Joke) // sem usuário ainda: os padrões
 	return g
 }
 
 func SetGarden(id string, g Garden) error {
-	_, err := db.Exec(`UPDATE users SET garden_wallpaper = ?, garden_clock = ?, garden_task = ?, garden_room = ?, garden_auto = ? WHERE id = ?`,
-		g.Wallpaper, g.Clock, g.Task, g.Room, g.Auto, id)
+	_, err := db.Exec(`UPDATE users SET garden_wallpaper = ?, garden_clock = ?, garden_task = ?, garden_room = ?, garden_auto = ?, garden_joke = ? WHERE id = ?`,
+		g.Wallpaper, g.Clock, g.Task, g.Room, g.Auto, g.Joke, id)
 	return err
 }
 

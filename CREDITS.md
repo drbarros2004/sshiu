@@ -15,7 +15,7 @@ Todos foram escritos do zero em Go, em [`internal/tui/garden.go`](internal/tui/g
 
 ## Vídeos do wallpaper brainrot
 
-Trechos de 1 min, em 480p e sem áudio, em [`assets/videos/`](assets/videos/), cortados com o [yt-dlp](https://github.com/yt-dlp/yt-dlp) (`-f "bv*[height<=480][ext=mp4]" --download-sections`). Os quadros do wallpaper saem deles com o ffmpeg.
+Trechos de 1 min, em 480p e sem áudio, em [`assets/videos/`](assets/videos/), cortados com o [yt-dlp](https://github.com/yt-dlp/yt-dlp) (`-f "bv*[height<=480][ext=mp4]" --download-sections`). Os quadros do wallpaper saem deles com o ffmpeg, em `go generate ./internal/tui` ([`brainrot_gen.go`](internal/tui/brainrot_gen.go)). O crédito do Minecraft parkour aparece embaixo do vídeo, no próprio wallpaper.
 
 | Vídeo | Fonte | Trecho | Licença |
 |---|---|---|---|

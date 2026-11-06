@@ -28,19 +28,22 @@ const (
 	gardenHint = 5 * time.Second  // o nome do wallpaper e "← → troca", ao abrir e a cada troca
 )
 
-// wallpapers: o id fica no banco; o nome aparece na aba visual.
+// wallpapers: o id fica no banco; o nome aparece na aba visual. Os de piada só aparecem para quem
+// pede na aba visual (#36).
 type wallpaper struct {
 	id, name string
 	new      func() scene
+	joke     bool
 }
 
 var wallpapers = []wallpaper{
-	{"sky", "céu noturno", func() scene { return &sky{} }},
-	{"rain", "chuva lenta", func() scene { return &rain{} }},
-	{"lava", "lâmpada de lava", func() scene { return &lava{} }},
-	{"coffee", "café", func() scene { return &coffee{} }},
-	{"tree", "árvore", func() scene { return &tree{} }},
-	{"road", "estrada à noite", func() scene { return &road{} }},
+	{"sky", "céu noturno", func() scene { return &sky{} }, false},
+	{"rain", "chuva lenta", func() scene { return &rain{} }, false},
+	{"lava", "lâmpada de lava", func() scene { return &lava{} }, false},
+	{"coffee", "café", func() scene { return &coffee{} }, false},
+	{"tree", "árvore", func() scene { return &tree{} }, false},
+	{"road", "estrada à noite", func() scene { return &road{} }, false},
+	{"brainrot", "brainrot (para devs de verdade)", brainrotScene, true},
 }
 
 var clockModes = []string{"mm:ss", "só os minutos", "nenhum"}
@@ -85,11 +88,24 @@ func wallpaperIndex(id string) int {
 	return slices.IndexFunc(wallpapers, func(w wallpaper) bool { return w.id == id })
 }
 
+// shownWallpapers: as posições dos wallpapers que a aba visual deixa ver, na lista, nas setas e no
+// sorteio. Os de piada só com "sim" em "permitir wallpapers para devs de verdade?".
+func shownWallpapers(g store.Garden) []int {
+	var shown []int
+	for i, w := range wallpapers {
+		if !w.joke || g.Joke {
+			shown = append(shown, i)
+		}
+	}
+	return shown
+}
+
 // cycleWallpaper: o próximo (step 1) ou o anterior (-1) da aba visual, passando pelo sorteado ("").
-func cycleWallpaper(id string, step int) string {
-	n := len(wallpapers) + 1
-	if i := (wallpaperIndex(id)+1+step+n)%n - 1; i >= 0 {
-		return wallpapers[i].id
+func cycleWallpaper(g store.Garden, step int) string {
+	shown := shownWallpapers(g)
+	n := len(shown) + 1
+	if i := (slices.Index(shown, wallpaperIndex(g.Wallpaper))+1+step+n)%n - 1; i >= 0 {
+		return wallpapers[shown[i]].id
 	}
 	return ""
 }
@@ -97,19 +113,20 @@ func cycleWallpaper(id string, step int) string {
 // wallpaperFor: o escolhido, ou um sorteado por tarefa (o mesmo durante toda a tarefa).
 // Sem tarefa (a prévia), sorteia na hora.
 func wallpaperFor(g store.Garden, f rooms.Focus) int {
-	if i := wallpaperIndex(g.Wallpaper); i >= 0 {
+	shown := shownWallpapers(g)
+	if i := wallpaperIndex(g.Wallpaper); slices.Contains(shown, i) {
 		return i
 	}
 	if f.Start.IsZero() { // sem tarefa em andamento não há instante de onde sortear
-		return rand.IntN(len(wallpapers))
+		return shown[rand.IntN(len(shown))]
 	}
-	return int(f.Start.UnixMilli() % int64(len(wallpapers)))
+	return shown[f.Start.UnixMilli()%int64(len(shown))]
 }
 
 // gardenWall: o wallpaper ao abrir o jardim. Fora da prévia, vale a troca feita nesta tarefa.
 func (m model) gardenWall(preview bool) int {
 	f := m.me().Focus
-	if !preview && !f.Start.IsZero() && f.Start.Equal(m.wallFor) {
+	if !preview && !f.Start.IsZero() && f.Start.Equal(m.wallFor) && slices.Contains(shownWallpapers(m.vis), m.wall) {
 		return m.wall
 	}
 	return wallpaperFor(m.vis, f)
@@ -137,11 +154,12 @@ func (m model) openGarden(preview bool) (model, tea.Cmd) {
 // escolha da aba visual (passando pelo sorteado); durante a tarefa, troca só para esta tarefa.
 func (m model) swapWallpaper(g *garden, step int) (model, tea.Cmd) {
 	if g.preview {
-		m.vis.Wallpaper, m.notice = cycleWallpaper(m.vis.Wallpaper, step), ""
+		m.vis.Wallpaper, m.notice = cycleWallpaper(m.vis, step), ""
 		g.wall = wallpaperFor(m.vis, m.me().Focus)
 	} else {
-		n := len(wallpapers)
-		g.wall = (g.wall + step + n) % n
+		shown := shownWallpapers(m.vis)
+		n := len(shown)
+		g.wall = shown[(slices.Index(shown, g.wall)+step+n)%n]
 		m.wall, m.wallFor = g.wall, m.me().Focus.Start
 		g.hint = m.now.Add(gardenHint)
 	}
