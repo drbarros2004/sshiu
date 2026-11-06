@@ -11,6 +11,7 @@ package tui
 
 import (
 	"fmt"
+	"image"
 	"math"
 	"math/rand/v2"
 	"slices"
@@ -48,13 +49,22 @@ var wallpapers = []wallpaper{
 
 var clockModes = []string{"mm:ss", "só os minutos", "nenhum"}
 
+type gardenMode int
+
+const (
+	gardenFocus gardenMode = iota
+	gardenPreview
+	gardenEditor
+	gardenEditorHidden
+)
+
 // garden: o modo jardim ligado. É ponteiro no modelo porque as cenas guardam estado (as partículas).
 // Serve para a tela cheia e para a coluna da direita da sala solo (w/h e bare, ADR 0006).
 type garden struct {
 	scene       scene
 	start, last time.Time
-	gen         int       // descarta ticks de um jardim anterior
-	preview     bool      // aberto pela aba visual
+	gen         int // descarta ticks de um jardim anterior
+	mode        gardenMode
 	keep        bool      // fica ligado sem tarefa (a prévia e a sala solo)
 	bare        bool      // sem texto por cima: na sala solo quem mostra relógio e tarefa é o painel
 	w, h        int       // 0 = a tela toda
@@ -133,16 +143,19 @@ func (m model) gardenWall(preview bool) int {
 }
 
 // openGarden liga o modo jardim (preview: aberto pela aba visual, mesmo sem tarefa).
-func (m model) openGarden(preview bool) (model, tea.Cmd) {
-	gen := 1
-	if m.garden != nil {
-		gen = m.garden.gen + 1
+func (m model) openGarden(mode gardenMode) (model, tea.Cmd) {
+	if mode == gardenEditor && !m.gardenEditorFits() {
+		m.notice = gardenEditorSizeHint
+		return m, nil
 	}
+	m.gardenGen++
+	gen := m.gardenGen
+	preview := mode != gardenFocus
 	i := m.gardenWall(preview)
 	// na sala solo o jardim aberto sem tarefa é a outra versão da tela e fica ligado; aberto
 	// durante o foco, ele fecha quando o tempo esgota, senão você não vê que precisa responder.
 	m.garden = &garden{scene: wallpapers[i].new(), start: m.now, last: m.now, gen: gen,
-		preview: preview, keep: preview || m.solo() && !m.active(), wall: i}
+		mode: mode, keep: preview || m.solo() && !m.active(), wall: i}
 	if !preview {
 		m.garden.hint = m.now.Add(gardenHint)
 	}
@@ -153,7 +166,7 @@ func (m model) openGarden(preview bool) (model, tea.Cmd) {
 // swapWallpaper: ←/→ no jardim g, o da tela cheia ou o da coluna da sala solo. Na prévia, muda a
 // escolha da aba visual (passando pelo sorteado); durante a tarefa, troca só para esta tarefa.
 func (m model) swapWallpaper(g *garden, step int) (model, tea.Cmd) {
-	if g.preview {
+	if g.mode != gardenFocus {
 		m.vis.Wallpaper, m.notice = cycleWallpaper(m.vis, step), ""
 		g.wall = wallpaperFor(m.vis, m.me().Focus)
 	} else {
@@ -244,6 +257,11 @@ func (g *garden) render(m model) {
 
 	const dim, clock, task = 0, 1, 2 // o papel de cada linha, que vira a cor
 	me := m.me()
+	focus := me.Focus
+	sample := g.mode != gardenFocus && !m.active()
+	if sample {
+		focus = rooms.Focus{Task: "revisar a lista 3", Ends: m.now.Add(12*time.Minute + 34*time.Second)}
+	}
 	var lines []string
 	var roles []int
 	add := func(text string, role int) { // um bloco, separado do anterior por uma linha vazia
@@ -255,17 +273,20 @@ func (g *garden) render(m model) {
 		}
 	}
 	var hint []string // o nome do wallpaper fica no rodapé, fora do bloco: some sem mexer no resto
-	if g.preview {
+	if g.mode == gardenPreview {
 		name := wallpapers[g.wall].name
 		if wallpaperIndex(m.vis.Wallpaper) < 0 {
 			name = "sorteado a cada tarefa · agora, " + name
 		}
+		if sample {
+			name += " · dados de exemplo"
+		}
 		hint = []string{"prévia: " + name, "← → troca · qualquer tecla volta"}
-	} else if m.now.Before(g.hint) {
+	} else if g.mode == gardenFocus && m.now.Before(g.hint) {
 		hint = []string{wallpapers[g.wall].name + " · ← → troca"}
 	}
-	if me.Status == rooms.Focusing {
-		left := me.Focus.Ends.Sub(m.now)
+	if sample || me.Status == rooms.Focusing {
+		left := focus.Ends.Sub(m.now)
 		switch m.vis.Clock {
 		case 0:
 			add(bigText(mmss(left)), clock)
@@ -274,10 +295,14 @@ func (g *garden) render(m model) {
 			lines, roles = append(lines, "min"), append(roles, clock)
 		}
 		if m.vis.Task {
-			add(strings.Join(splitTask(me.Focus.Task), "\n"), task)
+			add(strings.Join(splitTask(focus.Task), "\n"), task)
 		}
 		if m.vis.Room {
-			add(focusingLine(m.othersFocusing()), dim)
+			nicks := []string{"ana", "bruno"}
+			if !sample {
+				nicks = m.othersFocusing()
+			}
+			add(focusingLine(nicks), dim)
 		}
 	}
 	wd := 0
@@ -321,6 +346,13 @@ func (g *garden) render(m model) {
 		hw = max(hw, len([]rune(l)))
 	}
 	put(hint, w/2, h-len(hint)-1, hw, func(int) string { return ink[dim] })
+	if g.mode == gardenEditor {
+		var protected image.Rectangle
+		if len(lines) > 0 {
+			protected = image.Rect(cx-wd/2-3, y0-1, cx+(wd+1)/2+3, y0+len(lines)+1)
+		}
+		c.gardenSettingsPanel(m, wallpapers[g.wall].id, protected)
+	}
 	g.frame = c.String()
 }
 

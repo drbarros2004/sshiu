@@ -7,7 +7,50 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
+
+func TestGardenEditorModes(t *testing.T) {
+	settings := store.DefaultGarden
+	settings.Wallpaper = "sky"
+	m := model{nick: "ana", tab: tabVisual, width: 80, height: 24, now: time.Now(),
+		vis: settings, visSaved: settings, st: newStyles(themes[0])}
+	press := func(code rune) {
+		t.Helper()
+		next, _ := m.key(tea.KeyPressMsg{Code: code})
+		m = next.(model)
+	}
+	panelVisible := func() bool {
+		return strings.Contains(ansi.Strip(m.garden.frame), "1/7 · tema")
+	}
+	press('j')
+	if m.garden.mode != gardenPreview || panelVisible() {
+		t.Fatal("j deveria abrir a prévia sem painel")
+	}
+	press(tea.KeyEscape)
+	press('v')
+	if m.garden.mode != gardenEditor || !panelVisible() {
+		t.Fatal("v deveria abrir o editor com painel")
+	}
+	press(tea.KeyRight)
+	if m.theme != 1 || m.saved != 0 {
+		t.Fatal("a seta deveria mudar o tema em prévia")
+	}
+	press(tea.KeySpace)
+	if panelVisible() || m.garden.mode != gardenEditorHidden {
+		t.Fatal("espaço deveria ocultar o painel")
+	}
+	press(tea.KeyRight)
+	if !panelVisible() || m.theme != 1 {
+		t.Fatal("a primeira tecla só deveria trazer o painel de volta")
+	}
+	press(tea.KeyEscape)
+	if m.garden != nil || m.tab != tabVisual || m.theme != 1 {
+		t.Fatal("esc deveria voltar aos controles com a edição em prévia")
+	}
+}
 
 func TestSplitTask(t *testing.T) {
 	a40 := strings.Repeat("a", 40)
@@ -52,12 +95,12 @@ func TestWallpaperForWithoutTask(t *testing.T) { // a prévia sem tarefa, em sor
 func TestSwapLastsForTheTask(t *testing.T) {
 	t0 := time.Now()
 	m := model{id: "a", now: t0, w: rooms.World{Users: map[string]rooms.Member{"a": {Focus: rooms.Focus{Start: t0}}}}}
-	m, _ = m.openGarden(false)
+	m, _ = m.openGarden(gardenFocus)
 	shown := shownWallpapers(m.vis)
 	want := shown[(slices.Index(shown, m.garden.wall)+1)%len(shown)]
 	m, _ = m.swapWallpaper(m.garden, 1)
 	m.garden = nil
-	if m, _ = m.openGarden(false); m.garden.wall != want {
+	if m, _ = m.openGarden(gardenFocus); m.garden.wall != want {
 		t.Errorf("reabrindo na mesma tarefa: %d, want %d", m.garden.wall, want)
 	}
 	m.w.Users["a"] = rooms.Member{Focus: rooms.Focus{Start: t0.Add(time.Hour)}}
