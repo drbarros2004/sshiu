@@ -140,13 +140,8 @@ func (c *canvas) gardenSettingsPanel(m model, wall string, protected image.Recta
 	}
 
 	border := colorName[int(ansi.Convert256(m.st.accent))]
-	background := colorName[int(ansi.Convert256(m.st.off))]
 	muted := colorName[int(ansi.Convert256(m.st.muted.GetForeground()))]
-	textColor := "255"
-	r, g, b, _ := m.st.off.RGBA()
-	if r+g+b > 3*0x8000 {
-		textColor = "233"
-	}
+	const background, textColor = "16", "255" // preto fixo e texto claro na paleta xterm
 	for y := box.Min.Y; y < box.Max.Y; y++ {
 		for x := box.Min.X; x < box.Max.X; x++ {
 			c.cells[y*c.w+x] = cell{r: ' ', b: background}
