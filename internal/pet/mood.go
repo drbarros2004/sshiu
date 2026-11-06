@@ -76,6 +76,15 @@ func MoodOf(e float64) Mood {
 	return Wilted
 }
 
+// NextMood retorna o próximo humor da energia e o limite para alcançá-lo.
+func NextMood(current Mood) (Mood, int, bool) {
+	if current < Wilted || current >= Radiant {
+		return current, 0, false
+	}
+	next := current + 1
+	return next, int(moodMin[next]), true
+}
+
 type Pet struct {
 	Energy     float64 // energia guardada, sem decaimento nem bônus
 	LastActive time.Time

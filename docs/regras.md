@@ -6,7 +6,7 @@ Ao mudar um número no código, mude aqui também.
 
 ## Energia e humor do pet
 
-Tudo em [`internal/pet/mood.go`](../internal/pet/mood.go). A energia vem dos minutos focados de verdade, não do tempo declarado: declarar 60 min e marcar "feito" no minuto 1 não rende.
+As regras da energia estão em [`internal/pet/mood.go`](../internal/pet/mood.go). A energia vem dos minutos focados de verdade, não do tempo declarado: declarar 60 min e marcar "feito" no minuto 1 não rende.
 
 | Regra | Valor | Por quê | Código |
 |---|---|---|---|
@@ -17,6 +17,7 @@ Tudo em [`internal/pet/mood.go`](../internal/pet/mood.go). A energia vem dos min
 | Streak | o dia conta a partir de 15 min focados | Pouco o bastante para um dia corrido, mais que abrir e fechar o app. | [mood.go:30](../internal/pet/mood.go#L30) |
 | Bônus de streak | +2 por dia seguido, até +10 | Recompensa a constância sem deixar o streak dominar a energia. | [mood.go:21-22](../internal/pet/mood.go#L21-L22) |
 | Faixas de humor | murcho < 20 ≤ cansado < 40 ≤ normal < 60 ≤ bem < 80 ≤ radiante | Cinco faixas iguais. | [mood.go:67](../internal/pet/mood.go#L67) |
+| Barra de energia | 20 células, 5 pontos por célula | Exibe os pontos inteiros e marca a borda direita da célula que completa o próximo limite. | [profile_energy.go](../internal/tui/profile_energy.go) |
 
 ```go
 var moodMin = [...]float64{Wilted: 0, Tired: 20, Okay: 40, Good: 60, Radiant: 80}

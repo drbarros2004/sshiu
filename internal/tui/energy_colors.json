@@ -1,0 +1,18 @@
+{
+  "bar": {
+    "all": null,
+    "murcho": "#808080",
+    "cansado": "#D7AF87",
+    "normal": "#87D7FF",
+    "bem": "#5FD787",
+    "radiante": "#FFD700"
+  },
+  "unfilled": null,
+  "markers": {
+    "all": null,
+    "before_cansado": null,
+    "before_normal": null,
+    "before_bem": null,
+    "before_radiante": null
+  }
+}
