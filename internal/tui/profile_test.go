@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"encoding/json"
+	"slices"
 	"sshiu/internal/pet"
 	"sshiu/internal/store"
 	"strings"
@@ -8,6 +10,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Percorrer todos os desenhos e salvar a cor não pode mudar o pet de verdade.
@@ -90,5 +93,80 @@ func TestFirstAccessMoodPreview(t *testing.T) {
 	m = next.(model)
 	if !m.custom || m.tab != tabProfile || m.previewMood != pet.MoodOf(pet.EnergyStart) {
 		t.Fatal("o primeiro acesso não abriu a prévia no humor inicial")
+	}
+}
+
+// O traço ocupa a célula que completa a faixa, mesmo quando a energia é fracionária.
+func TestEnergyBarThreshold(t *testing.T) {
+	now := time.Now()
+	for _, tc := range []struct {
+		energy  float64
+		marker  int
+		caption string
+	}{
+		{0, 3, "próximo humor em 20 · faltam 20"},
+		{20, 7, "próximo humor em 40 · faltam 20"},
+		{40, 11, "próximo humor em 60 · faltam 20"},
+		{60, 15, "próximo humor em 80 · faltam 20"},
+		{79.9, 15, "próximo humor em 80 · falta 1"},
+		{80, -1, "humor máximo"},
+		{100, -1, "humor máximo"},
+	} {
+		m := model{nick: "ana", st: newStyles(themes[0]), now: now, pet: pet.Pet{Energy: tc.energy, LastActive: now}}
+		view := ansi.Strip(m.profileView())
+		_, after, ok := strings.Cut(view, "energia  ")
+		if !ok {
+			t.Fatalf("energia %v: barra ausente", tc.energy)
+		}
+		barLine, _, _ := strings.Cut(after, "\n")
+		bar := barLine[:strings.LastIndex(strings.TrimRight(barLine, " "), " ")]
+		cells := []rune(bar)
+		if len(cells) != 20 {
+			t.Fatalf("energia %v: barra tem %d células", tc.energy, len(cells))
+		}
+		marker := slices.Index(cells, energyMarkerGlyph)
+		filled := int(tc.energy) / 5
+		solidBar := strings.Repeat("█", filled) + strings.Repeat(" ", 20-filled)
+		if marker != tc.marker || strings.Replace(bar, string(energyMarkerGlyph), " ", 1) != solidBar || !strings.Contains(view, tc.caption) {
+			t.Errorf("energia %v: barra %q e legenda esperada %q", tc.energy, bar, tc.caption)
+		}
+		if tc.energy == 79.9 && strings.TrimSpace(barLine) != bar+" 79" {
+			t.Error("a barra indica 80 antes de o pet ficar radiante")
+		}
+	}
+}
+
+func TestEnergyMarkerColorPriority(t *testing.T) {
+	var colors energyPalette
+	err := json.Unmarshal([]byte(`{
+  "bar": {"radiante": "#FFD700"},
+  "unfilled": "xterm:243",
+  "markers": {"all": null, "before_radiante": null}
+ }`), &colors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := colors.markerColor(pet.Radiant); got != 220 {
+		t.Errorf("cor do próximo humor = %d, queria 220", got)
+	}
+	if colors.Unfilled == nil || *colors.Unfilled != 243 {
+		t.Error("a cor xterm da parte vazia não foi preservada")
+	}
+	err = json.Unmarshal([]byte(`{
+  "bar": {"all": "xterm:240"},
+  "markers": {"all": "#FF8787", "before_radiante": "xterm:221"}
+ }`), &colors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := colors.barColor(pet.Radiant); got != 240 {
+		t.Errorf("bar.all = %d, queria 240", got)
+	}
+	if got := colors.markerColor(pet.Radiant); got != 210 {
+		t.Errorf("markers.all = %d, queria 210", got)
+	}
+	colors.Markers["all"] = nil
+	if got := colors.markerColor(pet.Radiant); got != 221 {
+		t.Errorf("exceção do traço = %d, queria 221", got)
 	}
 }

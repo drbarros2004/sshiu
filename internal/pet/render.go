@@ -99,7 +99,6 @@ var art = [...][2]string{
 
 var (
 	MoodName   = [...]string{Wilted: "murcho", Tired: "cansado", Okay: "normal", Good: "bem", Radiant: "radiante", Sleeping: "dormindo"}
-	MoodColor  = [...]string{Wilted: "244", Tired: "180", Okay: "117", Good: "78", Radiant: "220", Sleeping: "67"}
 	moodPeriod = [...]int{Wilted: 4, Tired: 3, Okay: 2, Good: 2, Radiant: 1, Sleeping: 3} // ticks por quadro: quanto mais cansado, mais lenta a respiração
 	// quadros de cada humor na folha: respirar são dois, e o sono usa quatro para o z subir
 	moodFrames = [...]int{Wilted: 2, Tired: 2, Okay: 2, Good: 2, Radiant: 2, Sleeping: 4}

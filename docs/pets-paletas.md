@@ -90,3 +90,22 @@ PNGs junto. Não regenere referências só para esconder uma diferença inespera
 
 A obra conserva o sistema anterior de recoloração por matiz, isolado em `artwork_colors.go`.
 As novas paletas por parte são usadas apenas pelo pet, pelas amostras de cor e pelo desenho ASCII.
+
+## Barra de energia do perfil
+
+Em [energy_colors.json](../internal/tui/energy_colors.json), use uma string HEX como
+`"#FF8787"` ou um índice explícito como `"xterm:210"`. A barra converte HEX para a
+tabela xterm de 256 cores.
+
+- `bar` define o preenchimento e a cor do nome do humor **atual**. `bar.radiante` vale
+  durante radiante. Uma cor em `bar.all` prevalece sobre os valores individuais.
+- `unfilled` é a cor de fundo da parte vazia, inclusive na célula do traço.
+  Vale para todos os humores. Com `null`, usa o fundo discreto do tema na tabela xterm.
+- `markers` define os traços que aparecem **antes** de alcançar cada humor. Por
+  exemplo, `before_radiante` colore a marca de 80 enquanto o pet está bem.
+  `null` em uma chave usa a cor do humor de destino em `bar`.
+- Uma cor em `markers.all` prevalece sobre todos os traços individuais. Use
+  `"all": "#FF8787"` dentro de `markers` para testar vermelho em todos eles.
+  Volte para `null` para usar as cores individuais ou herdadas.
+
+Recompile a demo para ver os ajustes.

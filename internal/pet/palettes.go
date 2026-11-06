@@ -61,7 +61,7 @@ func readPalettes(data []byte, template image.Image) ([]Palette, error) {
 		if name == "" || len(value) != 7 || !strings.HasPrefix(value, "#") {
 			return nil, fmt.Errorf("parts.%s: o marcador deve ser #RRGGBB", name)
 		}
-		c, err := parsePaletteColor(value)
+		c, err := ParsePaletteColor(value)
 		if err != nil {
 			return nil, fmt.Errorf("parts.%s: %w", name, err)
 		}
@@ -97,7 +97,7 @@ func readPalettes(data []byte, template image.Image) ([]Palette, error) {
 		if !exists {
 			return nil, fmt.Errorf("defaults: falta a cor de %s", name)
 		}
-		if _, err := parsePaletteColor(value); err != nil {
+		if _, err := ParsePaletteColor(value); err != nil {
 			return nil, fmt.Errorf("defaults, %s: %w", name, err)
 		}
 	}
@@ -119,7 +119,7 @@ func readPalettes(data []byte, template image.Image) ([]Palette, error) {
 			if override, exists := def.Colors[name]; exists {
 				value = override
 			}
-			c, err := parsePaletteColor(value)
+			c, err := ParsePaletteColor(value)
 			if err != nil {
 				return nil, fmt.Errorf("paleta %s, %s: %w", def.Name, name, err)
 			}
@@ -133,8 +133,8 @@ func readPalettes(data []byte, template image.Image) ([]Palette, error) {
 	return palettes, nil
 }
 
-// parsePaletteColor aceita HEX ou um índice explícito, por exemplo "xterm:95".
-func parsePaletteColor(value string) (color.Color, error) {
+// ParsePaletteColor aceita HEX ou um índice explícito, por exemplo "xterm:95".
+func ParsePaletteColor(value string) (color.Color, error) {
 	if strings.HasPrefix(value, "xterm:") {
 		n, err := strconv.Atoi(strings.TrimPrefix(value, "xterm:"))
 		if err == nil && n >= 0 && n <= 255 {

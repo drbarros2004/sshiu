@@ -22,11 +22,10 @@ func (m model) profileView() string {
 	}
 	e := m.pet.EnergyAt(m.now)
 	mood := pet.MoodOf(e)
-	n := int(e / 5)
-	moodSt := lipgloss.NewStyle().Foreground(lipgloss.Color(pet.MoodColor[mood]))
+	moodSt := lipgloss.NewStyle().Foreground(energyColors.barColor(mood))
 	info := bold.Render(m.nick) + "\n\n" +
 		"humor    " + moodSt.Render(pet.MoodName[mood]) + "\n" +
-		"energia  " + moodSt.Render(strings.Repeat("█", n)) + m.st.muted.Render(strings.Repeat("░", 20-n)) + fmt.Sprintf(" %.0f", e) + "\n" +
+		m.energyBar(e, mood, moodSt) + "\n" +
 		fmt.Sprintf("streak   %d %s", m.pet.StreakAt(m.now), plural(m.pet.StreakAt(m.now), "dia seguido", "dias seguidos")) + "\n" +
 		m.colorRow() + "\n\n" +
 		m.statsBlock(false) + "\n\n" +
