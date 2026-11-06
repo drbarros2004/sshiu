@@ -1,54 +1,43 @@
 package tui
 
-// PROTÓTIPO: o wallpaper de piada "para desenvolvedores de verdade" (IDEIAS.md). Dois vídeos, um em cada
-// borda, e o relógio e a tarefa no meio, como nos cortes com a tela dividida, só que em dobro.
-// ponytail: os quadros vêm de SSHIU_VIDEOS (uma pasta por vídeo, PNGs feitos com o ffmpeg), fora do
-// git, até a licença estar decidida; embutir com go:embed se o wallpaper ficar. Vertical, como no
-// celular: o centro do vídeo 16:9 cortado em 9:16, 54 colunas × 48 linhas no tamanho cheio.
-//
-//	ffmpeg -i subway.mp4 -vf "fps=8,crop=ih*9/16:ih,scale=54:96:flags=area" <SSHIU_VIDEOS>/subway/%04d.png
+// O wallpaper de piada "para desenvolvedores de verdade" (IDEIAS.md): dois vídeos, um em cada
+// borda, e o relógio e a tarefa no meio, como nos cortes com a tela dividida, só que em dobro. Só
+// aparece para quem pede na aba visual (#36). Os vídeos vêm de assets/videos/ (ADR 0005,
+// CREDITS.md); o CC BY do Minecraft pede crédito para quem vê, e ele fica embaixo do vídeo.
+// Vertical, como no celular: 54 colunas × 48 linhas no tamanho cheio, 8 quadros por segundo.
+
+//go:generate go run brainrot_gen.go
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
 	"image"
 	"image/color"
 	"image/png"
-	"os"
-	"path/filepath"
 	"strings"
-
-	"charm.land/log/v2"
+	"sync"
 )
 
-func init() {
-	dir := os.Getenv("SSHIU_VIDEOS")
-	if dir == "" {
-		return
-	}
-	entries, err := os.ReadDir(dir)
+var (
+	//go:embed brainrot-minecraft.png
+	minecraftPNG []byte
+	//go:embed brainrot-subway.png
+	subwayPNG []byte
+)
+
+// brainrotScene: os quadros em ANSI ocupam ~60 MB, então só são montados na primeira vez que
+// alguém abre o brainrot, e daí servem para todo mundo.
+var brainrotScene = sync.OnceValue(func() scene {
+	return brainrot{mustClip(minecraftPNG), mustClip(subwayPNG)}
+})
+
+func mustClip(b []byte) *clip {
+	img, err := png.Decode(bytes.NewReader(b))
 	if err != nil {
-		log.Error("vídeos", "err", err)
-		return
+		panic(err) // embutido no binário: se não abre, o build está quebrado
 	}
-	var clips []*clip
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		c, err := loadClip(filepath.Join(dir, e.Name()))
-		if err != nil {
-			log.Error("vídeo", "nome", e.Name(), "err", err)
-			continue
-		}
-		clips = append(clips, c)
-		log.Info("vídeo carregado", "nome", e.Name(), "quadros", len(c.sizes[0].frames))
-	}
-	if len(clips) < 2 {
-		log.Error("brainrot precisa de dois vídeos", "achados", len(clips))
-		return
-	}
-	b := brainrot{clips[0], clips[1]} // os dois primeiros em ordem alfabética: minecraft à esquerda, subway à direita
-	wallpapers = append(wallpapers, wallpaper{"brainrot", "brainrot (para devs de verdade)", func() scene { return b }})
+	return newClip(img)
 }
 
 // clip: o vídeo em alguns tamanhos, do maior ao menor; na tela entra o maior que couber.
@@ -62,29 +51,24 @@ type clipSize struct {
 
 var clipScales = []float64{1, 0.75, 0.5, 0.35}
 
-func loadClip(dir string) (*clip, error) {
-	files, err := filepath.Glob(filepath.Join(dir, "*.png"))
-	if err != nil || len(files) == 0 {
-		return nil, fmt.Errorf("nenhum PNG em %s", dir)
-	}
+// newClip: a tira tem os quadros um embaixo do outro, cada um com 16:9 de altura para cada 9 de
+// largura (brainrot_gen.go).
+func newClip(strip image.Image) *clip {
+	b := strip.Bounds()
+	fw := b.Dx()
+	fh := fw * 16 / 9
 	c := &clip{sizes: make([]clipSize, len(clipScales))}
-	for _, f := range files { // o Glob devolve em ordem: 0001.png, 0002.png...
-		r, err := os.Open(f)
-		if err != nil {
-			return nil, err
-		}
-		img, err := png.Decode(r)
-		r.Close()
-		if err != nil {
-			return nil, err
-		}
+	for y := b.Min.Y; y+fh <= b.Max.Y; y += fh {
+		img := strip.(interface {
+			SubImage(image.Rectangle) image.Image
+		}).SubImage(image.Rect(b.Min.X, y, b.Max.X, y+fh))
 		for i, k := range clipScales {
-			w, h := int(float64(img.Bounds().Dx())*k), int(float64(img.Bounds().Dy())*k)/2*2
+			w, h := int(float64(fw)*k), int(float64(fh)*k)/2*2
 			rows := halfBlockRows(shrink(img, w, h))
 			c.sizes[i] = clipSize{append(c.sizes[i].frames, rows), w, h / 2}
 		}
 	}
-	return c, nil
+	return c
 }
 
 // shrink: redimensiona pegando o pixel mais próximo (pixelado de propósito).
@@ -151,8 +135,9 @@ func (s *clip) size(maxW, maxH int) clipSize {
 	return s.sizes[len(s.sizes)-1]
 }
 
-// put: o quadro do instante t, com a borda esquerda em x e centrado na altura.
-func (z clipSize) put(c *canvas, t float64, x int) {
+// put: o quadro do instante t, com a borda esquerda em x e centrado na altura. Devolve a linha
+// logo abaixo do vídeo.
+func (z clipSize) put(c *canvas, t float64, x int) int {
 	f := z.frames[int(t*gardenFPS)%len(z.frames)]
 	y0 := (c.h - len(f)) / 2
 	for i, row := range f {
@@ -160,6 +145,7 @@ func (z clipSize) put(c *canvas, t float64, x int) {
 			c.raw[y] = append(c.raw[y], rawSeg{x, z.w, row})
 		}
 	}
+	return y0 + len(f)
 }
 
 // brainrot: um vídeo em cada borda e o texto no meio. Estímulo demais, de propósito: é a piada.
@@ -168,6 +154,6 @@ type brainrot struct{ l, r *clip }
 func (d brainrot) draw(c *canvas, t, dt float64) {
 	maxW := (c.w-48)/2 - 2 // 48 colunas no meio para o relógio, a tarefa e quem mais está focando
 	l, r := d.l.size(maxW, c.h-2), d.r.size(maxW, c.h-2)
-	l.put(c, t, 2)
+	c.text(2, l.put(c, t, 2), "vídeo de orbital (CC BY)", "240") // o crédito que o CC BY pede
 	r.put(c, t, c.w-2-r.w)
 }

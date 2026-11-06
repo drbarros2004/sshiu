@@ -40,7 +40,7 @@ func TestRecordTask(t *testing.T) {
 	if g := GetGarden("u"); g != DefaultGarden {
 		t.Fatalf("garden padrão %+v", g)
 	}
-	want := Garden{Wallpaper: "rain", Clock: 2, Task: false, Room: true, Auto: false}
+	want := Garden{Wallpaper: "rain", Clock: 2, Task: false, Room: true, Auto: false, Joke: true}
 	if err := SetGarden("u", want); err != nil || GetGarden("u") != want {
 		t.Fatalf("garden %+v %v", GetGarden("u"), err)
 	}

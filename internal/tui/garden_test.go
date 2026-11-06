@@ -53,7 +53,8 @@ func TestSwapLastsForTheTask(t *testing.T) {
 	t0 := time.Now()
 	m := model{id: "a", now: t0, w: rooms.World{Users: map[string]rooms.Member{"a": {Focus: rooms.Focus{Start: t0}}}}}
 	m, _ = m.openGarden(false)
-	want := (m.garden.wall + 1) % len(wallpapers)
+	shown := shownWallpapers(m.vis)
+	want := shown[(slices.Index(shown, m.garden.wall)+1)%len(shown)]
 	m, _ = m.swapWallpaper(m.garden, 1)
 	m.garden = nil
 	if m, _ = m.openGarden(false); m.garden.wall != want {
@@ -66,15 +67,38 @@ func TestSwapLastsForTheTask(t *testing.T) {
 }
 
 func TestCycleWallpaper(t *testing.T) {
-	last := wallpapers[len(wallpapers)-1].id
-	if got := cycleWallpaper("", 1); got != wallpapers[0].id {
-		t.Errorf("depois do sorteado: %q", got)
+	for _, g := range []store.Garden{{}, {Joke: true}} {
+		shown := shownWallpapers(g)
+		last := wallpapers[shown[len(shown)-1]].id
+		if got := cycleWallpaper(g, 1); got != wallpapers[0].id {
+			t.Errorf("%+v: depois do sorteado: %q", g, got)
+		}
+		if got := cycleWallpaper(store.Garden{Wallpaper: last, Joke: g.Joke}, 1); got != "" {
+			t.Errorf("%+v: depois do último: %q, want o sorteado", g, got)
+		}
+		if got := cycleWallpaper(g, -1); got != last {
+			t.Errorf("%+v: antes do sorteado: %q", g, got)
+		}
 	}
-	if got := cycleWallpaper(last, 1); got != "" {
-		t.Errorf("depois do último: %q, want o sorteado", got)
+}
+
+func TestJokeWallpapers(t *testing.T) { // o brainrot só para quem pede (#36)
+	joke := wallpaperIndex("brainrot")
+	if !wallpapers[joke].joke {
+		t.Fatal("o brainrot é de piada")
 	}
-	if got := cycleWallpaper("", -1); got != last {
-		t.Errorf("antes do sorteado: %q", got)
+	if slices.Contains(shownWallpapers(store.Garden{}), joke) || !slices.Contains(shownWallpapers(store.Garden{Joke: true}), joke) {
+		t.Fatal("o brainrot aparece só com Joke")
+	}
+	if i := wallpaperFor(store.Garden{Wallpaper: "brainrot"}, rooms.Focus{Start: time.Now()}); i == joke {
+		t.Error("escolhido mas não permitido: devia sortear outro")
+	}
+	t0 := time.UnixMilli(0)
+	for k := range len(wallpapers) * 3 { // o sorteio por tarefa passa por todos os permitidos
+		f := rooms.Focus{Start: t0.Add(time.Duration(k) * time.Millisecond)}
+		if wallpaperFor(store.Garden{}, f) == joke {
+			t.Fatal("o brainrot caiu no sorteio de quem não pediu")
+		}
 	}
 }
 

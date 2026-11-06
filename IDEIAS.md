@@ -99,13 +99,14 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **O quê:** um wallpaper do modo jardim no estilo "brainrot": a tela dividida com um vídeo de Subway Surfers ou de corte de sabão, como nos cortes de vídeo que prendem a atenção. Só de piada, pensado para a demo.
 - **Como dá para fazer:** sem nada especial (nem Lua, nem protocolo de imagem do terminal). O mesmo truque do pet em pixel art: cada caractere `▀` mostra 2 pixels, um na cor da frente e outro no fundo. Os quadros do vídeo seriam convertidos antes (ffmpeg, em baixa resolução), embutidos no binário com `go:embed` e tocados no ritmo do modo jardim.
 - **Cuidados:**
-  - **Licença:** resolvida. Os dois vídeos do protótipo (Subway Surfers e Minecraft parkour) estão em `assets/videos/`, com fonte e licença no `CREDITS.md` e a exceção no [ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md). Falta trocar o `SSHIU_VIDEOS` do protótipo por quadros gerados deles e embutidos com `go:embed`.
+  - **Licença:** resolvida. Os dois vídeos (Subway Surfers e Minecraft parkour) estão em `assets/videos/`, com fonte e licença no `CREDITS.md` e a exceção no [ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md). Os quadros saem deles com `go generate ./internal/tui` e ficam embutidos no binário; o crédito do CC BY fica embaixo do vídeo do Minecraft.
+  - **Só para quem pede:** "permitir wallpapers para devs de verdade?" na aba visual, com "não" por padrão ([#36](https://github.com/drbarros2004/sshiu/issues/36)).
   - **Peso:** medido no protótipo ([PR #4](https://github.com/drbarros2004/ssh-focus-app/pull/4)): ~380 KB/s por usuário, 8× a chuva. Fica como está até a [passada de performance](#passada-de-performance).
 
 ### Tela "sobre"
 - **O quê:** um FAQ com perguntas e respostas sérias, misturadas com piadinhas. Tom de exemplo: "a focus app for real developers (or vibe-coders)".
 - **O nome:** é o lugar natural para explicar o sshiu, com as respostas que ficaram do brainstorming do nome: "por que sshiu? é o ssh de quem pede silêncio" e "por que não tem chat? aqui é uma biblioteca" ([ADR 0004](docs/adr/0004-sem-chat-so-reacoes.md)).
-- **Créditos:** a tela leva o crédito do Minecraft parkour do wallpaper brainrot (canal Orbital, CC BY): a licença pede crédito para quem vê o vídeo, e o `CREDITS.md` só chega a quem lê o repo ([ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md)).
+- **Créditos:** a tela leva o crédito do Minecraft parkour do wallpaper brainrot (canal Orbital, CC BY): a licença pede crédito para quem vê o vídeo, e o `CREDITS.md` só chega a quem lê o repo ([ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md)). Enquanto a tela não existe, o crédito fica embaixo do vídeo, no próprio wallpaper.
 
 ### O silêncio do sshiu
 O nome pede silêncio, e a ideia aparece no app sem forçar. Do brainstorming de 02/11/2026 entraram só o feed vazio ("silêncio por aqui") e a linha embaixo do logo na primeira tela ("um lugar quieto para focar junto"). O resto ficou aqui, das mais discretas às mais ousadas:

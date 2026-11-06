@@ -132,6 +132,7 @@ func (m model) visualRows() [][2]string {
 		{"tarefa", shown[m.vis.Task]},
 		{"quem mais está focando", shown[m.vis.Room]},
 		{"liga sozinho", map[bool]string{true: fmt.Sprintf("depois de %.0f s", gardenIdle.Seconds()), false: "nunca"}[m.vis.Auto]},
+		{"permitir wallpapers para devs de verdade?", map[bool]string{true: "sim", false: "não"}[m.vis.Joke]},
 	}
 }
 
@@ -170,7 +171,7 @@ func (m model) visualKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.theme = cycle(m.theme, len(themes))
 		m.st = newStyles(themes[m.theme]) // prévia ao vivo
 	case 1:
-		m.vis.Wallpaper = cycleWallpaper(m.vis.Wallpaper, step)
+		m.vis.Wallpaper = cycleWallpaper(m.vis, step)
 	case 2:
 		m.vis.Clock = cycle(m.vis.Clock, len(clockModes))
 	case 3:
@@ -179,6 +180,11 @@ func (m model) visualKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.vis.Room = !m.vis.Room
 	case 5:
 		m.vis.Auto = !m.vis.Auto
+	case 6:
+		m.vis.Joke = !m.vis.Joke
+		if i := wallpaperIndex(m.vis.Wallpaper); i >= 0 && wallpapers[i].joke && !m.vis.Joke {
+			m.vis.Wallpaper = "" // o de piada escolhido some da lista: volta para o sorteado
+		}
 	}
 	return m, nil
 }
@@ -189,7 +195,8 @@ func (m model) visualView() string {
 		if i == 1 {
 			b.WriteString("\n" + bold.Render("modo jardim") + m.st.muted.Render(" · a tela de descanso durante o foco") + "\n")
 		}
-		cursor, label, value := "  ", fmt.Sprintf("%-24s", r[0]), m.st.muted.Render("‹ ")+r[1]+m.st.muted.Render(" ›")
+		// o rótulo comprido (o dos wallpapers de piada) empurra só o próprio valor
+		cursor, label, value := "  ", fmt.Sprintf("%-24s", r[0]+"  "), m.st.muted.Render("‹ ")+r[1]+m.st.muted.Render(" ›")
 		if i == m.vrow {
 			cursor, label = m.st.sel.Render("▸ "), m.st.sel.Render(label)
 		}
