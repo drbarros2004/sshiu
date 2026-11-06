@@ -85,7 +85,7 @@ func (c *canvas) overlapsVideo(box image.Rectangle) bool {
 	return false
 }
 
-func (c *canvas) gardenSettingsPanel(m model, wall string, protected image.Rectangle) {
+func (c *canvas) gardenSettingsPanel(m model, wall string, protected image.Rectangle) (footer bool) {
 	rows := m.visualRows()[1:]
 	title := " modo jardim "
 	labels := make([]string, len(rows))
@@ -104,7 +104,7 @@ func (c *canvas) gardenSettingsPanel(m model, wall string, protected image.Recta
 	// cabe num lado da tela (a árvore, a xícara e o carro ficam no outro).
 	if c.w >= gardenFullPanelWidth && c.h >= gardenFullPanelHeight &&
 		(width <= c.w/2-1 || wall != "tree" && wall != "coffee" && wall != "road") {
-		box = c.gardenSettingsSpot(wall, protected, width, len(rows)+2, 1)
+		box = c.gardenSettingsSpot(wall, protected, width, len(rows)+2, 3)
 	}
 	selected := m.vrow - 1
 	compact := box.Empty()
@@ -135,7 +135,7 @@ func (c *canvas) gardenSettingsPanel(m model, wall string, protected image.Recta
 			}
 		}
 		if box.Empty() {
-			return
+			return false
 		}
 	}
 
@@ -184,8 +184,6 @@ func (c *canvas) gardenSettingsPanel(m model, wall string, protected image.Recta
 		for i, line := range help {
 			c.ink(box.Min.X+2, box.Min.Y+i+2, line, muted)
 		}
-	} else {
-		help := "↑/↓ opção · ←/→ muda · espaço oculta · esc volta"
-		c.text((c.w-ansi.StringWidth(help))/2, c.h-1, help, muted)
 	}
+	return !compact
 }

@@ -344,18 +344,20 @@ func (g *garden) render(m model) {
 		}
 	}
 	put(lines, cx, y0, wd, func(i int) string { return ink[roles[i]] })
-	hw := 0
-	for _, l := range hint {
-		hw = max(hw, len([]rune(l)))
-	}
-	put(hint, w/2, h-len(hint)-1, hw, func(int) string { return ink[dim] })
 	if g.mode == gardenEditor {
 		var protected image.Rectangle
 		if len(lines) > 0 {
 			protected = image.Rect(cx-wd/2-3, y0, cx+(wd+1)/2+3, y0+len(lines))
 		}
-		c.gardenSettingsPanel(m, wallpapers[g.wall].id, protected)
+		if c.gardenSettingsPanel(m, wallpapers[g.wall].id, protected) {
+			hint = []string{"↑/↓ opção · ←/→ muda · espaço oculta · esc volta"}
+		}
 	}
+	hw := 0
+	for _, l := range hint {
+		hw = max(hw, len([]rune(l)))
+	}
+	put(hint, w/2, h-len(hint)-1, hw, func(int) string { return ink[dim] })
 	g.frame = c.String()
 }
 
