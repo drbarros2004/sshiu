@@ -15,6 +15,5 @@ Junto vem a aba dev, a última, com todo mundo do banco numa tabela: criar pesso
 - Os minutos focados viram tarefas de mentira ("tarefa dev") no histórico, e não só o número do dia: a tabela de foco soma as tarefas na semana, no mês e no total, e o número de hoje tem de bater com elas. Os passos estão nas [regras](../regras.md#modo-dev).
 - Estar online, para quem não está conectado, é uma sessão de mentira aberta pelo mesmo `Connect` das de verdade: a sala não sabe a diferença, e fechá-la no meio de uma tarefa segue a tolerância de reconexão. Ela some quando o servidor reinicia.
 - Os ids do modo dev são `dev:<apelido>`, como os bots da demo são `bot:<apelido>`. Um banco de verdade nunca tem um. Com `-dev -demo`, a ana do exemplo e a ana bot querem o mesmo apelido: o bot vira `ana-bot`.
-- O banco dev roda em WAL e sem fsync a cada commit, porque perder o último ajuste numa queda não importa num banco de teste. O banco de verdade continua como estava.
 - Um subcomando (`sshiu dev ...`) que mexesse direto no banco ficou de fora: com o servidor rodando, a sala não veria a mudança.
 - A aba dev fica fora da TUI de quem roda sem `-dev`, e sem `-dev` quem chega sem chave continua recusado.

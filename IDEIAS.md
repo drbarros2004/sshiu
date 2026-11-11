@@ -136,7 +136,6 @@ O nome pede silêncio, e a ideia aparece no app sem forçar. Do brainstorming de
   | sala, sem modo jardim | ~90 KB/s | — |
 
   Os quadros do brainrot ocupam ~60 MB de memória, fixos, não por usuário. O gargalo é a banda: 20 pessoas no brainrot mandam uns 60 Mbit/s.
-- **Banco, medido em 11/11/2026** (modo dev, Windows): cada commit com o fsync padrão do SQLite leva ~0,4 s; em WAL com `synchronous=NORMAL`, ~0,1 ms. No servidor de verdade isso pesa a cada tarefa encerrada e a cada mudança de sala; o modo dev já usa WAL ([ADR 0011](docs/adr/0011-modo-dev.md)).
 - **Por onde começar:** o brainrot a 4 fps (metade da banda); por que dois vídeos custam 3× um só (117 KB/s), e não 2×; por que a sala parada manda 90 KB/s; e o custo de desenhar o modo jardim em si, que já é a maior parte da CPU da chuva.
 - **Como medir:** o harness em duas rodadas com durações diferentes (5 s e 35 s), diferença dos bytes recebidos e do `TotalProcessorTime` do servidor ÷ 30 s; para CPU, vários usuários ao mesmo tempo, porque um só fica no ruído.
 
