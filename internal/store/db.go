@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sshiu/internal/pet"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -26,7 +27,7 @@ var schema string
 // segundo a dois no Windows, com o lock das salas travado e a tela de todo mundo parada. O NORMAL
 // não corrompe o banco; uma queda de energia pode perder só os últimos commits.
 func Open(path string) error {
-	d, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)")
+	d, err := sql.Open("sqlite", dsn(path))
 	if err != nil {
 		return err
 	}
@@ -59,6 +60,15 @@ func Open(path string) error {
 	d.Exec(`ALTER TABLE users ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'`)
 	db = d
 	return nil
+}
+
+// dsn: o caminho com o WAL e o NORMAL. Quem já passa um endereço com parâmetros (o -dev passa
+// "file:...?_pragma=...") escolhe os próprios: um segundo "?" quebrava o endereço.
+func dsn(path string) string {
+	if strings.Contains(path, "?") {
+		return path
+	}
+	return path + "?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
 }
 
 // Garden: o que o usuário escolheu para o modo jardim na aba visual.

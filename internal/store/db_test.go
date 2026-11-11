@@ -1,6 +1,7 @@
 package store
 
 import (
+	"path/filepath"
 	"slices"
 	"sshiu/internal/pet"
 	"testing"
@@ -140,4 +141,19 @@ func TestTasksByDate(t *testing.T) {
 	if ts, err := Tasks("u"); err != nil || len(ts) != 2 || !ts[0].Start.After(ts[1].Start) {
 		t.Fatalf("ordem %+v %v", ts, err)
 	}
+}
+
+// O endereço ganha o WAL só quando ainda não tem parâmetros: dois "?" não abrem o banco.
+func TestDSN(t *testing.T) {
+	if got := dsn("sshiu.db"); got != "sshiu.db?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)" {
+		t.Fatalf("sem parâmetros: %q", got)
+	}
+	dev := "file:sshiu-dev.db?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
+	if got := dsn(dev); got != dev {
+		t.Fatalf("com parâmetros: %q", got)
+	}
+	if err := Open(filepath.Join(t.TempDir(), "x.db") + "?_pragma=busy_timeout(1000)"); err != nil {
+		t.Fatalf("o endereço com parâmetros não abriu: %v", err)
+	}
+	db.Close()
 }
