@@ -120,7 +120,7 @@ Restart=always
 ## Achados no código
 
 - **O convite mostra um IP, não `sshiu`.** Ele e a mensagem de "crie uma chave" montam o endereço a partir de `s.LocalAddr()` ([main.go:146](../../main.go#L146), [main.go:70](../../main.go#L70)). Na rede local sai o IP do notebook (funciona, mas não é bonito); na Oracle, o IP privado (quebrado). Uma flag de nome público (por exemplo `-name sshiu`) no lugar do `LocalAddr()` resolve os dois.
-- **A chave do host pode trocar sem aviso.** Se `.ssh/id_ed25519` não existe na pasta atual ([main.go:43](../../main.go#L43)), o Wish gera uma nova ([wish v2.0.5, options.go:69-78](https://github.com/charmbracelet/wish/blob/v2.0.5/options.go#L69-L78)), e a turma inteira vê "REMOTE HOST IDENTIFICATION HAS CHANGED". Guardar backup do `.ssh/` e do `sshiu.db` e levá-los juntos em qualquer migração.
+- **A chave do host pode trocar sem aviso.** Se `.ssh/id_ed25519` não existe na pasta atual ([main.go:43](../../main.go#L43)), o Wish gera uma nova ([wish v2.0.5, options.go:69-78](https://github.com/charmbracelet/wish/blob/v2.0.5/options.go#L69-L78)), e a turma inteira vê "REMOTE HOST IDENTIFICATION HAS CHANGED". Guardar backup do `.ssh/` e do `sshiu.db` (com o `sshiu.db-wal`, se existir: o banco usa WAL) e levá-los juntos em qualquer migração.
 
 ## Perguntas abertas para a #25
 

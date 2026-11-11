@@ -22,8 +22,11 @@ const DefaultObraMeta = 60
 var schema string
 
 // Open abre o banco (criando as tabelas se preciso) e o guarda para o resto do pacote.
+// O WAL faz o commit custar menos de 1 ms: no journal padrão, cada tarefa encerrada levava de meio
+// segundo a dois no Windows, com o lock das salas travado e a tela de todo mundo parada. O NORMAL
+// não corrompe o banco; uma queda de energia pode perder só os últimos commits.
 func Open(path string) error {
-	d, err := sql.Open("sqlite", path)
+	d, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)")
 	if err != nil {
 		return err
 	}
