@@ -90,3 +90,17 @@ Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indica
 | Quadros do modo jardim | 8 por segundo | Movimento suave. Medido no protótipo: de 2 a 24 KB/s (em pixel art: árvore 4, café 21 e estrada 31 KB/s com o painel e 29 sem) e de 4 a 6% de um núcleo por usuário; 5 fps gasta uns 40% menos CPU. | [garden.go:26](../internal/tui/garden.go#L26) |
 | Padrões do modo jardim | wallpaper sorteado a cada tarefa, relógio só com os minutos, tarefa e sala aparecem, liga sozinho depois de 30 s, wallpapers para devs de verdade não | Quem chega vê o que o modo jardim oferece e desliga o que achar demais. O brainrot é de piada e gasta ~8× a banda da chuva: só entra na lista, nas setas e no sorteio de quem pede ([#36](https://github.com/drbarros2004/sshiu/issues/36)). | [db.go:67](../internal/store/db.go#L67) |
 | Brainrot | dois vídeos de 1 min, a 8 quadros por segundo, em 54 × 48 células no tamanho cheio (ou 75%, 50%, 35% do que couber) | Vertical, como no celular. Os quadros em ANSI (~70 MB) são montados na primeira vez que alguém abre o brainrot, em ~0,5 s, e servem para todo o servidor. | [brainrot.go](../internal/tui/brainrot.go), [brainrot_gen.go](../internal/tui/brainrot_gen.go) |
+
+## Modo dev
+
+Só com a flag `-dev` ([ADR 0011](adr/0011-modo-dev.md)). Os passos da aba dev estão em [`internal/rooms/dev.go`](../internal/rooms/dev.go).
+
+| Regra | Valor | Por quê | Código |
+|---|---|---|---|
+| Energia | de 5 em 5, na energia guardada | Chega a qualquer faixa de humor em poucas teclas. Os dias parados continuam decaindo por cima. | [dev.go:19](../internal/rooms/dev.go#L19) |
+| Dias parado | um dia por passo na última atividade, nunca depois de agora | Mostra o decaimento de 8 por dia sem esperar dias de verdade. Encerrar uma tarefa zera, como sempre. | [dev.go:103](../internal/rooms/dev.go#L103) |
+| Minutos de hoje | tarefas de 15 min, começando agora | O passo do streak (15 min): um `+` já faz o dia contar. O `-` apaga a última tarefa dev de hoje. | [dev.go:20](../internal/rooms/dev.go#L20) |
+| Minutos de antes de hoje | tarefas de 60 min, uma por dia para trás (ontem, anteontem...) | Cada `+` anda um dia, então a semana, o mês e o total da tabela de foco se separam sozinhos. | [dev.go:21](../internal/rooms/dev.go#L21), [dev.go:133](../internal/rooms/dev.go#L133) |
+| Tarefa em andamento | o `+` sem tarefa começa uma de 25 min; com tarefa, `+` dá mais 5 min e `-` faz 5 min passarem (até esgotar) | 25 min é o tempo padrão de quem foca de verdade. O `-` leva a tarefa ao "tempo esgotado" sem esperar, e os minutos passados contam como focados. | [dev.go:22-23](../internal/rooms/dev.go#L22-L23), [dev.go:191](../internal/rooms/dev.go#L191) |
+| Online | uma sessão de mentira por pessoa, aberta e fechada pelo painel | Passa pelo mesmo caminho das sessões de verdade: sem sessão nenhuma, a tarefa em andamento espera os 2 min de tolerância e é interrompida. | [dev.go:155](../internal/rooms/dev.go#L155) |
+| Banco e endereço | `sshiu-dev.db`, só localhost | O modo dev não encosta nos dados de verdade, e ninguém de fora entra sem chave. | [main.go:34](../main.go#L34) |

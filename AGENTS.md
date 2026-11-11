@@ -23,7 +23,10 @@ O Go fica em `C:\Program Files\Go\bin`, que pode não estar no PATH do shell.
 ```
 go vet ./... && go test ./...
 go run . -demo -port 23235
+go run . -dev -port 23235
 ```
+
+Com `-dev` ([ADR 0011](docs/adr/0011-modo-dev.md)), o banco é o `sshiu-dev.db`, a pessoa é o nome do SSH (`ssh -p 23235 ana@localhost`, sem chave) e a aba dev cria pessoas, põe gente na sala, liga e desliga quem está online, põe tarefas em andamento e muda os números com o servidor rodando.
 
 Toda mudança termina com `go vet ./...` e `go test ./...` passando, e toda feature precisa ser validada visualmente rodando como o app de verdade: interface nova nasce como um protótipo que roda no terminal, que o usuário vê antes de ela entrar no app.
 
