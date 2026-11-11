@@ -201,13 +201,14 @@ func Disconnect(id string) {
 }
 
 // awaitReturn: se u não voltar dentro da tolerância, a tarefa é interrompida com os minutos até u.gone.
-// Chame com mu travado.
+// Cada timer espera uma queda só: se u voltou e caiu de novo, quem decide é o timer da queda nova,
+// senão a primeira queda cortava a segunda antes de ela ter a tolerância inteira. Chame com mu travado.
 func awaitReturn(u *user) {
-	if f := u.focus; f != nil {
+	if f, gone := u.focus, u.gone; f != nil {
 		time.AfterFunc(reconnectGrace, func() {
 			mu.Lock()
 			defer mu.Unlock()
-			if u.online == 0 && u.focus == f {
+			if u.online == 0 && u.focus == f && u.gone.Equal(gone) {
 				finish(u, pet.Interrupted, u.gone)
 			}
 		})
