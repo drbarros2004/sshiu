@@ -12,6 +12,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 var reactionGlyphs = [rooms.Reactions]string{"👏", "🔥", "💪", "☕"}
@@ -323,7 +324,7 @@ func (m model) fitSteps(s rooms.Snapshot, w int) []fitStep {
 // a obra. O trem ocupa a largura e fica embaixo dos cards; a cidade cabe ao lado do log e vai
 // para o canto que hoje fica vazio, descendo para baixo dele quando a janela é estreita.
 func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, ob string) string {
-	out := title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s, w/18, compact)
+	out := title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s, w, compact)
 	alone := len(s.Members) == 1 && m.room != rooms.DemoCode // sozinho numa sala de mais
 	if alone {                                               // o convite vale mais que o feed vazio, e não encolhe
 		if ob != "" {
@@ -515,27 +516,68 @@ func orderedMembers(id string, s rooms.Snapshot) []rooms.Member {
 	return ms
 }
 
-// cards: per cards por fileira; compact troca o desenho do pet por um ponto da cor do corpo do pet.
-func (m model) cards(s rooms.Snapshot, per int, compact bool) string {
+// cardMin e cardMax: o miolo do card, em colunas. Ele cresce até caber "apelido humor" na mesma
+// linha do maior apelido da sala (nickMax mais " radiante"); antes, o nome comprido quebrava em
+// duas linhas e o card ficava mais alto que os vizinhos, deslocando os pets (#84).
+const (
+	cardMin = 16
+	cardMax = nickMax + 9 // docs/regras.md
+)
+
+// nameLine: o apelido (ou "você") e o humor, como aparecem no card.
+func (m model) nameLine(x rooms.Member, mood pet.Mood) (name, moodName string) {
+	name = x.Nick
+	if x.ID == m.id {
+		name = "você"
+	}
+	return name, pet.MoodName[mood]
+}
+
+// cardInner: o miolo dos cards da sala, o mesmo para todos, para a grade não desalinhar.
+func (m model) cardInner(ms []rooms.Member) int {
+	inner := cardMin
+	for _, x := range ms {
+		name, mood := m.nameLine(x, m.cardMood(x))
+		inner = max(inner, ansi.StringWidth(name)+1+ansi.StringWidth(mood))
+	}
+	return min(inner, cardMax)
+}
+
+// cardMood: o humor que o card mostra (quem fechou o terminal dorme).
+func (m model) cardMood(x rooms.Member) pet.Mood {
+	if x.Status == rooms.Offline {
+		return pet.Sleeping
+	}
+	return pet.MoodOf(x.Energy)
+}
+
+// cards: quantos couberem em w por fileira; compact troca o desenho do pet por um ponto da cor do
+// corpo do pet.
+func (m model) cards(s rooms.Snapshot, w int, compact bool) string {
 	ms := orderedMembers(m.id, s)
 	got := received(s)
-	per = max(1, per)
+	inner := m.cardInner(ms)
+	per := max(1, w/(inner+2))
 	var rows []string
 	for i := 0; i < len(ms); i += per {
 		var row []string
 		for _, x := range ms[i:min(i+per, len(ms))] {
-			row = append(row, m.card(x, got[x.ID], compact))
+			row = append(row, m.card(x, got[x.ID], compact, inner))
 		}
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, row...))
 	}
 	return strings.Join(rows, "\n")
 }
 
-func (m model) card(x rooms.Member, got int, compact bool) string {
-	mood := pet.MoodOf(x.Energy)
-	st, name, task := m.st.card, bold.Render(x.Nick), ""
+// card: um membro num card de miolo inner. O apelido que ainda passa (de antes do limite) termina
+// em "…" em vez de quebrar a linha.
+func (m model) card(x rooms.Member, got int, compact bool, inner int) string {
+	mood := m.cardMood(x)
+	nick, moodName := m.nameLine(x, mood)
+	nick = ansi.Truncate(nick, inner-1-ansi.StringWidth(moodName), "…")
+	st, name, task := m.st.card.Width(inner+2), bold.Render(nick), ""
 	if x.ID == m.id {
-		st, name = st.BorderForeground(m.st.accent), bold.Render("você")
+		st = st.BorderForeground(m.st.accent)
 	}
 	if x.Status == rooms.Focusing {
 		task = x.Focus.Task
@@ -548,7 +590,7 @@ func (m model) card(x rooms.Member, got int, compact bool) string {
 		reacts = m.st.muted.Render(fmt.Sprintf("%d reações", got))
 	}
 	if x.Status == rooms.Offline { // quem fechou o terminal dorme: o humor volta quando a pessoa volta
-		mood, st = pet.Sleeping, st.BorderForeground(m.st.off)
+		st = st.BorderForeground(m.st.off)
 	}
 	art := pet.Render(mood, m.tick, m.pixel, x.Color)
 	if compact {
@@ -556,8 +598,8 @@ func (m model) card(x rooms.Member, got int, compact bool) string {
 	}
 	return st.Render(lipgloss.JoinVertical(lipgloss.Center,
 		art,
-		name+" "+m.st.muted.Render(pet.MoodName[mood]),
-		m.st.task.Render(ellipsize(task, m.st.task.GetWidth(), 2)),
+		name+" "+m.st.muted.Render(moodName),
+		m.st.task.Width(inner).Render(ellipsize(task, inner, 2)),
 		m.status(x),
 		reacts))
 }

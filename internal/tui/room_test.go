@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 func TestRoomCode(t *testing.T) {
@@ -107,5 +108,39 @@ func TestSoloViewWithoutGarden(t *testing.T) {
 			Rooms: map[string]rooms.Snapshot{"s": {Code: "s", Name: "solo", Max: rooms.MinMembers}}}}
 	if got := m.soloView(); !strings.Contains(got, "│") {
 		t.Fatalf("sem as duas colunas: %q", got)
+	}
+}
+
+// Com apelido largo, emoji ou comprido, todos os cards de uma fileira têm a mesma altura e
+// largura, e nenhuma fileira passa da tela: o nome comprido quebrava a linha e deslocava os pets (#84).
+func TestCardsAlinhados(t *testing.T) {
+	nicks := []string{"ana", "田中さくら東京大", "🐱🐶🐭🐹🐰🦊🐻🐼", "abcdefghijklmnop", "ＡＢＣＤＥＦＧＨ",
+		"um_apelido_antigo_bem_mais_comprido_que_o_limite"} // de antes do limite: termina em "…"
+	s := rooms.Snapshot{Max: rooms.MaxMembers}
+	for i, n := range nicks {
+		s.Members = append(s.Members, rooms.Member{ID: n, Nick: n, Energy: float64(i * 18),
+			Status: rooms.Focusing, Focus: rooms.Focus{Task: "uma tarefa bem comprida para quebrar a linha", Ends: time.Now().Add(time.Minute)}})
+	}
+	m := model{id: "ana", room: "s", st: newStyles(themes[0]), now: time.Now(),
+		w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": s}}}
+	for _, w := range []int{40, 76, 116, 156} {
+		var cards []string
+		for _, x := range s.Members {
+			cards = append(cards, m.card(x, 0, false, m.cardInner(s.Members)))
+		}
+		for _, c := range cards {
+			if lipgloss.Width(c) != lipgloss.Width(cards[0]) || lipgloss.Height(c) != lipgloss.Height(cards[0]) {
+				t.Fatalf("card %d×%d, o primeiro %d×%d:\n%s", lipgloss.Width(c), lipgloss.Height(c),
+					lipgloss.Width(cards[0]), lipgloss.Height(cards[0]), c)
+			}
+		}
+		for _, l := range strings.Split(m.cards(s, w, false), "\n") {
+			if lipgloss.Width(l) > max(w, lipgloss.Width(cards[0])) {
+				t.Fatalf("%d colunas: linha de %d", w, lipgloss.Width(l))
+			}
+		}
+	}
+	if got := m.cardInner(s.Members[:1]); got != cardMin {
+		t.Errorf("sala de apelidos curtos: miolo %d, queria %d", got, cardMin)
 	}
 }
