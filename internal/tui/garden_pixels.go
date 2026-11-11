@@ -90,7 +90,7 @@ func (c *canvas) put(p *pix) {
 			case top == bot && top != 0:
 				*cl = cell{r: ' ', b: colorName[top]}
 			case top != 0 && bot != 0:
-				*cl = cell{'▀', colorName[top], colorName[bot]}
+				*cl = cell{r: '▀', c: colorName[top], b: colorName[bot]}
 			case top != 0:
 				*cl = cell{r: '▀', c: colorName[top]}
 			case bot != 0:

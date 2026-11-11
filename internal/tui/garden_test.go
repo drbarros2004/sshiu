@@ -93,9 +93,19 @@ func TestFocusingLine(t *testing.T) {
 		"ana, bruno, duda e mais 2 também estão focando": {"ana", "bruno", "duda", "edu", "caio"},
 	}
 	for want, nicks := range cases {
-		if got := focusingLine(nicks); got != want {
+		if got := focusingLine(nicks, 80); got != want {
 			t.Errorf("%v: got %q, want %q", nicks, got, want)
 		}
+	}
+	// a linha nunca passa da largura, mesmo com nome largo (#85)
+	long := []string{"田中さくら東京大学の学生", "🐱🐶🐭🐹🐰🦊🐻🐼", "abcdefghijklmnop"}
+	for _, w := range []int{20, 30, 45, 60, 100} {
+		if got := focusingLine(long, w); ansi.StringWidth(got) > w {
+			t.Errorf("largura %d: %q tem %d colunas", w, got, ansi.StringWidth(got))
+		}
+	}
+	if got, want := focusingLine(long, 60), "田中さくら東京大学の学生 e mais 2 também estão focando"; got != want {
+		t.Errorf("largura 60: got %q", got)
 	}
 }
 
@@ -178,7 +188,29 @@ func TestShadeAndPut(t *testing.T) {
 		t.Errorf("got %q, want %q", c.String(), want)
 	}
 	c.ink(0, 0, "x ", "255") // a letra fica no fundo de baixo; o espaço não apaga nada
-	if c.cells[0] != (cell{'x', "255", "60"}) || c.cells[1] != (cell{r: ' '}) {
+	if c.cells[0] != (cell{r: 'x', c: "255", b: "60"}) || c.cells[1] != (cell{r: ' '}) {
 		t.Errorf("ink: %+v", c.cells)
+	}
+}
+
+// caractere largo, acento combinante e espaço de largura zero ocupam as colunas que o terminal
+// usa, e a linha nunca passa da largura do jardim (#85).
+func TestCanvasWideText(t *testing.T) {
+	c := newCanvas(10, 1)
+	c.text(0, 0, "日z̷​é🐱abcdef", "255")
+	if got := ansi.Strip(c.String()); ansi.StringWidth(got) != 10 || !strings.HasPrefix(got, "日z̷é🐱") {
+		t.Errorf("got %q (%d colunas)", got, ansi.StringWidth(got))
+	}
+	c = newCanvas(4, 1)
+	c.text(0, 0, "日本", "255")
+	c.set(1, 0, 'x', "") // o desenho apaga metade de cada caractere largo
+	c.set(2, 0, 'y', "")
+	if got := ansi.Strip(c.String()); got != " xy " {
+		t.Errorf("metades apagadas: got %q", got)
+	}
+	c = newCanvas(3, 1)
+	c.ink(2, 0, "日", "255") // não cabe na última coluna: fica de fora
+	if got := ansi.Strip(c.String()); got != "   " {
+		t.Errorf("na borda: got %q", got)
 	}
 }
