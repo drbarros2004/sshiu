@@ -34,7 +34,7 @@ Toda mudança termina com `go vet ./...` e `go test ./...` passando, e toda feat
 
 O usuário costuma deixar o próprio servidor rodando na porta 23234, com um binário também chamado `sshiu.exe` (antes, `plantao.exe`).
 
-- Suba o seu servidor na **porta 23235**, a partir de uma pasta de rascunho: `sshiu.db` e `.ssh/` são lidos do diretório atual, então rodar na raiz mexe no banco do usuário. Ex.: `go build -o <rascunho>/sshiu-teste.exe .` e rode dentro de `<rascunho>`.
+- Suba o seu servidor na **porta 23235** (confira antes se ela está livre: o usuário também testa o modo dev por ali, e um roteiro rodando no servidor dele mexe no banco dele), a partir de uma pasta de rascunho: `sshiu.db` e `.ssh/` são lidos do diretório atual, então rodar na raiz mexe no banco do usuário. Ex.: `go build -o <rascunho>/sshiu-teste.exe .` e rode dentro de `<rascunho>`.
 - Pare o seu servidor **pelo PID ou pelo caminho do executável**. Matar pelo nome do binário (`sshiu.exe`, ou o antigo `plantao.exe`) já derrubou o servidor do usuário.
 - O painel de terminal não dirige a TUI. Use um harness em Go na pasta de rascunho: cliente `golang.org/x/crypto/ssh` alimentando um emulador `github.com/charmbracelet/x/vt`, com passos como digitar, enter e esperar um texto.
 - Confira a tela **sem forçar redesenho** (`WindowChange`): o redesenho esconde bugs do renderer incremental. Para ver cores e pixel art, rasterize a tela num PNG.
