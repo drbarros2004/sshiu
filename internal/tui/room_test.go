@@ -199,3 +199,17 @@ func TestCardsAlinhados(t *testing.T) {
 		t.Errorf("sala de apelidos curtos: miolo %d, queria %d", got, cardMin)
 	}
 }
+
+// A prévia de entrar e o menu de salas dizem o que a sala aceita antes do enter.
+func TestJoinBlockedAndSummary(t *testing.T) {
+	m := model{}
+	full := rooms.Snapshot{Max: 2, Members: []rooms.Member{{ID: "a"}, {ID: "b"}}}
+	closed := rooms.Snapshot{Max: 4, Closed: true, Members: []rooms.Member{{ID: "a"}}}
+	if m.joinBlocked(full) == "" || m.joinBlocked(closed) == "" || m.joinBlocked(rooms.Snapshot{Max: 4}) != "" {
+		t.Fatal("joinBlocked errou a sala cheia, a fechada ou a aberta")
+	}
+	solo := rooms.Snapshot{Max: rooms.MinMembers, Members: []rooms.Member{{ID: "a", Status: rooms.Focusing}}}
+	if got := m.roomSummary(solo); got != "sala solo · focando" {
+		t.Fatalf("resumo da sala solo: %q", got)
+	}
+}

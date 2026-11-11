@@ -178,7 +178,9 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			if m.cpage == pageKickYes { // de volta ao menu, com o aviso de que deu certo
-				m.cpage, m.cyes, m.notice = pageMenu, false, m.tf("%s saiu da sala e a vaga abriu", who.Nick)
+				// o cursor volta ao topo: sem mais ninguém, passar e remover somem, e ele cairia
+				// em "encerrar a sala"
+				m.cpage, m.cyes, m.ccur, m.notice = pageMenu, false, 0, m.tf("%s saiu da sala e a vaga abriu", who.Nick)
 				return m, do(func() error { return rooms.Kick(id, code, who.ID) })
 			}
 			// passar a sala tira os seus poderes: o menu fecha junto
@@ -197,7 +199,8 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.cpage = pageMenu
 				return m, nil
 			}
-			m.cfg, m.cpage, m.room, m.picking, m.left = false, pageMenu, "", true, code
+			// como na saída: a tela vai para a sua próxima sala, ou para o menu se não houver
+			m.cfg, m.cpage, m.room, m.left, m.pcur, m.notice = false, pageMenu, "", code, 0, ""
 			return m, do(func() error { return rooms.Dissolve(id, code) })
 		}
 		return m, nil

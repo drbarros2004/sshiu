@@ -168,6 +168,8 @@ var en = map[string]string{
 	"a vaga abre. não é bloqueio: com o código, dá para entrar de novo.": "the spot opens up. it's not a ban: with the code, they can come back.",
 	"remover %s de %s?": "remove %s from %s?",
 	"←/→ cor · ↑/↓ prévia do humor · enter salva e abre a sala": "←/→ color · ↑/↓ preview mood · enter saves and opens the room",
+	"sala solo":                  "solo room",
+	"sala solo · focando":        "solo room · focusing",
 	"%d/%d membros":              "%d/%d members",
 	" · dados de exemplo":        " · sample data",
 	"declara %d min, foca %s":    "declares %d min, focuses %d",

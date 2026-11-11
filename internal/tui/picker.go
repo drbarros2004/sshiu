@@ -194,6 +194,9 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 		m.form, m.joining, m.err = formJoin, code, ""
 		return m, nil
 	case formJoin:
+		if m.joinBlocked(m.w.Rooms[m.joining]) != "" { // a prévia já diz por quê: o enter não repete
+			return m, nil
+		}
 		return m, m.join(m.joining)
 	case formLeave:
 		code := m.room
@@ -242,13 +245,11 @@ func (m model) pickerView() string {
 		s := m.w.Rooms[m.joining]
 		out := bold.Render(m.tf("entrar em %s?", m.roomName(s))) + "\n\n" +
 			m.st.muted.Render(m.tf("código %s", m.joining)+" · "+m.roomSummary(s))
-		switch { // o que o Join recusaria, dito antes do enter
-		case slices.ContainsFunc(s.Members, func(x rooms.Member) bool { return x.ID == m.id }):
+		if slices.ContainsFunc(s.Members, func(x rooms.Member) bool { return x.ID == m.id }) {
 			out += "\n\n" + m.st.muted.Render(m.t("você já está nesta sala."))
-		case len(s.Members) >= s.Max:
-			out += "\n\n" + m.st.bad.Render(m.t("a sala está cheia."))
-		case s.Closed:
-			out += "\n\n" + m.st.bad.Render(m.t("a sala não está aceitando ninguém agora."))
+		}
+		if why := m.joinBlocked(s); why != "" {
+			out += "\n\n" + m.st.bad.Render(why)
 		}
 		return out
 	case formLeave:
@@ -297,13 +298,31 @@ func (m model) pickerView() string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// roomSummary resume uma sala numa linha: quantos estão focando agora.
+// joinBlocked: por que o Join recusaria a sala, dito na prévia antes do enter ("" = dá para entrar).
+func (m model) joinBlocked(s rooms.Snapshot) string {
+	switch {
+	case len(s.Members) >= s.Max:
+		return m.t("a sala está cheia.")
+	case s.Closed:
+		return m.t("a sala não está aceitando ninguém agora.")
+	}
+	return ""
+}
+
+// roomSummary resume uma sala numa linha: quantos estão focando agora. A sala solo é de uma
+// pessoa, então "1/1 membros" não diz nada: ela diz só se você está focando.
 func (m model) roomSummary(s rooms.Snapshot) string {
 	n := 0
 	for _, x := range s.Members {
 		if x.Status == rooms.Focusing {
 			n++
 		}
+	}
+	if s.Max == rooms.MinMembers {
+		if n > 0 {
+			return m.t("sala solo · focando")
+		}
+		return m.t("sala solo")
 	}
 	return m.tf("%d/%d membros · %d focando", len(s.Members), s.Max, n)
 }
