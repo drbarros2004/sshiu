@@ -29,3 +29,19 @@ func TestEllipsize(t *testing.T) {
 		}
 	}
 }
+
+func TestNickProblem(t *testing.T) {
+	ok := []string{"ana", "abcdefghijklmnop", "田中さくら東京大", "🐱🐶🐭🐹🐰🦊🐻🐼", "joão", "مرحبا"}
+	bad := []string{"", "ana maria", "a:b", "abcdefghijklmnopq", "田中さくら東京大学の", "🐱🐶🐭🐹🐰🦊🐻🐼🐱",
+		"z̷a̸l̴g̵o̶", "tab​zero", "👩‍💻", "a\tb"}
+	for _, n := range ok {
+		if p := nickProblem(n); p != "" {
+			t.Errorf("%q recusado: %s", n, p)
+		}
+	}
+	for _, n := range bad {
+		if nickProblem(n) == "" {
+			t.Errorf("%q aceito", n)
+		}
+	}
+}

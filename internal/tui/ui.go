@@ -13,6 +13,7 @@ import (
 	"sshiu/internal/store"
 	"strings"
 	"time"
+	"unicode"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -20,6 +21,7 @@ import (
 	"charm.land/log/v2"
 	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/rivo/uniseg"
 )
 
 // Temas: só as cores de destaque; o texto normal usa a cor do próprio terminal (funciona em fundo claro e escuro).
@@ -447,8 +449,7 @@ func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	nick := strings.TrimSpace(m.in.Value())
-	if nick == "" || strings.ContainsAny(nick, " :") {
-		m.err = "apelido sem espaços, por favor"
+	if m.err = nickProblem(nick); m.err != "" {
 		return m, nil
 	}
 	id := m.id
@@ -459,6 +460,30 @@ func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return nickMsg{nick, err}
 	}
+}
+
+// nickMax: o apelido mais largo, em colunas do terminal. Caracteres largos (日, 🐱) valem 2.
+const nickMax = 16 // docs/regras.md
+
+// nickProblem: o que impede o apelido, ou "" se ele serve. Cada caractere ocupa uma ou duas
+// colunas sozinho: acento combinante, emoji composto e caractere invisível ficam de fora, porque
+// cada terminal conta a largura deles de um jeito e a sala e o jardim desalinhavam (#84, #85).
+func nickProblem(nick string) string {
+	if nick == "" || strings.ContainsAny(nick, " :") {
+		return "apelido sem espaços, por favor"
+	}
+	if ansi.StringWidth(nick) > nickMax {
+		return fmt.Sprintf("apelido de até %d letras, por favor (日 e 🐱 contam como 2)", nickMax)
+	}
+	state := -1
+	for s := nick; s != ""; {
+		var g string
+		g, s, _, state = uniseg.FirstGraphemeClusterInString(s, state)
+		if r := []rune(g); len(r) > 1 || !unicode.IsGraphic(r[0]) || ansi.StringWidth(g) == 0 {
+			return "apelido só com letras, números e símbolos simples, por favor"
+		}
+	}
+	return ""
 }
 
 func (m model) View() tea.View {

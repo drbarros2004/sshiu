@@ -21,6 +21,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/rivo/uniseg"
 )
 
 const (
@@ -197,22 +199,47 @@ func (m model) othersFocusing() []string {
 	return nicks
 }
 
-// focusingLine: "ana, bruno e duda também estão focando".
-func focusingLine(nicks []string) string {
-	switch {
-	case len(nicks) == 0:
+// focusingLine: "ana, bruno e duda também estão focando", em até w colunas. Com nome comprido ou
+// gente demais, os últimos nomes viram "mais N"; se nem um nome cabe, ele termina em "…".
+func focusingLine(nicks []string, w int) string {
+	if len(nicks) == 0 {
 		return "ninguém mais está focando agora"
-	case len(nicks) > 4:
-		nicks = append(nicks[:3:3], fmt.Sprintf("mais %d", len(nicks)-3))
 	}
-	s := nicks[len(nicks)-1]
+	line := func(shown int) string {
+		names := slices.Clone(nicks[:shown])
+		if shown < len(nicks) {
+			names = append(names, fmt.Sprintf("mais %d", len(nicks)-shown))
+		}
+		s := names[len(names)-1]
+		if len(names) > 1 {
+			s = strings.Join(names[:len(names)-1], ", ") + " e " + s
+		}
+		if len(names) == 1 {
+			return s + " também está focando"
+		}
+		return s + " também estão focando"
+	}
+	shown := len(nicks)
+	if shown > 4 {
+		shown = 3
+	}
+	for ; shown > 1 && ansi.StringWidth(line(shown)) > w; shown-- {
+	}
+	s := line(shown)
+	over := ansi.StringWidth(s) - w
+	if over <= 0 {
+		return s
+	}
+	name := nicks[0] // nem um nome cabe: ele encurta, e sem espaço nem para isso fica só a conta
+	if keep := ansi.StringWidth(name) - over - 1; keep >= 4 {
+		return strings.Replace(s, name, ansi.Truncate(name, keep, "")+"…", 1)
+	}
 	if len(nicks) > 1 {
-		s = strings.Join(nicks[:len(nicks)-1], ", ") + " e " + s
+		s = fmt.Sprintf("%d pessoas também estão focando", len(nicks))
+	} else {
+		s = "mais alguém está focando"
 	}
-	if len(nicks) == 1 {
-		return s + " também está focando"
-	}
-	return s + " também estão focando"
+	return ansi.Truncate(s, w, "…")
 }
 
 // spot: o wallpaper que escolhe onde o texto fica e em que cores, em vez da caixa no meio. Ele
@@ -305,12 +332,12 @@ func (g *garden) render(m model) {
 			if !sample {
 				nicks = m.othersFocusing()
 			}
-			add(focusingLine(nicks), dim)
+			add(focusingLine(nicks, w-6), dim)
 		}
 	}
 	wd := 0
 	for _, l := range lines {
-		wd = max(wd, len([]rune(l)))
+		wd = max(wd, ansi.StringWidth(l))
 	}
 	y0 := (h - len(lines)) / 2
 	cx := max(wd/2+3, min(w/2, w-wd/2-4)) // o texto nunca passa da borda
@@ -335,7 +362,7 @@ func (g *garden) render(m model) {
 			}
 		}
 		for i, l := range ls {
-			x := cx - len([]rune(l))/2
+			x := cx - ansi.StringWidth(l)/2
 			if placed {
 				c.ink(x, y0+i, l, col(i))
 			} else {
@@ -355,7 +382,7 @@ func (g *garden) render(m model) {
 	}
 	hw := 0
 	for _, l := range hint {
-		hw = max(hw, len([]rune(l)))
+		hw = max(hw, ansi.StringWidth(l))
 	}
 	put(hint, w/2, h-len(hint)-1, hw, func(int) string { return ink[dim] })
 	g.frame = c.String()
@@ -366,7 +393,11 @@ func (g *garden) render(m model) {
 type cell struct {
 	r    rune
 	c, b string // cor 256 da frente e do fundo ("" = a do terminal)
+	g    string // o texto que ocupa a célula, quando não é um rune só de uma coluna: "田", "é"
 }
+
+// cont: a segunda célula de um caractere largo (日, 🐱), que o terminal já preencheu.
+const cont rune = 0
 
 type canvas struct {
 	w, h  int
@@ -398,26 +429,63 @@ func (c *canvas) set(x, y int, r rune, col string) {
 	c.cells[y*c.w+x] = cell{r: r, c: col}
 }
 
+// glyphs: s em pedaços de uma célula na tela, com a largura de cada um (1 ou 2). Os pedaços sem
+// largura (o espaço de largura zero, os controles) ficam de fora, e o acento combinante vai junto
+// da letra: contar runes desalinhava a tela com japonês, emoji e afins (#85).
+func glyphs(s string) (gs []string, ws []int) {
+	state := -1
+	for s != "" {
+		var g string
+		g, s, _, state = uniseg.FirstGraphemeClusterInString(s, state)
+		if w := ansi.StringWidth(g); w > 0 {
+			gs, ws = append(gs, g), append(ws, min(w, 2))
+		}
+	}
+	return gs, ws
+}
+
+// glyphCell: a célula de um pedaço de texto, guardando o pedaço inteiro quando ele não é um rune
+// só de uma coluna.
+func glyphCell(g string, w int, col, bg string) cell {
+	r := []rune(g)
+	if len(r) == 1 && w == 1 {
+		return cell{r: r[0], c: col, b: bg}
+	}
+	return cell{r: r[0], c: col, b: bg, g: g}
+}
+
 func (c *canvas) text(x, y int, s, col string) {
-	for _, r := range s {
-		c.set(x, y, r, col)
-		x++
+	gs, ws := glyphs(s)
+	for i, g := range gs {
+		if ws[i] == 1 && g == " " {
+			c.set(x, y, ' ', "")
+		} else if x >= 0 && y >= 0 && x+ws[i] <= c.w && y < c.h {
+			c.cells[y*c.w+x] = glyphCell(g, ws[i], col, "")
+			if ws[i] == 2 {
+				c.cells[y*c.w+x+1] = cell{r: cont}
+			}
+		}
+		x += ws[i]
 	}
 }
 
 // ink escreve por cima do desenho sem apagar o fundo: a letra pega a cor de fundo da célula, e
 // o espaço deixa o desenho aparecer.
 func (c *canvas) ink(x, y int, s, col string) {
-	for _, r := range s {
-		if r != ' ' && x >= 0 && y >= 0 && x < c.w && y < c.h {
+	gs, ws := glyphs(s)
+	for i, g := range gs {
+		if g != " " && x >= 0 && y >= 0 && x+ws[i] <= c.w && y < c.h {
 			cl := &c.cells[y*c.w+x]
 			bg := cl.b
 			if bg == "" && cl.r != '▀' { // "▄" e o meio bloco sem fundo: o pixel aceso é o de baixo
 				bg = cl.c
 			}
-			*cl = cell{r, col, bg}
+			*cl = glyphCell(g, ws[i], col, bg)
+			if ws[i] == 2 {
+				c.cells[y*c.w+x+1] = cell{r: cont, b: bg}
+			}
 		}
-		x++
+		x += ws[i]
 	}
 }
 
@@ -450,7 +518,18 @@ func (c *canvas) String() string {
 			}
 			cl := c.cells[y*c.w+x]
 			sgr(cl.c, cl.b)
-			b.WriteRune(cl.r)
+			switch {
+			case cl.r == cont: // a metade de um caractere largo que já foi escrito
+				if x == 0 || c.cells[y*c.w+x-1].g == "" || ansi.StringWidth(c.cells[y*c.w+x-1].g) < 2 {
+					b.WriteByte(' ') // a primeira metade foi apagada pelo desenho: sobra um espaço
+				}
+			case cl.g != "" && ansi.StringWidth(cl.g) == 2 && (x == c.w-1 || c.cells[y*c.w+x+1].r != cont):
+				b.WriteByte(' ') // a segunda metade foi apagada: o caractere largo não cabe mais
+			case cl.g != "":
+				b.WriteString(cl.g)
+			default:
+				b.WriteRune(cl.r)
+			}
 		}
 		sgr("", "")
 		if y < c.h-1 {
