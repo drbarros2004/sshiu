@@ -20,6 +20,15 @@ import (
 // Dev: flag -dev (main.go). Liga a aba dev; a identidade pelo nome do SSH fica no main.
 var Dev bool
 
+// loginHint: o rodapé da tela de apelido. No modo dev quem cai nela entrou com um nome que já é o
+// apelido de alguém (um bot da demo, por exemplo), e a chave não tem nada a ver.
+func (m model) loginHint() string {
+	if Dev {
+		return m.t("enter confirma · o nome do SSH já é o apelido de outra pessoa")
+	}
+	return m.t("enter confirma · sua chave SSH é o seu login")
+}
+
 // tabs: quantas abas aparecem. A dev é a última e só existe no modo dev.
 func tabs() tab {
 	if Dev {

@@ -564,7 +564,7 @@ func (m model) View() tea.View {
 	if m.nick == "" {
 		body = m.st.title.Render("sshiu") + "\n" + m.st.muted.Render(m.t("um lugar quieto para focar junto")) +
 			"\n\n" + m.t("primeira vez por aqui. qual vai ser o seu apelido?") + "\n\n" + m.in.View() +
-			m.errLine() + "\n\n" + m.st.muted.Render(m.t("enter confirma · sua chave SSH é o seu login"))
+			m.errLine() + "\n\n" + m.st.muted.Render(m.loginHint())
 	} else {
 		var help string
 		content := m.roomView // o conteúdo recebe o espaço que sobra (largura, altura)

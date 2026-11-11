@@ -403,4 +403,6 @@ var en = map[string]string{
 	"↑/↓ escolhe · ←/→ muda · esc volta": "↑/↓ choose · ←/→ change · esc back",
 	// a aba dev (ADR 0011)
 	"dev": "dev",
+	// a aba dev (ADR 0011)
+	"enter confirma · o nome do SSH já é o apelido de outra pessoa": "enter confirms · the SSH name is already someone else's nickname",
 }

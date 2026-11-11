@@ -31,9 +31,7 @@ func main() {
 
 	db := "sshiu.db"
 	if tui.Dev { // o modo dev nunca encosta nos dados de verdade, e ninguém de fora entra sem chave
-		// WAL sem fsync a cada commit: um ajuste da aba dev caiu de ~0,4 s para ~0,1 ms no Windows.
-		// Perder o último ajuste numa queda de energia não importa num banco de teste.
-		db, *host = "file:sshiu-dev.db?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)", "localhost"
+		db, *host = "sshiu-dev.db", "localhost" // só o caminho: o store.Open acrescenta o WAL
 	}
 	if err := store.Open(db); err != nil {
 		log.Fatal("sqlite", "err", err)
