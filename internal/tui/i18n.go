@@ -401,4 +401,6 @@ var en = map[string]string{
 	" · o tabela": " · o table",
 	"←/→ período · o volta para a sala":  "←/→ period · o back to the room",
 	"↑/↓ escolhe · ←/→ muda · esc volta": "↑/↓ choose · ←/→ change · esc back",
+	// a aba dev (ADR 0011)
+	"dev": "dev",
 }

@@ -77,9 +77,10 @@ const (
 	tabRoom tab = iota
 	tabProfile
 	tabVisual
+	tabDev // só com a flag -dev (dev.go)
 )
 
-var tabNames = [...]string{"sala", "perfil", "visual"}
+var tabNames = [...]string{"sala", "perfil", "visual", "dev"}
 
 // Mensagens: o único jeito de o mundo de fora mudar o modelo.
 type (
@@ -144,6 +145,7 @@ type model struct {
 	ncur, nobra     int          // linha e obra escolhidas na tela de criar sala
 	obraFull        bool         // a obra sozinha na tela (tecla o)
 	garden          *garden      // modo jardim em tela cheia (nil = desligado)
+	dev             devPanel     // a aba dev (só com -dev)
 	gardenGen       int          // distingue os ticks de cada abertura
 	side            *garden      // o jardim da coluna da sala solo (nil = não tem)
 	lastKey         time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim, se a aba visual deixar
@@ -349,6 +351,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.side.ticking = true
 			return m, tea.Batch(next, sideTick(m.side.gen))
 		}
+		if m.tab == tabDev { // os números mudam também por quem foca: a tabela acompanha o tick
+			return m, tea.Batch(next, devDo(nil))
+		}
 		return m, next
 	case gardenTickMsg:
 		if m.garden != nil && msg.gen == m.garden.gen {
@@ -403,6 +408,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tea.Batch(cmds...)
 		}
+	case devMsg:
+		if msg.at.After(m.dev.at) {
+			m.dev.rows, m.dev.at, m.dev.row = msg.rows, msg.at, min(m.dev.row, max(len(msg.rows)-1, 0))
+		}
+		if msg.err != nil {
+			m.err = msg.err.Error()
+		}
 	case profileMsg:
 		m.pet, m.tasks, m.days, m.totals = msg.pet, msg.tasks, msg.days, msg.totals
 	case boardMsg:
@@ -442,7 +454,7 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.garden = nil
 		return m, nil
 	}
-	n := tab(len(tabNames))
+	n := tabs()
 	switch {
 	case k == "ctrl+c":
 		return m, tea.Quit
@@ -462,6 +474,8 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.profileKey(msg)
 	case tabVisual:
 		return m.visualKey(msg)
+	case tabDev:
+		return m.devKey(msg)
 	}
 	return m, nil
 }
@@ -478,6 +492,10 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 	if t == tabProfile {
 		return m, m.loadProfile()
 	}
+	if t == tabDev {
+		m.dev.input = ""
+		return m, devDo(nil)
+	}
 	return m, nil
 }
 
@@ -485,7 +503,7 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 // Os formulários sem campo (o tamanho da sala, a confirmação de saída) não entram: neles as
 // teclas de sempre valem, inclusive o q.
 func (m model) typing() bool {
-	return m.entering || m.cname || m.form == formNew || m.form == formCode
+	return m.entering || m.cname || m.form == formNew || m.form == formCode || m.tab == tabDev && m.dev.input != ""
 }
 
 func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -557,6 +575,8 @@ func (m model) View() tea.View {
 			content, help = m.profileView, m.profileHelp()
 		case tabVisual:
 			content, help = func(int, int) string { return m.visualView() }, m.t("↑/↓ escolhe · ←/→ muda · j prévia · v editar no jardim · enter salva")
+		case tabDev:
+			content, help = func(int, int) string { return m.devView() }, m.devHelp()
 		}
 		inner := max(m.width-4, 1)
 		footer := func(help string) string {
@@ -635,7 +655,7 @@ func (m model) errLine() string {
 // header: abas à esquerda, o seu status à direita, sempre visível.
 func (m model) header() string {
 	parts := []string{m.st.title.Render("sshiu") + " "}
-	for i, name := range tabNames {
+	for i, name := range tabNames[:tabs()] {
 		if tab(i) == m.tab {
 			parts = append(parts, m.st.tabOn.Render(m.t(name)))
 		} else {
