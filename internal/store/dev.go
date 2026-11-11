@@ -16,14 +16,14 @@ const DevTask = "tarefa dev"
 type DevRow struct {
 	ID, Nick string
 	Pet      pet.Pet
-	Before   float64 // minutos focados em tarefas que começaram antes de hoje
+	Before   float64 // minutos focados em tarefas que terminaram antes de hoje (o dia é o do fim, como no pet e na tabela de foco)
 }
 
 // DevUsers: todo mundo do banco, em ordem de apelido, com os minutos de antes de hoje.
 func DevUsers(now time.Time) ([]DevRow, error) {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	rows, err := db.Query(`SELECT id, nick, energy, last_active, streak, streak_day, today, today_min, pet_color,
-		COALESCE((SELECT SUM(focused_sec) FROM tasks t WHERE t.user_id = users.id AND t.started_at < ?), 0)
+		COALESCE((SELECT SUM(focused_sec) FROM tasks t WHERE t.user_id = users.id AND t.ended_at < ?), 0)
 		FROM users ORDER BY nick`, today.Unix())
 	if err != nil {
 		return nil, err

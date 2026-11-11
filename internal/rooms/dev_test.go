@@ -59,6 +59,14 @@ func TestDevAdjust(t *testing.T) {
 			t.Fatalf("%d dias atrás: %d tarefas", i, n)
 		}
 	}
+	// a tarefa que atravessa a meia-noite é de hoje, como no pet e na tabela de foco: fica fora de "antes"
+	if _, err := store.RecordTask(id, store.TaskRow{Start: midnight.Add(-10 * time.Minute), End: midnight.Add(20 * time.Minute),
+		Task: "virada", Focused: 30 * time.Minute}); err != nil {
+		t.Fatal(err)
+	}
+	if rows, _ := store.DevUsers(now); rows[0].Before != 2*DevBeforeStep {
+		t.Fatalf("antes com a tarefa da virada: %v", rows[0].Before)
+	}
 }
 
 // A ana do modo dev não impede a demo de subir: o bot fica com outro apelido.
