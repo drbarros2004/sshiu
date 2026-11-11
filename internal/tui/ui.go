@@ -120,9 +120,10 @@ type model struct {
 	invite          string // o "ssh ..." com que um colega chega a este servidor
 	pending         string // código que veio no comando do ssh, a entrar na primeira chance
 	w               rooms.World
-	room            string // código da sala que você está vendo ("" = nenhuma: o menu de salas)
-	left            string // a sala de que você saiu ou que encerrou: um retrato de antes não a traz de volta
-	first           bool   // primeiro acesso: o apelido já foi, falta a cor do pet
+	room            string    // código da sala que você está vendo ("" = nenhuma: o menu de salas)
+	left            string    // a sala de que você saiu ou que encerrou: um retrato de antes não a traz de volta
+	first           bool      // primeiro acesso: o apelido já foi, falta a cor do pet
+	arrived         time.Time // quando a sala atual foi criada ou aberta por código: segura o enter repetido
 	now             time.Time
 	tab             tab
 	tick, width     int
@@ -373,7 +374,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.left = ""
 		}
 		m.setWorld(msg.w)
-		m.room, m.picking, m.form, m.err = msg.code, false, formNone, ""
+		m.room, m.picking, m.form, m.err, m.arrived = msg.code, false, formNone, "", time.Now()
 		m.notice = m.tf("você entrou em %s", m.roomName(m.w.Rooms[msg.code]))
 		if msg.created {
 			m.notice = "" // o código está no título e o convite embaixo explica o que fazer
@@ -557,21 +558,32 @@ func (m model) View() tea.View {
 		case tabVisual:
 			content, help = func(int, int) string { return m.visualView() }, m.t("↑/↓ escolhe · ←/→ muda · j prévia · v editar no jardim · enter salva")
 		}
-		nav := m.t("a/d troca de aba · q sai")
-		if m.typing() {
-			nav = m.t("tab troca de aba · ctrl+c sai")
-		}
-		if help != "" {
-			nav = help + " · " + nav
-		}
-		// o rodapé quebra entre um atalho e outro, nunca no meio de um ("q" numa linha, "sai" na outra)
-		nbsp := string(rune(0xa0)) // o espaço que não quebra
-		nav = strings.ReplaceAll(strings.ReplaceAll(nav, " ", nbsp), nbsp+"·"+nbsp, nbsp+"· ")
-		// cabeçalho em cima, rodapé preso na última linha e o conteúdo no espaço do meio
 		inner := max(m.width-4, 1)
-		top, foot := m.header(), m.st.muted.Width(inner).Render(nav)
+		footer := func(help string) string {
+			nav := m.t("a/d troca de aba · q sai")
+			if m.typing() {
+				nav = m.t("tab troca de aba · ctrl+c sai")
+			}
+			if help != "" {
+				nav = help + " · " + nav
+			}
+			// o rodapé quebra entre um atalho e outro, nunca no meio de um ("q" numa linha, "sai" na outra)
+			nbsp := string(rune(0xa0)) // o espaço que não quebra
+			nav = strings.ReplaceAll(strings.ReplaceAll(nav, " ", nbsp), nbsp+"·"+nbsp, nbsp+"· ")
+			return m.st.muted.Width(inner).Render(nav)
+		}
+		// cabeçalho em cima, rodapé preso na última linha e o conteúdo no espaço do meio
+		top, foot := m.header(), footer(help)
 		h := max(1, m.height-2-lipgloss.Height(top)-2-lipgloss.Height(foot))
-		mid := fit(content(inner, h-lipgloss.Height(m.errLine())+1)+m.errLine(), inner, h)
+		c := content(inner, h-lipgloss.Height(m.errLine())+1)
+		// as teclas de reagir só valem com o feed na tela, e é a altura que decide se ele cabe:
+		// sem a legenda do feed no conteúdo, elas saem do rodapé
+		keys := m.t(" · ↑/↓ evento · 1-4 reage")
+		if m.tab == tabRoom && !strings.Contains(c, m.t("reagir ao evento selecionado: ")) && strings.Contains(help, keys) {
+			foot = footer(strings.Replace(help, keys, "", 1))
+			h = max(1, m.height-2-lipgloss.Height(top)-2-lipgloss.Height(foot))
+		}
+		mid := fit(c+m.errLine(), inner, h)
 		body = top + "\n\n" + mid + "\n\n" + foot
 	}
 	v := tea.NewView(lipgloss.NewStyle().Padding(1, 2).Render(body))

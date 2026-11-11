@@ -9,6 +9,7 @@ import (
 	"sshiu/internal/pet"
 	"sshiu/internal/rooms"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -23,6 +24,7 @@ const (
 	minGarden   = 36 // menos que isso não dá jardim: a tela fica só com o painel
 	soloEvents  = 3  // linhas do mini log da sala solo
 	clockCols   = 20 // o relógio grande: 5 glifos de 4 colunas
+	clockRows   = 3  // e 3 linhas de altura
 )
 
 // solo: a sala é de uma pessoa (ADR 0006), então a tela não tem cards, reações nem código.
@@ -141,7 +143,8 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "s":
 		return m.openPicker()
 	case "enter":
-		if !focusing {
+		// o enter repetido de quem acabou de criar ou entrar na sala não abre a tarefa por engano
+		if !focusing && time.Since(m.arrived) >= enterGrace {
 			m.entering, m.in = true, newInput(m.t("ex.: fazer o exercício 1 da lista 3"), 80)
 		}
 	case "f":
@@ -195,6 +198,8 @@ func (m model) roomHelp() string {
 		return m.cfgHelp()
 	case m.inPicker() && m.form == formNew:
 		return m.t("↑/↓ escolhe a linha · ←/→ muda · enter cria · esc volta")
+	case m.inPicker() && m.form == formJoin && m.joinBlocked(m.w.Rooms[m.joining]) != "":
+		return m.t("esc volta")
 	case m.inPicker() && m.form == formJoin:
 		return m.t("enter entra · esc volta")
 	case m.inPicker() && m.form != formNone:
@@ -206,7 +211,7 @@ func (m model) roomHelp() string {
 	case m.choosing:
 		return m.t("←/→ escolhe · enter começa · esc volta")
 	case focusing && me.Focus.Expired(m.now): // as escolhas já estão em destaque no painel
-		return m.t("s salas") + m.reactHelp()
+		return m.t("s salas") + m.reactHelp() + m.obraHint()
 	case focusing:
 		return m.t("f feito · t trocar · p parar · j modo jardim") + m.sideHint() + m.reactHelp() + m.obraHint() + m.cfgHint() + m.t(" · s salas")
 	}
@@ -255,6 +260,9 @@ func (m model) obraHint() string {
 	return ""
 }
 
+// enterGrace: depois de criar ou entrar numa sala, o enter fica parado esse tempo (docs/regras.md).
+const enterGrace = 600 * time.Millisecond
+
 // reactHelp: as teclas de evento e reação, que só existem com o feed na tela: a sala solo não
 // tem, e a sala em que você está sem ninguém mostra o convite no lugar dele.
 func (m model) reactHelp() string {
@@ -281,13 +289,10 @@ func (m model) roomView(w, h int) string {
 	if m.cfg {
 		return m.cfgView(h)
 	}
-	me := m.me()
-	// com o tempo esgotado o c é "continuar", e digitando a tarefa as teclas são texto
-	busy := m.entering || m.choosing || me.Status == rooms.Focusing && me.Focus.Expired(m.now)
 	title := bold.Render(m.roomName(s))
 	if m.room != rooms.DemoCode && !m.solo() { // a sala solo não tem código para passar
 		title += m.st.muted.Render(m.t(" · código ") + m.room)
-		if !busy {
+		if !m.entering && !m.choosing { // digitando, o y é texto; com o tempo esgotado ele vale
 			title += m.st.muted.Render(m.t(" · y copia"))
 		}
 	}
@@ -371,6 +376,9 @@ func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, 
 	if left := w - lipgloss.Width(bd) - obraGap; bd != "" && left >= clockCols+23 && !m.entering {
 		panel = lipgloss.JoinHorizontal(lipgloss.Top, lipgloss.NewStyle().Width(left+obraGap).Render(m.focusPanel(left)), bd)
 	}
+	// o painel tem sempre a altura do relógio: parado ele tem duas linhas, e a linha a mais ao
+	// começar uma tarefa trocava o arranjo da tela inteira (a obra saía e o feed voltava)
+	panel = lipgloss.NewStyle().Height(clockRows).Render(panel)
 	out := title + "\n\n" + panel + "\n\n" + m.cards(s, w, compact)
 	if m.alone() { // o convite vale mais que o feed vazio, e não encolhe
 		if ob != "" {
@@ -426,7 +434,7 @@ func (m model) soloView() string {
 	who := lipgloss.JoinHorizontal(lipgloss.Center,
 		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel, m.me().Color)),
 		m.soloWho())
-	panel := strings.Join([]string{m.focusPanel(panelCols-1), "", who, "", m.soloLog()}, "\n")
+	panel := strings.Join([]string{m.focusPanel(panelCols - 1), "", who, "", m.soloLog()}, "\n")
 	if soloGardenWidth(max(m.width-4, 40)) == 0 {
 		return panel // terminal estreito: não cabe coluna nenhuma
 	}
