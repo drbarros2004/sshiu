@@ -184,7 +184,7 @@ func TestShadeAndPut(t *testing.T) {
 	p.set(1, 1, shade(ramp, 0, 1, 1)) // 0 é transparente: não pinta
 	c := newCanvas(2, 1)
 	c.put(p)
-	if want := "\x1b[0;38;5;17;48;5;60m▀\x1b[0m "; c.String() != want {
+	if want := "\x1b[0;7;4;38;5;17;48;5;60m▄\x1b[0m "; c.String() != want {
 		t.Errorf("got %q, want %q", c.String(), want)
 	}
 	c.ink(0, 0, "x ", "255") // a letra fica no fundo de baixo; o espaço não apaga nada

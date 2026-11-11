@@ -465,7 +465,7 @@ func (m model) focusPanel() string {
 	}
 	lines = append(lines, m.st.muted.Render(m.tf("%d de %d min focados",
 		int(f.Focused(m.now).Minutes()), f.Declared)))
-	block := lipgloss.JoinHorizontal(lipgloss.Top, c.Render(bigText(mmss(f.Ends.Sub(m.now)))), "   ",
+	block := lipgloss.JoinHorizontal(lipgloss.Top, paintBlocks(bigText(mmss(f.Ends.Sub(m.now))), c), "   ",
 		strings.Join(lines, "\n"))
 	if f.Expired(m.now) { // as escolhas embaixo do relógio, onde cabem em qualquer largura
 		block += "\n\n" + m.st.bad.Render(m.t("c continuar")) + m.st.muted.Render(" · ") +

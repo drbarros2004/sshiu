@@ -41,7 +41,7 @@ func mustClip(b []byte) *clip {
 }
 
 // clip: o vídeo em alguns tamanhos, do maior ao menor; na tela entra o maior que couber.
-// Cada tamanho guarda os quadros já em ANSI de 256 cores, linha por linha (cada "▀" mostra 2 pixels).
+// Cada tamanho guarda os quadros já em ANSI de 256 cores, linha por linha (cada "▄" mostra 2 pixels).
 type clip struct{ sizes []clipSize }
 
 type clipSize struct {
@@ -83,15 +83,16 @@ func shrink(img image.Image, w, h int) image.Image {
 	return out
 }
 
-// halfBlockRows: pixel de cima na cor da frente, o de baixo no fundo; só repete o código de cor quando muda.
+// halfBlockRows: pixel de baixo na cor da frente (o "▄"), o de cima no fundo; só repete o código de cor quando muda.
 func halfBlockRows(img image.Image) []string {
 	b := img.Bounds()
 	var rows []string
 	for y := b.Min.Y; y+1 < b.Max.Y; y += 2 {
 		var s strings.Builder
+		s.WriteString("\x1b[4m") // sublinhado: cobre a última linha de pixels do "▄" (ver pet.Pixels)
 		fg, bg := -1, -1
 		for x := b.Min.X; x < b.Max.X; x++ {
-			f, k := xterm256(img.At(x, y)), xterm256(img.At(x, y+1))
+			f, k := xterm256(img.At(x, y+1)), xterm256(img.At(x, y)) // "▄": o de cima no fundo (ver pet.Pixels)
 			switch {
 			case f != fg && k != bg:
 				fmt.Fprintf(&s, "\x1b[38;5;%d;48;5;%dm", f, k)
@@ -101,7 +102,7 @@ func halfBlockRows(img image.Image) []string {
 				fmt.Fprintf(&s, "\x1b[48;5;%dm", k)
 			}
 			fg, bg = f, k
-			s.WriteString("▀")
+			s.WriteString("▄")
 		}
 		s.WriteString("\x1b[0m")
 		rows = append(rows, s.String())

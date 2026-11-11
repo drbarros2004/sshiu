@@ -629,3 +629,21 @@ func bigText(s string) string {
 	}
 	return strings.Join(rows[:], "\n")
 }
+
+// paintBlocks pinta o texto de bigText com st, com "█" e "▀" invertidos (espaço e "▄" sublinhado):
+// a cor vai para o fundo, que cobre a célula toda no Terminal.app (ver solid e pet.Pixels).
+func paintBlocks(s string, st lipgloss.Style) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r == '\n' || r == ' ' {
+			b.WriteRune(r)
+			continue
+		}
+		if r2, rev := solid(r); rev {
+			b.WriteString(st.Reverse(true).Underline(r2 == '▄').Render(string(r2)))
+		} else {
+			b.WriteString(st.Render(string(r)))
+		}
+	}
+	return b.String()
+}
