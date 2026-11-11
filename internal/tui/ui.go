@@ -409,7 +409,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 	case devMsg:
-		m.dev.setRows(msg.rows, msg.at)
+		if m.dev.setRows(msg.rows, msg.at, msg.sel) {
+			m.setWorld(msg.w)
+		}
 		if msg.err != nil {
 			m.err = msg.err.Error()
 		}
@@ -574,7 +576,7 @@ func (m model) View() tea.View {
 		case tabVisual:
 			content, help = func(int, int) string { return m.visualView() }, m.t("↑/↓ escolhe · ←/→ muda · j prévia · v editar no jardim · enter salva")
 		case tabDev:
-			content, help = func(int, int) string { return m.devView() }, m.devHelp()
+			content, help = func(_, h int) string { return m.devView(h) }, m.devHelp()
 		}
 		inner := max(m.width-4, 1)
 		footer := func(help string) string {

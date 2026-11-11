@@ -61,6 +61,25 @@ func TestDevAdjust(t *testing.T) {
 	}
 }
 
+// A ana do modo dev não impede a demo de subir: o bot fica com outro apelido.
+func TestPutBotNickTaken(t *testing.T) {
+	if err := store.Open(":memory:"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DevCreate("ana"); err != nil {
+		t.Fatal(err)
+	}
+	if err := putBot(bots[0]); err != nil {
+		t.Fatal(err)
+	}
+	if nick, _, _, _ := store.GetUser("bot:ana"); nick != "ana-bot" {
+		t.Fatalf("apelido do bot: %q", nick)
+	}
+	if err := putBot(bots[0]); err != nil { // o bot já existe: a segunda subida também passa
+		t.Fatal(err)
+	}
+}
+
 // Presença e tarefa de mentira: a sala vê a pessoa como se ela estivesse conectada.
 func TestDevPresence(t *testing.T) {
 	if err := store.Open(":memory:"); err != nil {
