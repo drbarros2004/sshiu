@@ -11,6 +11,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 type form int
@@ -251,13 +252,20 @@ func (m model) pickerView() string {
 		b.WriteString(m.st.ok.Render(m.notice) + "\n\n")
 	}
 	b.WriteString(bold.Render("salas") + "\n\n")
-	for i, it := range m.pickerItems() {
+	items := m.pickerItems()
+	col := 28 // a coluna do resumo: depois do nome mais largo, contando a largura na tela (日 vale 2)
+	for _, it := range items {
+		if _, ok := m.w.Rooms[it.code]; ok {
+			col = max(col, ansi.StringWidth(it.name)+2)
+		}
+	}
+	for i, it := range items {
 		cursor, name := "  ", it.name
 		switch it.code {
 		case "+", "#", "-":
 			name = it.code + " " + name
 		}
-		name = fmt.Sprintf("%-28s", name)
+		name += strings.Repeat(" ", max(0, col-ansi.StringWidth(name)))
 		if i == m.pcur {
 			cursor, name = m.st.sel.Render("▸ "), m.st.sel.Render(name)
 		}
