@@ -88,6 +88,14 @@ func TestDevPresence(t *testing.T) {
 	if u.focus.Task != "ler o cap. 4" || u.focus.Ends != ends.Add(-DevFocusStep*time.Minute) {
 		t.Fatalf("trocar o texto mexeu no tempo: %+v", u.focus)
 	}
+	DevAdjust(id, DevFocus, -5, now) // passou do tempo: esgotou
+	if !u.focus.Expired(now) {
+		t.Fatalf("não esgotou: %+v", u.focus)
+	}
+	DevAdjust(id, DevFocus, 1, now) // mais tempo depois de esgotar: o tempo sem resposta não conta
+	if u.focus.Expired(now) || u.focus.Focused(now) != DevFocusMin*time.Minute {
+		t.Fatalf("continuou: %v %+v", u.focus.Focused(now), u.focus)
+	}
 	if DevAdjust(id, DevOnline, -1, now); u.status() != Offline || u.focus == nil { // a tarefa espera a tolerância
 		t.Fatalf("offline: %v", u.status())
 	}

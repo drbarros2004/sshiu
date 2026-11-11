@@ -20,7 +20,8 @@ type DevRow struct {
 }
 
 // DevUsers: todo mundo do banco, em ordem de apelido, com os minutos de antes de hoje.
-func DevUsers(today time.Time) ([]DevRow, error) {
+func DevUsers(now time.Time) ([]DevRow, error) {
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	rows, err := db.Query(`SELECT id, nick, energy, last_active, streak, streak_day, today, today_min, pet_color,
 		COALESCE((SELECT SUM(focused_sec) FROM tasks t WHERE t.user_id = users.id AND t.started_at < ?), 0)
 		FROM users ORDER BY nick`, today.Unix())

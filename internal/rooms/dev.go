@@ -54,6 +54,9 @@ func DevCreate(nick string) (string, error) {
 		return "", errors.New("esse apelido já tem dono")
 	}
 	if err := store.PutUser(id, nick, pet.EnergyStart); err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") { // o apelido é de outro id, como um bot da demo
+			return "", errors.New("esse apelido já tem dono")
+		}
 		return "", err
 	}
 	Created(id)
@@ -72,8 +75,9 @@ func DevUser(name string) string {
 	return id
 }
 
-// DevAdjust muda um número do pet de id em d passos (d negativo diminui; na cor, troca de paleta).
-// Os minutos viram tarefas dev de verdade, para a tabela de foco somar o mesmo que o pet mostra.
+// DevAdjust muda uma coluna do painel dev em d passos: d negativo diminui, na cor troca de paleta,
+// em online liga (d > 0) ou desliga. Os minutos viram tarefas dev de verdade, para a tabela de foco
+// somar o mesmo que o pet mostra.
 func DevAdjust(id string, f DevField, d int, now time.Time) error {
 	devMu.Lock()
 	defer devMu.Unlock()
@@ -82,9 +86,13 @@ func DevAdjust(id string, f DevField, d int, now time.Time) error {
 		setHere(id, d > 0)
 		return nil
 	case DevFocus:
-		shiftFocus(id, d)
+		shiftFocus(id, d, now)
 		return nil
 	}
+	// mu do começo ao fim, como no finish: uma tarefa encerrada no meio leria o pet antes e o
+	// gravaria depois, desfazendo o ajuste (ou o ajuste desfaria a tarefa)
+	mu.Lock()
+	defer mu.Unlock()
 	_, p, ok, err := store.GetUser(id)
 	if err != nil {
 		return err
@@ -142,8 +150,6 @@ func DevAdjust(id string, f DevField, d int, now time.Time) error {
 	if err := store.SetPet(id, p); err != nil {
 		return err
 	}
-	mu.Lock()
-	defer mu.Unlock()
 	if u := users[id]; u != nil {
 		u.energy, u.today, u.todayMin, u.color = p.EnergyAt(now), p.Today, p.TodayMin, p.Color
 	}
@@ -188,7 +194,7 @@ func devStart(id, room, task string) {
 
 // shiftFocus: d > 0 dá mais tempo à tarefa; d < 0 a faz ter começado antes, como se o tempo
 // tivesse passado (até esgotar). Sem tarefa, o + começa uma. Chame com devMu.
-func shiftFocus(id string, d int) {
+func shiftFocus(id string, d int, now time.Time) {
 	mu.Lock()
 	u := load(id)
 	f := u.focus
@@ -202,6 +208,9 @@ func shiftFocus(id string, d int) {
 	defer mu.Unlock()
 	step := time.Duration(d*DevFocusStep) * time.Minute
 	if d > 0 {
+		if f.Expired(now) { // como o continuar: o tempo esgotado sem resposta não conta
+			f.Counted, f.SegStart, f.Ends = f.Focused(now), now, now
+		}
 		f.Ends, f.Declared = f.Ends.Add(step), f.Declared+d*DevFocusStep
 	} else {
 		f.Start, f.SegStart, f.Ends = f.Start.Add(step), f.SegStart.Add(step), f.Ends.Add(step)

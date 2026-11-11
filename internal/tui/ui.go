@@ -409,9 +409,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 	case devMsg:
-		if msg.at.After(m.dev.at) {
-			m.dev.rows, m.dev.at, m.dev.row = msg.rows, msg.at, min(m.dev.row, max(len(msg.rows)-1, 0))
-		}
+		m.dev.setRows(msg.rows, msg.at)
 		if msg.err != nil {
 			m.err = msg.err.Error()
 		}

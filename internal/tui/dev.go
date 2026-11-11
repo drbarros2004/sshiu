@@ -47,10 +47,6 @@ var devCols = []struct {
 }{{"energia", rooms.DevEnergy}, {"parado", rooms.DevIdle}, {"hoje", rooms.DevToday}, {"antes", rooms.DevBefore},
 	{"streak", rooms.DevStreak}, {"cor", rooms.DevColor}, {"online", rooms.DevOnline}, {"tarefa", rooms.DevFocus}}
 
-func midnight(t time.Time) time.Time {
-	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
-}
-
 // devDo roda f (se houver) e relê a tabela. O erro de f aparece na tela.
 func devDo(f func() error) tea.Cmd {
 	return func() tea.Msg {
@@ -59,7 +55,7 @@ func devDo(f func() error) tea.Cmd {
 			err = f()
 		}
 		at := time.Now()
-		rows, lerr := store.DevUsers(midnight(at))
+		rows, lerr := store.DevUsers(at)
 		if err == nil {
 			err = lerr
 		}
@@ -84,14 +80,7 @@ func (m model) devKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				}
 				return m, devDo(func() error { rooms.DevStart(id, code, text); return nil })
 			}
-			nick := text
-			return m, devDo(func() error {
-				_, err := rooms.DevCreate(nick)
-				if err != nil && strings.Contains(err.Error(), "UNIQUE") {
-					return fmt.Errorf("esse apelido já tem dono")
-				}
-				return err
-			})
+			return m, devDo(func() error { _, err := rooms.DevCreate(text); return err })
 		default:
 			var cmd tea.Cmd
 			m.in, cmd = m.in.Update(msg)
@@ -104,7 +93,7 @@ func (m model) devKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	// segurar a tecla manda vários sinais num evento só ("+++"): cada um é um passo
-	if strings.Trim(k, "+=") == "" || strings.Trim(k, "-") == "" {
+	if k != "" && (strings.Trim(k, "+=") == "" || strings.Trim(k, "-") == "") {
 		sign := 1
 		if k[0] == '-' {
 			sign = -1
@@ -163,6 +152,23 @@ func (m model) devKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, devDo(func() error { return rooms.Transfer(owner, code, id) })
 	}
 	return m, nil
+}
+
+// setRows troca as linhas sem trocar de pessoa: a lista vai por apelido, e quem nasce no meio dela
+// (outra sessão, um ssh com nome novo) empurraria o cursor para a pessoa ao lado no meio de um ajuste.
+func (d *devPanel) setRows(rows []store.DevRow, at time.Time) {
+	if !at.After(d.at) {
+		return
+	}
+	id := ""
+	if d.row < len(d.rows) {
+		id = d.rows[d.row].ID
+	}
+	d.rows, d.at = rows, at
+	d.row = max(0, min(d.row, len(rows)-1))
+	if i := slices.IndexFunc(rows, func(r store.DevRow) bool { return r.ID == id }); i >= 0 {
+		d.row = i
+	}
 }
 
 func (m model) devHelp() string {
