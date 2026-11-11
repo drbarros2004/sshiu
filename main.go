@@ -68,7 +68,11 @@ func requireKey(next ssh.Handler) ssh.Handler {
 	return func(s ssh.Session) {
 		if s.PublicKey() == nil {
 			host, port, _ := net.SplitHostPort(s.LocalAddr().String()) // por onde esta sessão chegou
-			wish.Fatalln(s, "\no sshiu usa sua chave SSH como login, e você ainda não tem uma.\n"+
+			// sem chave não há conta, nem idioma escolhido: o inglês (o padrão, #86) e o português juntos
+			wish.Fatalln(s, "\nsshiu uses your SSH key as your login, and you don't have one yet.\n"+
+				"create one with:  ssh-keygen -t ed25519   (enter for everything)\n"+
+				"then come back:  "+sshTo(host, port)+"\n\n"+
+				"o sshiu usa sua chave SSH como login, e você ainda não tem uma.\n"+
 				"crie com:  ssh-keygen -t ed25519   (enter em tudo)\n"+
 				"depois entre de novo:  "+sshTo(host, port))
 			return

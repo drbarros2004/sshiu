@@ -147,11 +147,11 @@ func (m model) gardenWall(preview bool) int {
 // openGarden liga o modo jardim (preview: aberto pela aba visual, mesmo sem tarefa).
 func (m model) openGarden(mode gardenMode) (model, tea.Cmd) {
 	if mode == gardenEditor && !m.gardenEditorFits() {
-		m.notice = gardenEditorSizeHint
+		m.notice = m.t(gardenEditorSizeHint)
 		return m, nil
 	}
 	if mode == gardenEditor {
-		m.vrow = max(1, m.vrow) // a primeira opção do jardim vem depois do tema
+		m.vrow = max(firstGardenRow, m.vrow) // as opções do jardim vêm depois do tema e do idioma
 	}
 	m.gardenGen++
 	gen := m.gardenGen
@@ -201,23 +201,23 @@ func (m model) othersFocusing() []string {
 
 // focusingLine: "ana, bruno e duda também estão focando", em até w colunas. Com nome comprido ou
 // gente demais, os últimos nomes viram "mais N"; se nem um nome cabe, ele termina em "…".
-func focusingLine(nicks []string, w int) string {
+func focusingLine(l lang, nicks []string, w int) string {
 	if len(nicks) == 0 {
-		return "ninguém mais está focando agora"
+		return l.t("ninguém mais está focando agora")
 	}
 	line := func(shown int) string {
 		names := slices.Clone(nicks[:shown])
 		if shown < len(nicks) {
-			names = append(names, fmt.Sprintf("mais %d", len(nicks)-shown))
+			names = append(names, l.tf("mais %d", len(nicks)-shown))
 		}
 		s := names[len(names)-1]
 		if len(names) > 1 {
-			s = strings.Join(names[:len(names)-1], ", ") + " e " + s
+			s = strings.Join(names[:len(names)-1], ", ") + l.t(" e ") + s
 		}
 		if len(names) == 1 {
-			return s + " também está focando"
+			return s + l.t(" também está focando")
 		}
-		return s + " também estão focando"
+		return s + l.t(" também estão focando")
 	}
 	shown := len(nicks)
 	if shown > 4 {
@@ -235,9 +235,9 @@ func focusingLine(nicks []string, w int) string {
 		return strings.Replace(s, name, ansi.Truncate(name, keep, "")+"…", 1)
 	}
 	if len(nicks) > 1 {
-		s = fmt.Sprintf("%d pessoas também estão focando", len(nicks))
+		s = l.tf("%d pessoas também estão focando", len(nicks))
 	} else {
-		s = "mais alguém está focando"
+		s = l.t("mais alguém está focando")
 	}
 	return ansi.Truncate(s, w, "…")
 }
@@ -279,6 +279,7 @@ func (g *garden) render(m model) {
 		w, h = g.w, g.h
 	}
 	c := newCanvas(w, h)
+	c.lang = m.lang
 	if g.bare {
 		g.scene.draw(c, t, dt)
 		g.frame = c.String()
@@ -290,7 +291,7 @@ func (g *garden) render(m model) {
 	focus := me.Focus
 	sample := g.mode != gardenFocus && !m.active()
 	if sample {
-		focus = rooms.Focus{Task: "revisar a lista 3", Ends: m.now.Add(12*time.Minute + 34*time.Second)}
+		focus = rooms.Focus{Task: m.t("revisar a lista 3"), Ends: m.now.Add(12*time.Minute + 34*time.Second)}
 	}
 	var lines []string
 	var roles []int
@@ -304,16 +305,16 @@ func (g *garden) render(m model) {
 	}
 	var hint []string // o nome do wallpaper fica no rodapé, fora do bloco: some sem mexer no resto
 	if g.mode == gardenPreview {
-		name := wallpapers[g.wall].name
+		name := m.t(wallpapers[g.wall].name)
 		if wallpaperIndex(m.vis.Wallpaper) < 0 {
-			name = "sorteado a cada tarefa · agora, " + name
+			name = m.t("sorteado a cada tarefa · agora, ") + name
 		}
 		if sample {
-			name += " · dados de exemplo"
+			name += m.t(" · dados de exemplo")
 		}
-		hint = []string{"prévia: " + name, "← → troca · qualquer tecla volta"}
+		hint = []string{m.t("prévia: ") + name, m.t("← → troca · qualquer tecla volta")}
 	} else if g.mode == gardenFocus && m.now.Before(g.hint) {
-		hint = []string{wallpapers[g.wall].name + " · ← → troca"}
+		hint = []string{m.t(wallpapers[g.wall].name) + m.t(" · ← → troca")}
 	}
 	if sample || me.Status == rooms.Focusing {
 		left := focus.Ends.Sub(m.now)
@@ -332,7 +333,7 @@ func (g *garden) render(m model) {
 			if !sample {
 				nicks = m.othersFocusing()
 			}
-			add(focusingLine(nicks, w-6), dim)
+			add(focusingLine(m.lang, nicks, w-6), dim)
 		}
 	}
 	wd := 0
@@ -377,7 +378,7 @@ func (g *garden) render(m model) {
 			protected = image.Rect(cx-wd/2-3, y0, cx+(wd+1)/2+3, y0+len(lines))
 		}
 		if c.gardenSettingsPanel(m, wallpapers[g.wall].id, protected) {
-			hint = []string{"↑/↓ opção · ←/→ muda · espaço oculta · esc volta"}
+			hint = []string{m.t("↑/↓ opção · ←/→ muda · espaço oculta · esc volta")}
 		}
 	}
 	hw := 0
@@ -403,6 +404,7 @@ type canvas struct {
 	w, h  int
 	cells []cell
 	raw   map[int][]rawSeg // por linha: trechos já em ANSI (os vídeos), que cobrem as células de baixo
+	lang  lang             // o idioma do pouco texto que as cenas escrevem (o hodômetro, um crédito)
 }
 
 type rawSeg struct {

@@ -154,6 +154,6 @@ type brainrot struct{ l, r *clip }
 func (d brainrot) draw(c *canvas, t, dt float64) {
 	maxW := (c.w-48)/2 - 2 // 48 colunas no meio para o relógio, a tarefa e quem mais está focando
 	l, r := d.l.size(maxW, c.h-2), d.r.size(maxW, c.h-2)
-	c.text(2, l.put(c, t, 2), "vídeo de orbital (CC BY)", "240") // o crédito que o CC BY pede
+	c.text(2, l.put(c, t, 2), c.lang.t("vídeo de orbital (CC BY)"), "240") // o crédito que o CC BY pede
 	r.put(c, t, c.w-2-r.w)
 }

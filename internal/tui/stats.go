@@ -63,9 +63,9 @@ func (m model) dayStyle(min float64) lipgloss.Style {
 func (m model) calendar() string {
 	first := time.Date(m.now.Year(), m.now.Month(), 1, 0, 0, 0, 0, m.now.Location())
 	var b strings.Builder
-	b.WriteString(bold.Render(months[int(m.now.Month())-1]) + "\n")
+	b.WriteString(bold.Render(m.t(months[int(m.now.Month())-1])) + "\n")
 	for _, d := range weekdays {
-		b.WriteString(m.st.muted.Render(fmt.Sprintf("%2s ", d[:1])))
+		b.WriteString(m.st.muted.Render(fmt.Sprintf("%2s ", m.t(d)[:1])))
 	}
 	b.WriteString("\n" + strings.Repeat("   ", weekIndex(first)))
 	for d := first; d.Month() == first.Month(); d = d.AddDate(0, 0, 1) {
@@ -78,7 +78,7 @@ func (m model) calendar() string {
 			b.WriteString("\n")
 		}
 	}
-	legend := m.st.muted.Render("sem foco") + " · " + lipgloss.NewStyle().Render("até 25 min") + " · " +
+	legend := m.st.muted.Render(m.t("sem foco")) + " · " + lipgloss.NewStyle().Render(m.t("até 25 min")) + " · " +
 		lipgloss.NewStyle().Foreground(m.st.accent).Render("25+") + " · " + m.st.title.Render("1 h+")
 	return strings.TrimRight(b.String(), " \n") + "\n" + legend
 }
@@ -91,7 +91,7 @@ func (m model) weekBars() string {
 		top = max(top, m.days[dayKey(monday.AddDate(0, 0, i))])
 	}
 	var b strings.Builder
-	b.WriteString(bold.Render("esta semana") + "\n")
+	b.WriteString(bold.Render(m.t("esta semana")) + "\n")
 	for i := 0; i <= weekIndex(m.now); i++ {
 		min := m.days[dayKey(monday.AddDate(0, 0, i))]
 		n := 0
@@ -100,7 +100,7 @@ func (m model) weekBars() string {
 		}
 		bar := lipgloss.NewStyle().Foreground(m.st.accent).Render(strings.Repeat("█", n)) +
 			m.st.muted.Render(strings.Repeat("░", barCols-n))
-		b.WriteString(fmt.Sprintf("%s  %s %s\n", m.st.muted.Render(weekdays[i]), bar,
+		b.WriteString(fmt.Sprintf("%s  %s %s\n", m.st.muted.Render(m.t(weekdays[i])), bar,
 			m.st.muted.Render(fmt.Sprintf("%7s", dur(min)))))
 	}
 	return strings.TrimRight(b.String(), "\n")
@@ -110,7 +110,7 @@ func (m model) weekBars() string {
 func (m model) taskNumbers() string {
 	t := m.totals
 	if t.Tasks == 0 {
-		return m.st.muted.Render("a sua primeira tarefa cumprida aparece aqui")
+		return m.st.muted.Render(m.t("a sua primeira tarefa cumprida aparece aqui"))
 	}
 	month := 0.0
 	for k, v := range m.days {
@@ -121,8 +121,8 @@ func (m model) taskNumbers() string {
 	row := func(label, value string) string {
 		return m.st.muted.Render(fmt.Sprintf("%-11s", label)) + value + "\n"
 	}
-	return strings.TrimRight(row("focado", dur(month)+m.st.muted.Render(" no mês · ")+dur(t.Focused.Minutes())+m.st.muted.Render(" no total"))+
-		row("tarefas", fmt.Sprintf("%d de %d cumpridas", t.Done, t.Tasks))+
-		row("por tarefa", fmt.Sprintf("declara %d min, foca %d",
+	return strings.TrimRight(row(m.t("focado"), dur(month)+m.st.muted.Render(m.t(" no mês · "))+dur(t.Focused.Minutes())+m.st.muted.Render(m.t(" no total")))+
+		row(m.t("tarefas"), m.tf("%d de %d cumpridas", t.Done, t.Tasks))+
+		row(m.t("por tarefa"), m.tf("declara %d min, foca %d",
 			int(t.Declared.Minutes())/t.Tasks, int(t.Focused.Minutes())/t.Tasks)), "\n")
 }

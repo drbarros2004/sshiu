@@ -9,9 +9,9 @@ App de foco por SSH em Go (Wish v2 + Bubble Tea v2 + Lip Gloss v2, SQLite via `m
 
 ## Convenções
 
-- Responda em português. Código (identificadores, arquivos, pastas) em inglês; comentários e texto da interface em português.
-- Textos da interface não tratam ninguém no masculino: reestruture a frase em vez de usar "o(a)", "@" ou "x" (por exemplo, "qual vai ser o seu apelido?", não "Como quer ser chamado?").
-- Textos da interface começam com letra minúscula, inclusive títulos e a frase depois de um ponto. Siglas (SSH) ficam como estão, e o logo (sshiu) também é minúsculo.
+- Responda em português. Código (identificadores, arquivos, pastas) em inglês; comentários e texto da interface em português no código. O app mostra inglês por padrão: todo texto da interface passa por `m.t("...")` (ou `m.tf` com números), e a tradução fica em [`internal/tui/i18n.go`](internal/tui/i18n.go). O `TestEveryTextTranslated` falha se faltar o inglês.
+- Textos da interface (nos dois idiomas) não tratam ninguém no masculino: reestruture a frase em vez de usar "o(a)", "@" ou "x" (por exemplo, "qual vai ser o seu apelido?", não "Como quer ser chamado?").
+- Textos da interface, em português e em inglês, começam com letra minúscula, inclusive títulos e a frase depois de um ponto. Siglas (SSH) ficam como estão, e o logo (sshiu) também é minúsculo.
 - Pacotes em `internal/`, com dependência numa direção só: `tui` → `rooms` → `store` → `pet`. `main.go` sobe o servidor.
 - O schema do banco fica em [`internal/store/schema.sql`](internal/store/schema.sql), embutido com `go:embed`; coluna nova num banco que já existe também precisa do `ALTER TABLE` no `Open`.
 - Commits seguem o [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`), com a descrição em inglês. Commit e push só com o OK do usuário.

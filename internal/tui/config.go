@@ -40,11 +40,11 @@ func cfgList(s rooms.Snapshot) []int {
 }
 
 // obraName: o tema como ele aparece no menu.
-func obraName(obra string) string {
+func obraName(l lang, obra string) string {
 	if obra == "" {
-		return "nenhuma"
+		return l.t("nenhuma")
 	}
-	return obra
+	return l.t(obra)
 }
 
 type cfgPage int
@@ -97,7 +97,7 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "enter":
 			name := strings.TrimSpace(m.in.Value())
 			if name == "" {
-				m.err = "a sala precisa de um nome"
+				m.err = m.t("a sala precisa de um nome")
 				return m, nil
 			}
 			m.cname, m.err = false, ""
@@ -145,7 +145,7 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			// passar a sala tira os seus poderes: o menu fecha junto
-			m.cfg, m.cpage, m.cyes, m.notice = false, pageMenu, false, "a sala agora é de "+who.Nick
+			m.cfg, m.cpage, m.cyes, m.notice = false, pageMenu, false, m.tf("a sala agora é de %s", who.Nick)
 			return m, do(func() error { return rooms.Transfer(id, code, who.ID) })
 		}
 		return m, nil
@@ -205,7 +205,7 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		switch cur {
 		case cfgName:
-			m.cname, m.in, m.err = true, newInput("nome da sala", 30), ""
+			m.cname, m.in, m.err = true, newInput(m.t("nome da sala"), 30), ""
 			m.in.Prompt = "" // o ▸ da linha já diz onde o texto entra
 			m.in.SetValue(s.Name)
 		case cfgEntries: // o enter também abre e fecha: ninguém adivinha que ali só vale ←/→
@@ -225,28 +225,28 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m model) cfgHelp() string {
 	switch {
 	case m.cname:
-		return "enter confirma · esc cancela"
+		return m.t("enter confirma · esc cancela")
 	case m.cpage == pageGive, m.cpage == pageKick:
 		if len(m.others()) == 0 { // não há o que escolher: a página só tem a saída
-			return "esc volta"
+			return m.t("esc volta")
 		}
 		if m.cpage == pageKick {
-			return "↑/↓ escolhe · enter remove · esc volta"
+			return m.t("↑/↓ escolhe · enter remove · esc volta")
 		}
-		return "↑/↓ escolhe · enter passa a sala · esc volta"
+		return m.t("↑/↓ escolhe · enter passa a sala · esc volta")
 	case m.cpage == pageEnd, m.cpage == pageGiveYes:
-		return "←/→ escolhe · enter confirma · esc volta"
+		return m.t("←/→ escolhe · enter confirma · esc volta")
 	}
-	return "↑/↓ escolhe · ←/→ muda · enter abre · esc volta"
+	return m.t("↑/↓ escolhe · ←/→ muda · enter abre · esc volta")
 }
 
 func (m model) cfgView() string {
 	s := m.w.Rooms[m.room]
 	switch m.cpage {
 	case pageGive, pageKick:
-		titulo, vazio := "passar a sala para quem?", "você é a única pessoa na sala."
+		titulo, vazio := m.t("passar a sala para quem?"), m.t("você é a única pessoa na sala.")
 		if m.cpage == pageKick {
-			titulo, vazio = "remover quem da sala?", "não há mais ninguém na sala."
+			titulo, vazio = m.t("remover quem da sala?"), m.t("não há mais ninguém na sala.")
 		}
 		others := m.others()
 		if len(others) == 0 {
@@ -260,15 +260,15 @@ func (m model) cfgView() string {
 		return strings.TrimRight(b.String(), "\n")
 	case pageGiveYes:
 		who, _ := m.member(m.cwho)
-		aviso := "o menu de configurar passa a ser de " + who.Nick + ". você continua na sala, como os outros."
-		return bold.Render("passar "+s.Name+" para "+who.Nick+"?") + "\n\n" + m.st.muted.Render(aviso) +
+		aviso := m.tf("o menu de configurar passa a ser de %s. você continua na sala, como os outros.", who.Nick)
+		return bold.Render(m.tf("passar %s para %s?", s.Name, who.Nick)) + "\n\n" + m.st.muted.Render(aviso) +
 			"\n\n" + m.yesNo()
 	case pageEnd:
-		aviso := "a sala some. o que você focou nela fica no seu histórico."
+		aviso := m.t("a sala some. o que você focou nela fica no seu histórico.")
 		if n := len(s.Members); n > 1 {
-			aviso = fmt.Sprintf("a sala some para os %d membros. o histórico de cada um fica.", n)
+			aviso = m.tf("a sala some para os %d membros. o histórico de cada um fica.", n)
 		}
-		return bold.Render("encerrar "+s.Name+"?") + "\n\n" + m.st.muted.Render(aviso) + "\n\n" + m.yesNo()
+		return bold.Render(m.tf("encerrar %s?", s.Name)) + "\n\n" + m.st.muted.Render(aviso) + "\n\n" + m.yesNo()
 	}
 
 	name := m.st.muted.Render(s.Name)
@@ -280,32 +280,32 @@ func (m model) cfgView() string {
 		m.arrows(m.ccur == cfgSize, fmt.Sprintf("%d", s.Max), s.Max > floor, s.Max < rooms.MaxMembers)
 	list := cfgList(s)
 	cur := list[min(m.ccur, len(list)-1)]
-	entries := m.arrows(cur == cfgEntries, map[bool]string{true: "fechadas", false: "abertas"}[s.Closed], true, true)
+	entries := m.arrows(cur == cfgEntries, map[bool]string{true: m.t("fechadas"), false: m.t("abertas")}[s.Closed], true, true)
 	io := max(slices.Index(rooms.Obras, s.Obra), 0)
 	im := max(slices.Index(rooms.ObraMetas, s.Meta), 0)
 
-	label := map[int]string{cfgName: "nome", cfgSize: "tamanho", cfgEntries: "novas entradas",
-		cfgObra: "obra", cfgMeta: "meta da obra", cfgGive: "passar a sala",
-		cfgKick: "remover alguém", cfgEnd: "encerrar a sala"}
+	label := map[int]string{cfgName: m.t("nome"), cfgSize: m.t("tamanho"), cfgEntries: m.t("novas entradas"),
+		cfgObra: m.t("obra"), cfgMeta: m.t("meta da obra"), cfgGive: m.t("passar a sala"),
+		cfgKick: m.t("remover alguém"), cfgEnd: m.t("encerrar a sala")}
 	value := map[int]string{
 		cfgName:    name,
 		cfgSize:    size,
 		cfgEntries: entries,
-		cfgObra:    m.arrows(cur == cfgObra, obraName(s.Obra), io > 0, io < len(rooms.Obras)-1),
+		cfgObra:    m.arrows(cur == cfgObra, obraName(m.lang, s.Obra), io > 0, io < len(rooms.Obras)-1),
 		cfgMeta:    m.arrows(cur == cfgMeta, dur(float64(s.Meta)), im > 0, im < len(rooms.ObraMetas)-1),
 	}
 	var rows []string
 	for _, r := range list {
 		rows = append(rows, cfgRow(m, r == cur, label[r], value[r]))
 	}
-	return bold.Render("configurar") + m.st.muted.Render(" · "+s.Name) + "\n\n" + strings.Join(rows, "\n")
+	return bold.Render(m.t("configurar")) + m.st.muted.Render(" · "+s.Name) + "\n\n" + strings.Join(rows, "\n")
 }
 
 // yesNo: o "‹ não · sim ›" das confirmações, com a escolha em negrito. Começa no "não".
 func (m model) yesNo() string {
-	sim, nao := "sim", bold.Render("não")
+	sim, nao := m.t("sim"), bold.Render(m.t("não"))
 	if m.cyes {
-		sim, nao = bold.Render("sim"), "não"
+		sim, nao = bold.Render(m.t("sim")), m.t("não")
 	}
 	return m.st.muted.Render("‹ ") + nao + m.st.muted.Render(" · ") + sim + m.st.muted.Render(" ›")
 }

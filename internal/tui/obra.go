@@ -285,7 +285,7 @@ func gapBlock(w int, o *obra) string {
 // terminal pequeno ela sai sempre; aqui ela não divide espaço com nada, então existe em qualquer
 // tamanho. É o mesmo caminho do modo jardim, que também é uma tela inteira atrás de uma tecla.
 func (m model) obraView(s rooms.Snapshot, w, h int) string {
-	head := bold.Render(s.Name) + m.st.muted.Render(" · a obra de hoje") + "\n\n"
+	head := bold.Render(m.roomName(s)) + m.st.muted.Render(m.t(" · a obra de hoje")) + "\n\n"
 	ob := m.obraBlock(s, w, false)
 	if lipgloss.Height(head+ob) > h { // a tabela do tema não cabe: vira uma fileira só
 		ob = m.obraBlock(s, w, true)
@@ -296,8 +296,8 @@ func (m model) obraView(s rooms.Snapshot, w, h int) string {
 // obraHead: o tema e o que cada peça custa. Sem o passo, o desenho não diz o que falta para
 // crescer; com ele, quem está a dez minutos da próxima mudança sabe disso.
 func (m model) obraHead(s rooms.Snapshot, cols int) string {
-	return m.st.muted.Width(max(cols, 1)).Render(fmt.Sprintf("%s · meta %s · a peça muda a cada %s · reinicia em %s",
-		s.Obra, dur(float64(s.Meta)), dur(float64(s.Meta/(rooms.ObraStages-1))), obraResetIn(m.now)))
+	return m.st.muted.Width(max(cols, 1)).Render(m.tf("%s · meta %s · a peça muda a cada %s · reinicia em %s",
+		obraName(m.lang, s.Obra), dur(float64(s.Meta)), dur(float64(s.Meta/(rooms.ObraStages-1))), obraResetIn(m.now)))
 }
 
 // obraResetIn segue o dia local do servidor, como minutesToday. Construir a próxima data
@@ -312,7 +312,7 @@ func obraResetIn(now time.Time) string {
 // obraName: o apelido embaixo da peça, que é o que deixa a sala ver quem focou e quem não focou.
 func (m model) obraName(x rooms.Member) string {
 	if x.ID == m.id {
-		return "você"
+		return m.t("você")
 	}
 	return x.Nick
 }

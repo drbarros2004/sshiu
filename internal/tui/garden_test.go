@@ -93,18 +93,18 @@ func TestFocusingLine(t *testing.T) {
 		"ana, bruno, duda e mais 2 também estão focando": {"ana", "bruno", "duda", "edu", "caio"},
 	}
 	for want, nicks := range cases {
-		if got := focusingLine(nicks, 80); got != want {
+		if got := focusingLine("", nicks, 80); got != want {
 			t.Errorf("%v: got %q, want %q", nicks, got, want)
 		}
 	}
 	// a linha nunca passa da largura, mesmo com nome largo (#85)
 	long := []string{"田中さくら東京大学の学生", "🐱🐶🐭🐹🐰🦊🐻🐼", "abcdefghijklmnop"}
 	for _, w := range []int{20, 30, 45, 60, 100} {
-		if got := focusingLine(long, w); ansi.StringWidth(got) > w {
+		if got := focusingLine("", long, w); ansi.StringWidth(got) > w {
 			t.Errorf("largura %d: %q tem %d colunas", w, got, ansi.StringWidth(got))
 		}
 	}
-	if got, want := focusingLine(long, 60), "田中さくら東京大学の学生 e mais 2 também estão focando"; got != want {
+	if got, want := focusingLine("", long, 60), "田中さくら東京大学の学生 e mais 2 também estão focando"; got != want {
 		t.Errorf("largura 60: got %q", got)
 	}
 }

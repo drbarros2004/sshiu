@@ -30,14 +30,14 @@ func (m model) pickerItems() []pickerItem {
 	var items []pickerItem
 	mine := m.w.MyRooms(m.id)
 	for _, code := range mine {
-		items = append(items, pickerItem{code, m.w.Rooms[code].Name})
+		items = append(items, pickerItem{code, m.roomName(m.w.Rooms[code])})
 	}
 	if rooms.Demo && !slices.Contains(mine, rooms.DemoCode) {
-		items = append(items, pickerItem{rooms.DemoCode, "sala demo"})
+		items = append(items, pickerItem{rooms.DemoCode, m.t("sala demo")})
 	}
-	items = append(items, pickerItem{"+", "criar sala"}, pickerItem{"#", "entrar com código"})
+	items = append(items, pickerItem{"+", m.t("criar sala")}, pickerItem{"#", m.t("entrar com código")})
 	if m.room != "" && m.room != rooms.DemoCode {
-		items = append(items, pickerItem{"-", "sair de " + m.w.Rooms[m.room].Name})
+		items = append(items, pickerItem{"-", m.tf("sair de %s", m.w.Rooms[m.room].Name)})
 	}
 	return items
 }
@@ -119,11 +119,11 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		switch it := items[min(m.pcur, len(items)-1)]; it.code {
 		case "+":
-			m.form, m.in, m.size = formNew, newInput("ex.: Turma de Cálculo", 30), rooms.MaxMembers
+			m.form, m.in, m.size = formNew, newInput(m.t("ex.: Turma de Cálculo"), 30), rooms.MaxMembers
 			// a obra já vem escolhida: a sala nasce construindo em vez de nascer vazia
 			m.ncur, m.nobra = newName, max(slices.Index(rooms.Obras, "cidade"), 0)
 		case "#":
-			m.form, m.in = formCode, newInput("6 letras", 60)
+			m.form, m.in = formCode, newInput(m.t("6 letras"), 60)
 		case "-":
 			m.form = formLeave
 		case rooms.DemoCode:
@@ -160,7 +160,7 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 	switch m.form {
 	case formNew:
 		if v == "" {
-			m.err = "dê um nome para a sala"
+			m.err = m.t("dê um nome para a sala")
 			return m, nil
 		}
 		size, obra := m.size, ""
@@ -182,11 +182,11 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 	case formCode:
 		code := roomCode(v)
 		if code == "" {
-			m.err = "digite o código que o colega te passou"
+			m.err = m.t("digite o código que o colega te passou")
 			return m, nil
 		}
 		if _, ok := m.w.Rooms[code]; !ok {
-			m.err = "nenhuma sala com o código " + code
+			m.err = m.tf("nenhuma sala com o código %s", code)
 			return m, nil
 		}
 		m.form, m.joining, m.err = formJoin, code, ""
@@ -215,43 +215,43 @@ func (m model) pickerView() string {
 		if cur != newName { // fora da linha do nome, o campo vira só o texto, sem cursor
 			name = m.st.muted.Render(strings.TrimSpace(m.in.Value()))
 		}
-		hint := "o tamanho é fixo depois de a sala nascer; o resto o dono muda em c"
+		hint := m.t("o tamanho é fixo depois de a sala nascer; o resto o dono muda em c")
 		if m.size == rooms.MinMembers { // ADR 0006
-			hint = "sala solo: para focar sozinho, com o seu pet e o modo jardim"
+			hint = m.t("sala solo: para focar sozinho, com o seu pet e o modo jardim")
 		}
 		value := map[int]string{
 			newName: name,
 			newSize: m.arrows(cur == newSize, fmt.Sprintf("%d", m.size),
 				m.size > rooms.MinMembers, m.size < rooms.MaxMembers),
-			newObra: m.arrows(cur == newObra, obraName(rooms.Obras[m.nobra]),
+			newObra: m.arrows(cur == newObra, obraName(m.lang, rooms.Obras[m.nobra]),
 				m.nobra > 0, m.nobra < len(rooms.Obras)-1),
 		}
-		label := map[int]string{newName: "nome", newSize: "quantas pessoas", newObra: "obra"}
+		label := map[int]string{newName: m.t("nome"), newSize: m.t("quantas pessoas"), newObra: m.t("obra")}
 		var rows []string
 		for _, r := range list {
 			rows = append(rows, cfgRow(m, r == cur, label[r], value[r]))
 		}
-		return bold.Render("criar sala") + "\n\n" + strings.Join(rows, "\n") +
+		return bold.Render(m.t("criar sala")) + "\n\n" + strings.Join(rows, "\n") +
 			"\n\n" + m.st.muted.Render(hint)
 	case formCode:
-		return bold.Render("entrar com código") + "\n\n" + m.in.View() + "\n" +
-			m.st.muted.Render("cole com ctrl+v (cmd+v no mac): o código ou o comando ssh inteiro")
+		return bold.Render(m.t("entrar com código")) + "\n\n" + m.in.View() + "\n" +
+			m.st.muted.Render(m.t("cole com ctrl+v (cmd+v no mac): o código ou o comando ssh inteiro"))
 	case formJoin: // a sala tem nome e tamanho: dá para ver onde você está entrando
 		s := m.w.Rooms[m.joining]
-		return bold.Render("entrar em "+s.Name+"?") + "\n\n" +
-			m.st.muted.Render("código "+m.joining+" · "+roomSummary(s))
+		return bold.Render(m.tf("entrar em %s?", m.roomName(s))) + "\n\n" +
+			m.st.muted.Render(m.tf("código %s", m.joining)+" · "+m.roomSummary(s))
 	case formLeave:
-		return bold.Render("sair de "+m.w.Rooms[m.room].Name+"?") + "\n\n" +
-			m.st.muted.Render("para voltar, você vai precisar do código de novo. se não sobrar ninguém, a sala some.")
+		return bold.Render(m.tf("sair de %s?", m.w.Rooms[m.room].Name)) + "\n\n" +
+			m.st.muted.Render(m.t("para voltar, você vai precisar do código de novo. se não sobrar ninguém, a sala some."))
 	}
 	var b strings.Builder
 	if m.room == "" {
-		b.WriteString(lipgloss.NewStyle().Width(max(m.width-4, 20)).Render("você ainda não está em nenhuma sala. crie uma e passe o código para quem vai focar com você, ou entre com o código de alguém.") + "\n\n")
+		b.WriteString(lipgloss.NewStyle().Width(max(m.width-4, 20)).Render(m.t("você ainda não está em nenhuma sala. crie uma e passe o código para quem vai focar com você, ou entre com o código de alguém.")) + "\n\n")
 	}
 	if m.notice != "" { // quem perdeu a vaga ou estava numa sala encerrada cai aqui sem entender
 		b.WriteString(m.st.ok.Render(m.notice) + "\n\n")
 	}
-	b.WriteString(bold.Render("salas") + "\n\n")
+	b.WriteString(bold.Render(m.t("salas")) + "\n\n")
 	items := m.pickerItems()
 	col := 28 // a coluna do resumo: depois do nome mais largo, contando a largura na tela (日 vale 2)
 	for _, it := range items {
@@ -271,9 +271,9 @@ func (m model) pickerView() string {
 		}
 		line := cursor + name
 		if s, ok := m.w.Rooms[it.code]; ok {
-			line += m.st.muted.Render(roomSummary(s))
+			line += m.st.muted.Render(m.roomSummary(s))
 			if it.code == m.room {
-				line += m.st.ok.Render("  ← você está aqui")
+				line += m.st.ok.Render(m.t("  ← você está aqui"))
 			}
 		}
 		b.WriteString(line + "\n")
@@ -282,12 +282,12 @@ func (m model) pickerView() string {
 }
 
 // roomSummary resume uma sala numa linha: quantos estão focando agora.
-func roomSummary(s rooms.Snapshot) string {
+func (m model) roomSummary(s rooms.Snapshot) string {
 	n := 0
 	for _, x := range s.Members {
 		if x.Status == rooms.Focusing {
 			n++
 		}
 	}
-	return fmt.Sprintf("%d/%d membros · %d focando", len(s.Members), s.Max, n)
+	return m.tf("%d/%d membros · %d focando", len(s.Members), s.Max, n)
 }

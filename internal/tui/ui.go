@@ -116,33 +116,34 @@ func act(f func()) tea.Cmd {
 }
 
 type model struct {
-	id, nick      string // nick vazio = primeiro acesso
-	invite        string // o "ssh ..." com que um colega chega a este servidor
-	pending       string // código que veio no comando do ssh, a entrar na primeira chance
-	w             rooms.World
-	room          string // código da sala que você está vendo ("" = nenhuma: o menu de salas)
-	now           time.Time
-	tab           tab
-	tick, width   int
-	height        int
-	pixel         bool // terminal com 256+ cores: pet em pixel art
-	err, notice   string
-	st            styles
-	theme, saved  int          // tema em prévia e tema salvo
-	pcolor        int          // cor do pet em prévia (índice em pet.Colors)
-	pcSaved       int          // a cor do pet que está no banco
-	custom        bool         // aba de perfil no modo personalizar
-	previewMood   pet.Mood     // só o desenho da personalização; nunca vai para o banco ou para a sala
-	vis, visSaved store.Garden // modo jardim em prévia e salvo
-	vrow          int          // linha selecionada na aba visual
-	ncur, nobra   int          // linha e obra escolhidas na tela de criar sala
-	obraFull      bool         // a obra sozinha na tela (tecla o)
-	garden        *garden      // modo jardim em tela cheia (nil = desligado)
-	gardenGen     int          // distingue os ticks de cada abertura
-	side          *garden      // o jardim da coluna da sala solo (nil = não tem)
-	lastKey       time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim, se a aba visual deixar
-	wall          int          // o wallpaper trocado no jardim, que vale para a tarefa...
-	wallFor       time.Time    // ...que começou neste instante
+	id, nick        string // nick vazio = primeiro acesso
+	invite          string // o "ssh ..." com que um colega chega a este servidor
+	pending         string // código que veio no comando do ssh, a entrar na primeira chance
+	w               rooms.World
+	room            string // código da sala que você está vendo ("" = nenhuma: o menu de salas)
+	now             time.Time
+	tab             tab
+	tick, width     int
+	height          int
+	pixel           bool // terminal com 256+ cores: pet em pixel art
+	err, notice     string
+	st              styles
+	theme, saved    int          // tema em prévia e tema salvo
+	lang, langSaved lang         // idioma em prévia e idioma salvo (#86)
+	pcolor          int          // cor do pet em prévia (índice em pet.Colors)
+	pcSaved         int          // a cor do pet que está no banco
+	custom          bool         // aba de perfil no modo personalizar
+	previewMood     pet.Mood     // só o desenho da personalização; nunca vai para o banco ou para a sala
+	vis, visSaved   store.Garden // modo jardim em prévia e salvo
+	vrow            int          // linha selecionada na aba visual
+	ncur, nobra     int          // linha e obra escolhidas na tela de criar sala
+	obraFull        bool         // a obra sozinha na tela (tecla o)
+	garden          *garden      // modo jardim em tela cheia (nil = desligado)
+	gardenGen       int          // distingue os ticks de cada abertura
+	side            *garden      // o jardim da coluna da sala solo (nil = não tem)
+	lastKey         time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim, se a aba visual deixar
+	wall            int          // o wallpaper trocado no jardim, que vale para a tarefa...
+	wallFor         time.Time    // ...que começou neste instante
 
 	in       textinput.Model // o campo ativo: apelido, tarefa, nome ou código de sala
 	entering bool            // escrevendo a tarefa
@@ -185,7 +186,7 @@ func (m *model) setWorld(w rooms.World) {
 			m.room = mine[0]
 		}
 		if was != "" { // encerrada pelo dono, ou a sua vaga foi removida (ADR 0007)
-			m.notice, m.cfg, m.cname = "você não está mais em "+was, false, false
+			m.notice, m.cfg, m.cname = m.tf("você não está mais em %s", was), false, false
 		}
 	}
 }
@@ -203,10 +204,12 @@ func New(id, invite, code string) model {
 	m.pcSaved = m.pcolor
 	m.theme = themeIndex(store.Theme(id))
 	m.saved, m.st = m.theme, newStyles(themes[m.theme])
+	m.lang = lang(store.Lang(id))
+	m.langSaved = m.lang
 	m.vis = store.GetGarden(id)
 	m.visSaved = m.vis
 	if !ok {
-		m.in = newInput("seu apelido", 16)
+		m.in = newInput(m.t("seu apelido"), 16)
 	}
 	return m
 }
@@ -336,20 +339,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case roomMsg:
 		m.setWorld(msg.w)
 		m.room, m.picking, m.form, m.err = msg.code, false, formNone, ""
-		m.notice = "você entrou em " + m.w.Rooms[msg.code].Name
+		m.notice = m.tf("você entrou em %s", m.roomName(m.w.Rooms[msg.code]))
 		if msg.created {
 			m.notice = "" // o código está no título e o convite embaixo explica o que fazer
 			if m.solo() {
-				m.notice = "sala solo criada: só você entra aqui"
+				m.notice = m.t("sala solo criada: só você entra aqui")
 			}
 		}
 		return m, m.loadProfile()
 	case nickMsg:
 		switch {
 		case msg.err != nil && strings.Contains(msg.err.Error(), "UNIQUE"):
-			m.err = "esse apelido já tem dono"
+			m.err = m.t("esse apelido já tem dono")
 		case msg.err != nil:
-			m.err = msg.err.Error()
+			m.err = m.lang.errText(msg.err)
 		default:
 			m.nick, m.err = msg.nick, ""
 			// escolher a cor do pet é o passo seguinte ao apelido: o perfil abre já no modo
@@ -367,7 +370,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case profileMsg:
 		m.pet, m.tasks, m.days, m.totals = msg.pet, msg.tasks, msg.days, msg.totals
 	case errMsg:
-		m.err = msg.Error()
+		m.err = m.lang.errText(msg.error)
 	case tea.PasteMsg: // colar vai para o campo ativo; o texto vem do terminal (bracketed paste)
 		if m.nick == "" || m.typing() {
 			var cmd tea.Cmd
@@ -422,7 +425,7 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 	if m.tab == tabVisual && t != tabVisual { // saiu sem salvar: desfaz a prévia
-		m.theme, m.st, m.vis = m.saved, newStyles(themes[m.saved]), m.visSaved
+		m.theme, m.st, m.vis, m.lang = m.saved, newStyles(themes[m.saved]), m.visSaved, m.langSaved
 	}
 	if m.tab == tabProfile && t != tabProfile { // idem para a cor do pet
 		m.pcolor, m.custom = m.pcSaved, false
@@ -449,7 +452,7 @@ func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	nick := strings.TrimSpace(m.in.Value())
-	if m.err = nickProblem(nick); m.err != "" {
+	if m.err = nickProblem(m.lang, nick); m.err != "" {
 		return m, nil
 	}
 	id := m.id
@@ -468,19 +471,19 @@ const nickMax = 16 // docs/regras.md
 // nickProblem: o que impede o apelido, ou "" se ele serve. Cada caractere ocupa uma ou duas
 // colunas sozinho: acento combinante, emoji composto e caractere invisível ficam de fora, porque
 // cada terminal conta a largura deles de um jeito e a sala e o jardim desalinhavam (#84, #85).
-func nickProblem(nick string) string {
+func nickProblem(l lang, nick string) string {
 	if nick == "" || strings.ContainsAny(nick, " :") {
-		return "apelido sem espaços, por favor"
+		return l.t("apelido sem espaços, por favor")
 	}
 	if ansi.StringWidth(nick) > nickMax {
-		return fmt.Sprintf("apelido de até %d letras, por favor (日 e 🐱 contam como 2)", nickMax)
+		return l.tf("apelido de até %d letras, por favor (日 e 🐱 contam como 2)", nickMax)
 	}
 	state := -1
 	for s := nick; s != ""; {
 		var g string
 		g, s, _, state = uniseg.FirstGraphemeClusterInString(s, state)
 		if r := []rune(g); len(r) > 1 || !unicode.IsGraphic(r[0]) || ansi.StringWidth(g) == 0 {
-			return "apelido só com letras, números e símbolos simples, por favor"
+			return l.t("apelido só com letras, números e símbolos simples, por favor")
 		}
 	}
 	return ""
@@ -494,9 +497,9 @@ func (m model) View() tea.View {
 	}
 	var body string
 	if m.nick == "" {
-		body = m.st.title.Render("sshiu") + "\n" + m.st.muted.Render("um lugar quieto para focar junto") +
-			"\n\nprimeira vez por aqui. qual vai ser o seu apelido?\n\n" + m.in.View() +
-			m.errLine() + "\n\n" + m.st.muted.Render("enter confirma · sua chave SSH é o seu login")
+		body = m.st.title.Render("sshiu") + "\n" + m.st.muted.Render(m.t("um lugar quieto para focar junto")) +
+			"\n\n" + m.t("primeira vez por aqui. qual vai ser o seu apelido?") + "\n\n" + m.in.View() +
+			m.errLine() + "\n\n" + m.st.muted.Render(m.t("enter confirma · sua chave SSH é o seu login"))
 	} else {
 		var help string
 		content := m.roomView // o conteúdo recebe o espaço que sobra (largura, altura)
@@ -506,11 +509,11 @@ func (m model) View() tea.View {
 		case tabProfile:
 			content, help = func(int, int) string { return m.profileView() }, m.profileHelp()
 		case tabVisual:
-			content, help = func(int, int) string { return m.visualView() }, "↑/↓ escolhe · ←/→ muda · j prévia · v editar no jardim · enter salva"
+			content, help = func(int, int) string { return m.visualView() }, m.t("↑/↓ escolhe · ←/→ muda · j prévia · v editar no jardim · enter salva")
 		}
-		nav := "a/d troca de aba · q sai"
+		nav := m.t("a/d troca de aba · q sai")
 		if m.typing() {
-			nav = "tab troca de aba · ctrl+c sai"
+			nav = m.t("tab troca de aba · ctrl+c sai")
 		}
 		if help != "" {
 			nav = help + " · " + nav
@@ -573,9 +576,9 @@ func (m model) header() string {
 	parts := []string{m.st.title.Render("sshiu") + " "}
 	for i, name := range tabNames {
 		if tab(i) == m.tab {
-			parts = append(parts, m.st.tabOn.Render(name))
+			parts = append(parts, m.st.tabOn.Render(m.t(name)))
 		} else {
-			parts = append(parts, m.st.tabOff.Render(name))
+			parts = append(parts, m.st.tabOff.Render(m.t(name)))
 		}
 	}
 	left := lipgloss.JoinHorizontal(lipgloss.Top, parts...)
@@ -589,13 +592,13 @@ func (m model) header() string {
 func (m model) status(x rooms.Member) string {
 	switch {
 	case x.Status == rooms.Focusing && x.Focus.Expired(m.now):
-		return m.st.bad.Render("tempo esgotado")
+		return m.st.bad.Render(m.t("tempo esgotado"))
 	case x.Status == rooms.Focusing:
-		return "focando " + mmss(x.Focus.Ends.Sub(m.now))
+		return m.tf("focando %s", mmss(x.Focus.Ends.Sub(m.now)))
 	case x.Status == rooms.Idle:
-		return m.st.muted.Render("sem tarefa")
+		return m.st.muted.Render(m.t("sem tarefa"))
 	}
-	return m.st.muted.Render("offline")
+	return m.st.muted.Render(m.t("offline"))
 }
 
 func mmss(d time.Duration) string {

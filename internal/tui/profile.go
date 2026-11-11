@@ -12,29 +12,30 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"charm.land/log/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 var resultLabel = map[pet.Result]string{pet.Done: "✓ cumprida", pet.NotDone: "não cumprida", pet.Interrupted: "interrompida"}
 
 func (m model) profileView() string {
 	if m.pet.LastActive.IsZero() {
-		return m.st.muted.Render("carregando…")
+		return m.st.muted.Render(m.t("carregando…"))
 	}
 	e := m.pet.EnergyAt(m.now)
 	mood := pet.MoodOf(e)
 	moodSt := lipgloss.NewStyle().Foreground(energyColors.barColor(mood))
 	info := bold.Render(m.nick) + "\n\n" +
-		"humor    " + moodSt.Render(pet.MoodName[mood]) + "\n" +
+		fmt.Sprintf("%-9s", m.t("humor")) + moodSt.Render(m.t(pet.MoodName[mood])) + "\n" +
 		m.energyBar(e, mood, moodSt) + "\n" +
-		fmt.Sprintf("streak   %d %s", m.pet.StreakAt(m.now), plural(m.pet.StreakAt(m.now), "dia seguido", "dias seguidos")) + "\n" +
+		fmt.Sprintf("%-9s%d %s", m.t("streak"), m.pet.StreakAt(m.now), plural(m.pet.StreakAt(m.now), m.t("dia seguido"), m.t("dias seguidos"))) + "\n" +
 		m.colorRow() + "\n\n" +
 		m.statsBlock(false) + "\n\n" +
-		bold.Render("últimas tarefas") + "\n"
+		bold.Render(m.t("últimas tarefas")) + "\n"
 	if len(m.tasks) == 0 {
-		info += m.st.muted.Render("nenhuma ainda")
+		info += m.st.muted.Render(m.t("nenhuma ainda"))
 	}
 	for _, t := range m.tasks {
-		label := fmt.Sprintf("%-13s", resultLabel[t.Result])
+		label := fmt.Sprintf("%-13s", m.t(resultLabel[t.Result]))
 		if t.Result == pet.Done {
 			label = m.st.ok.Render(label)
 		} else {
@@ -42,7 +43,7 @@ func (m model) profileView() string {
 		}
 		info += fmt.Sprintf("%s  %s %3d min  %s", t.Start.Format("02/01 15:04"), label, int(t.Focused.Minutes()), t.Task)
 		if r, ok := m.w.Rooms[t.Room]; ok { // a sala pode ter sumido desde então: aí não há nome a mostrar
-			info += m.st.muted.Render(" · " + r.Name)
+			info += m.st.muted.Render(" · " + m.roomName(r))
 		}
 		info += "\n"
 	}
@@ -52,10 +53,10 @@ func (m model) profileView() string {
 		if m.height > 0 && m.height < 30 { // o desenho menor mantém os avisos visíveis em 80×24
 			preview = pet.Render(m.previewMood, m.tick, m.pixel, m.myColor())
 		}
-		drawing = bold.Render("prévia do pet") + "\n\n" +
+		drawing = bold.Render(m.t("prévia do pet")) + "\n\n" +
 			preview + "\n\n" +
-			m.st.muted.Render("↑/↓ ") + pet.MoodName[m.previewMood] + "\n" +
-			m.st.muted.Render("apenas para visualização\n(não altera humor ou energia)")
+			m.st.muted.Render("↑/↓ ") + m.t(pet.MoodName[m.previewMood]) + "\n" +
+			m.st.muted.Render(m.t("apenas para visualização")+"\n"+m.t("(não altera humor ou energia)"))
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, drawing, "    ",
 		strings.TrimRight(info, "\n"))
@@ -68,18 +69,18 @@ func (m model) myColor() string { return pet.Colors[m.pcolor].ID }
 // dentro, é a linha que as setas mudam, com a prévia no pet grande ao lado.
 func (m model) colorRow() string {
 	c := pet.Colors[m.pcolor]
-	name := c.Name + " " + lipgloss.NewStyle().Foreground(c.Body).Render("██")
+	name := m.t(c.Name) + " " + lipgloss.NewStyle().Foreground(c.Body).Render("██")
 	if !m.custom {
-		return "cor      " + m.st.muted.Render(name)
+		return fmt.Sprintf("%-9s", m.t("cor")) + m.st.muted.Render(name)
 	}
-	return m.st.sel.Render("cor      ") + m.st.muted.Render("‹ ") + name + m.st.muted.Render(" ›")
+	return m.st.sel.Render(fmt.Sprintf("%-9s", m.t("cor"))) + m.st.muted.Render("‹ ") + name + m.st.muted.Render(" ›")
 }
 
 func (m model) profileHelp() string {
 	if m.custom {
-		return "←/→ cor · ↑/↓ prévia do humor · enter salva a cor · esc volta"
+		return m.t("←/→ cor · ↑/↓ prévia do humor · enter salva a cor · esc volta")
 	}
-	return "c personaliza o pet"
+	return m.t("c personaliza o pet")
 }
 
 // profileKey: a cor é salva; o humor escolhido só troca o desenho da prévia.
@@ -105,7 +106,7 @@ func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.pcolor, m.custom = m.pcSaved, false
 	case "enter":
 		id, paletteID := m.id, m.myColor()
-		m.pcSaved, m.custom, m.notice = m.pcolor, false, "salvo"
+		m.pcSaved, m.custom, m.notice = m.pcolor, false, m.t("salvo")
 		return m, act(func() {
 			if err := store.SetPetColor(id, paletteID); err != nil {
 				log.Error("setPetColor", "err", err)
@@ -117,21 +118,26 @@ func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// firstGardenRow: a primeira linha do modo jardim na aba visual, depois do tema e do idioma.
+const firstGardenRow = 2
+
 // visualRows: as linhas da aba visual, cada uma com o valor em prévia.
 func (m model) visualRows() [][2]string {
-	wp := "sorteado a cada tarefa"
+	wp := m.t("sorteado a cada tarefa")
 	if i := wallpaperIndex(m.vis.Wallpaper); i >= 0 {
-		wp = wallpapers[i].name
+		wp = m.t(wallpapers[i].name)
 	}
-	shown := map[bool]string{true: "aparece", false: "não aparece"}
+	shown := map[bool]string{true: m.t("aparece"), false: m.t("não aparece")}
 	return [][2]string{
-		{"tema", themes[m.theme].name},
-		{"wallpaper", wp},
-		{"relógio", clockModes[m.vis.Clock]},
-		{"tarefa", shown[m.vis.Task]},
-		{"quem mais está focando", shown[m.vis.Room]},
-		{"liga sozinho", map[bool]string{true: fmt.Sprintf("depois de %.0f s", gardenIdle.Seconds()), false: "nunca"}[m.vis.Auto]},
-		{"permitir wallpapers para devs de verdade?", map[bool]string{true: "sim", false: "não"}[m.vis.Joke]},
+		{m.t("tema"), m.t(themes[m.theme].name)},
+		// o rótulo nos dois idiomas: quem não lê o da tela acha a linha pela palavra do outro
+		{m.t("idioma") + " · " + map[bool]string{true: "idioma", false: "language"}[m.lang == "en"], langs[langIndex(m.lang)].name},
+		{m.t("wallpaper"), wp},
+		{m.t("relógio"), m.t(clockModes[m.vis.Clock])},
+		{m.t("tarefa"), shown[m.vis.Task]},
+		{m.t("quem mais está focando"), shown[m.vis.Room]},
+		{m.t("liga sozinho"), map[bool]string{true: m.tf("depois de %.0f s", gardenIdle.Seconds()), false: m.t("nunca")}[m.vis.Auto]},
+		{m.t("permitir wallpapers para devs de verdade?"), map[bool]string{true: m.t("sim"), false: m.t("não")}[m.vis.Joke]},
 	}
 }
 
@@ -151,11 +157,15 @@ func (m model) visualKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "v":
 		return m.openGarden(gardenEditor)
 	case "enter":
-		id, name, g := m.id, themes[m.theme].name, m.vis
-		m.saved, m.visSaved, m.notice = m.theme, m.vis, "salvo"
+		id, name, g, l := m.id, themes[m.theme].name, m.vis, m.lang
+		m.saved, m.visSaved, m.langSaved = m.theme, m.vis, m.lang
+		m.notice = m.t("salvo")
 		return m, act(func() {
 			if err := store.SetTheme(id, name); err != nil {
 				log.Error("setTheme", "err", err)
+			}
+			if err := store.SetLang(id, string(l)); err != nil {
+				log.Error("setLang", "err", err)
 			}
 			if err := store.SetGarden(id, g); err != nil {
 				log.Error("setGarden", "err", err)
@@ -171,17 +181,19 @@ func (m model) visualKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case 0:
 		m.theme = cycle(m.theme, len(themes))
 		m.st = newStyles(themes[m.theme]) // prévia ao vivo
-	case 1:
-		m.vis.Wallpaper = cycleWallpaper(m.vis, step)
+	case 1: // a tela toda já muda de idioma, como o tema muda de cor
+		m.lang = langs[cycle(langIndex(m.lang), len(langs))].id
 	case 2:
-		m.vis.Clock = cycle(m.vis.Clock, len(clockModes))
+		m.vis.Wallpaper = cycleWallpaper(m.vis, step)
 	case 3:
-		m.vis.Task = !m.vis.Task
+		m.vis.Clock = cycle(m.vis.Clock, len(clockModes))
 	case 4:
-		m.vis.Room = !m.vis.Room
+		m.vis.Task = !m.vis.Task
 	case 5:
-		m.vis.Auto = !m.vis.Auto
+		m.vis.Room = !m.vis.Room
 	case 6:
+		m.vis.Auto = !m.vis.Auto
+	case 7:
 		m.vis.Joke = !m.vis.Joke
 		if i := wallpaperIndex(m.vis.Wallpaper); i >= 0 && wallpapers[i].joke && !m.vis.Joke {
 			m.vis.Wallpaper = "" // o de piada escolhido some da lista: volta para o sorteado
@@ -193,11 +205,11 @@ func (m model) visualKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m model) visualView() string {
 	var b strings.Builder
 	for i, r := range m.visualRows() {
-		if i == 1 {
-			b.WriteString("\n" + bold.Render("modo jardim") + m.st.muted.Render(" · a tela de descanso durante o foco") + "\n")
+		if i == firstGardenRow {
+			b.WriteString("\n" + bold.Render(m.t("modo jardim")) + m.st.muted.Render(m.t(" · a tela de descanso durante o foco")) + "\n")
 		}
 		// o rótulo comprido (o dos wallpapers de piada) empurra só o próprio valor
-		cursor, label, value := "  ", fmt.Sprintf("%-24s", r[0]+"  "), m.st.muted.Render("‹ ")+r[1]+m.st.muted.Render(" ›")
+		cursor, label, value := "  ", r[0]+"  "+strings.Repeat(" ", max(0, 22-ansi.StringWidth(r[0]))), m.st.muted.Render("‹ ")+r[1]+m.st.muted.Render(" ›")
 		if i == m.vrow {
 			cursor, label = m.st.sel.Render("▸ "), m.st.sel.Render(label)
 		}

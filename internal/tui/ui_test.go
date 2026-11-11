@@ -35,12 +35,12 @@ func TestNickProblem(t *testing.T) {
 	bad := []string{"", "ana maria", "a:b", "abcdefghijklmnopq", "田中さくら東京大学の", "🐱🐶🐭🐹🐰🦊🐻🐼🐱",
 		"z̷a̸l̴g̵o̶", "tab​zero", "👩‍💻", "a\tb"}
 	for _, n := range ok {
-		if p := nickProblem(n); p != "" {
+		if p := nickProblem("", n); p != "" {
 			t.Errorf("%q recusado: %s", n, p)
 		}
 	}
 	for _, n := range bad {
-		if nickProblem(n) == "" {
+		if nickProblem("", n) == "" {
 			t.Errorf("%q aceito", n)
 		}
 	}
