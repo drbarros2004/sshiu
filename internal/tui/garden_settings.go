@@ -31,7 +31,7 @@ func (m model) gardenEditorKey(msg tea.KeyPressMsg) (model, tea.Cmd) {
 			m.garden = nil
 			return m, nil
 		case "up", "down", "left", "right":
-			if msg.String() == "up" && m.vrow == 1 {
+			if msg.String() == "up" && m.vrow == firstGardenRow {
 				return m, nil
 			}
 			wallpaper := m.vis.Wallpaper
@@ -86,16 +86,16 @@ func (c *canvas) overlapsVideo(box image.Rectangle) bool {
 }
 
 func (c *canvas) gardenSettingsPanel(m model, wall string, protected image.Rectangle) (footer bool) {
-	rows := m.visualRows()[1:]
-	title := " modo jardim "
+	rows := m.visualRows()[firstGardenRow:]
+	title := " " + m.t("modo jardim") + " "
 	labels := make([]string, len(rows))
 	width := ansi.StringWidth(title) + 3
 	for i, row := range rows {
 		cursor := "  "
-		if i+1 == m.vrow {
+		if i+firstGardenRow == m.vrow {
 			cursor = "▸ "
 		}
-		labels[i] = fmt.Sprintf("%s%-24s", cursor, row[0]+"  ")
+		labels[i] = cursor + row[0] + "  " + strings.Repeat(" ", max(0, 22-ansi.StringWidth(row[0])))
 		width = max(width, ansi.StringWidth(labels[i]+row[1])+8)
 	}
 
@@ -106,20 +106,20 @@ func (c *canvas) gardenSettingsPanel(m model, wall string, protected image.Recta
 		(width <= c.w/2-1 || wall != "tree" && wall != "coffee" && wall != "road") {
 		box = c.gardenSettingsSpot(wall, protected, width, len(rows)+2, 3)
 	}
-	selected := m.vrow - 1
+	selected := m.vrow - firstGardenRow
 	compact := box.Empty()
 	if compact {
 		label, value := rows[selected][0], rows[selected][1]
 		if selected == 3 {
-			label = "colegas focando"
+			label = m.t("colegas focando")
 		}
 		if selected == len(rows)-1 {
-			label = "wallpapers de piada"
+			label = m.t("wallpapers de piada")
 		}
 		if selected == 0 {
 			switch m.vis.Wallpaper {
 			case "":
-				value = "sorteado"
+				value = m.t("sorteado")
 			case "brainrot":
 				value = "brainrot"
 			}
@@ -177,9 +177,9 @@ func (c *canvas) gardenSettingsPanel(m model, wall string, protected image.Recta
 	c.ink(box.Min.X, box.Max.Y-1, "╰"+strings.Repeat("─", box.Dx()-2)+"╯", border)
 
 	if compact {
-		help := []string{"↑/↓ opção · ←/→ muda", "espaço oculta · esc volta"}
+		help := []string{m.t("↑/↓ opção · ←/→ muda"), m.t("espaço oculta · esc volta")}
 		if inner < ansi.StringWidth(help[1]) {
-			help = []string{"↑/↓ opção ←/→ muda", "espaço · esc volta"}
+			help = []string{m.t("↑/↓ opção ←/→ muda"), m.t("espaço · esc volta")}
 		}
 		for i, line := range help {
 			c.ink(box.Min.X+2, box.Min.Y+i+2, line, muted)

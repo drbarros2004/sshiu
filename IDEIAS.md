@@ -219,3 +219,5 @@ Também marcada no código com comentários `ponytail:`.
   custa 8 linhas mesmo vazia. É o que decide hoje se a obra cabe: em 120 colunas os cards cabem
   numa fileira e a obra entra com 32 linhas; em 100 eles quebram em duas e ela só entra com 40.
 - **Contornos para servidor no Windows** (`lfWriter` e perfil de cores em `main.go`): só existem porque o Wish/Bubble Tea assumem Unix. No deploy em Linux, nem são usados.
+- **Tradução com o português como chave** (`internal/tui/i18n.go`): `m.t("texto em português")` busca o inglês num mapa. Mudar uma frase em português pede mudar a chave no mapa também, e o `TestEveryTextTranslated` avisa quando isso fica para trás. Os erros de `rooms` chegam em português e são traduzidos na tela, os que têm nome ou número por padrão (`enErrors`). Um terceiro idioma pede trocar a chave por um id.
+- **A demo fala português** (`internal/rooms/bots.go`): as tarefas dos bots são conteúdo, não interface, e aparecem em português mesmo para quem usa o app em inglês.

@@ -83,7 +83,7 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		switch k {
 		case "enter":
 			if strings.TrimSpace(m.in.Value()) == "" {
-				m.err = "escreva a próxima coisa concreta que você vai fazer"
+				m.err = m.t("escreva a próxima coisa concreta que você vai fazer")
 				return m, nil
 			}
 			m.entering, m.choosing, m.cont, m.err = false, true, false, ""
@@ -139,7 +139,7 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.openPicker()
 	case "enter":
 		if !focusing {
-			m.entering, m.in = true, newInput("ex.: fazer o exercício 1 da lista 3", 80)
+			m.entering, m.in = true, newInput(m.t("ex.: fazer o exercício 1 da lista 3"), 80)
 		}
 	case "f":
 		if focusing { // em sequência: o loadProfile só vale depois de a tarefa estar gravada
@@ -147,7 +147,7 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "t": // encerra como não cumprida, sem evento: ninguém é exposto por trocar
 		if focusing {
-			m.entering, m.in = true, newInput("ex.: fazer o exercício 1 da lista 3", 80)
+			m.entering, m.in = true, newInput(m.t("ex.: fazer o exercício 1 da lista 3"), 80)
 			return m, tea.Sequence(act(func() { rooms.Finish(id, pet.NotDone) }), m.loadProfile())
 		}
 	case "p":
@@ -167,7 +167,7 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "y": // o servidor não sabe se o terminal aceitou o OSC 52: o aviso diz só que mandou
 		if !m.solo() && code != rooms.DemoCode { // as duas salas sem código para passar adiante
-			m.notice = "código enviado para a área de transferência"
+			m.notice = m.t("código enviado para a área de transferência")
 			return m, tea.SetClipboard(code)
 		}
 	case "j": // na sala solo o jardim é a outra versão da tela, e abre a qualquer momento
@@ -183,30 +183,30 @@ func (m model) roomHelp() string {
 	focusing := me.Status == rooms.Focusing
 	switch {
 	case m.obraFull:
-		return "o volta para a sala"
+		return m.t("o volta para a sala")
 	case m.cfg:
 		return m.cfgHelp()
 	case m.inPicker() && m.form == formNew:
-		return "↑/↓ escolhe a linha · ←/→ muda · enter cria · esc volta"
+		return m.t("↑/↓ escolhe a linha · ←/→ muda · enter cria · esc volta")
 	case m.inPicker() && m.form == formJoin:
-		return "enter entra · esc volta"
+		return m.t("enter entra · esc volta")
 	case m.inPicker() && m.form != formNone:
-		return "enter confirma · esc volta"
+		return m.t("enter confirma · esc volta")
 	case m.inPicker():
-		return "↑/↓ escolhe · enter abre" + map[bool]string{true: " · esc volta", false: ""}[m.room != ""]
+		return m.t("↑/↓ escolhe · enter abre") + map[bool]string{true: m.t(" · esc volta"), false: ""}[m.room != ""]
 	case m.entering:
-		return "enter confirma · esc volta"
+		return m.t("enter confirma · esc volta")
 	case m.choosing:
-		return "←/→ escolhe · enter começa · esc volta"
+		return m.t("←/→ escolhe · enter começa · esc volta")
 	case focusing && me.Focus.Expired(m.now): // as escolhas já estão em destaque no painel
-		return "s salas" + m.reactHelp()
+		return m.t("s salas") + m.reactHelp()
 	case focusing:
-		return "f feito · t trocar · p parar · j modo jardim" + m.sideHint() + m.reactHelp() + m.obraHint() + m.cfgHint() + " · s salas"
+		return m.t("f feito · t trocar · p parar · j modo jardim") + m.sideHint() + m.reactHelp() + m.obraHint() + m.cfgHint() + m.t(" · s salas")
 	}
 	if m.solo() { // na sala solo o jardim abre sem tarefa: é a outra versão da tela
-		return "enter começa uma tarefa · j modo jardim" + m.cfgHint() + " · s salas"
+		return m.t("enter começa uma tarefa · j modo jardim") + m.cfgHint() + m.t(" · s salas")
 	}
-	return "enter começa uma tarefa" + m.reactHelp() + m.obraHint() + m.cfgHint() + " · s salas"
+	return m.t("enter começa uma tarefa") + m.reactHelp() + m.obraHint() + m.cfgHint() + m.t(" · s salas")
 }
 
 // cfgHint: a tecla do menu, que só o dono tem (ADR 0007). Fica de fora com o tempo esgotado,
@@ -215,7 +215,7 @@ func (m model) cfgHint() string {
 	if !m.owns() {
 		return ""
 	}
-	return " · c configura"
+	return m.t(" · c configura")
 }
 
 // sideHint: as setas do wallpaper, que só existem com a coluna do jardim na tela.
@@ -223,7 +223,7 @@ func (m model) sideHint() string {
 	if m.side == nil {
 		return ""
 	}
-	return " · ←/→ wallpaper"
+	return m.t(" · ←/→ wallpaper")
 }
 
 // obraHint: a tecla da obra, que só existe onde há obra para ver.
@@ -231,7 +231,7 @@ func (m model) obraHint() string {
 	if m.obraOf(m.w.Rooms[m.room]) == nil {
 		return ""
 	}
-	return " · o obra"
+	return m.t(" · o obra")
 }
 
 // reactHelp: as teclas de evento e reação, que a sala solo não tem.
@@ -239,7 +239,7 @@ func (m model) reactHelp() string {
 	if m.solo() {
 		return ""
 	}
-	return " · ↑/↓ evento · 1-4 reage"
+	return m.t(" · ↑/↓ evento · 1-4 reage")
 }
 
 // roomView: a sala em w×h células. Quando falta altura, a lista de eventos encurta e depois os
@@ -257,17 +257,17 @@ func (m model) roomView(w, h int) string {
 	me := m.me()
 	// com o tempo esgotado o c é "continuar", e digitando a tarefa as teclas são texto
 	busy := m.entering || m.choosing || me.Status == rooms.Focusing && me.Focus.Expired(m.now)
-	title := bold.Render(s.Name)
+	title := bold.Render(m.roomName(s))
 	if m.room != rooms.DemoCode && !m.solo() { // a sala solo não tem código para passar
-		title += m.st.muted.Render(" · código " + m.room)
+		title += m.st.muted.Render(m.t(" · código ") + m.room)
 		if !busy {
-			title += m.st.muted.Render(" · y copia")
+			title += m.st.muted.Render(m.t(" · y copia"))
 		}
 	}
 	if !m.solo() { // quanto a sala comporta, embaixo do nome; a solo é sempre uma pessoa
-		line := fmt.Sprintf("%d/%d pessoas", len(s.Members), s.Max)
+		line := m.tf("%d/%d pessoas", len(s.Members), s.Max)
 		if s.Closed {
-			line += " · fechada"
+			line += m.t(" · fechada")
 		}
 		title += "\n" + m.st.muted.Render(line)
 	}
@@ -356,19 +356,19 @@ func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, 
 // quem já usa o app entra pelo menu de salas, e quem está chegando cola o comando no terminal.
 func (m model) invitePanel(s rooms.Snapshot) string {
 	row := func(label, text string) string {
-		return m.st.muted.Render(fmt.Sprintf("  %-13s", label)) + text
+		return m.st.muted.Render(fmt.Sprintf("  %-15s", label)) + text
 	}
 	if s.Closed { // sala fechada: o código não serve para ninguém enquanto a porta não abrir
-		aviso := m.st.muted.Render("esta sala não está aceitando ninguém.")
+		aviso := m.st.muted.Render(m.t("esta sala não está aceitando ninguém."))
 		if m.owns() {
-			aviso += m.st.muted.Render(" abra as novas entradas em ") + "c" + m.st.muted.Render(" · configurar.")
+			aviso += m.st.muted.Render(m.t(" abra as novas entradas em ")) + "c" + m.st.muted.Render(m.t(" · configurar."))
 		}
-		return bold.Render("você é o primeiro aqui.") + "\n\n" + aviso
+		return bold.Render(m.t("por enquanto, só tem você aqui.")) + "\n\n" + aviso
 	}
-	return bold.Render("você é o primeiro aqui.") + m.st.muted.Render(" para a turma entrar na sala:") + "\n\n" +
-		row("no sshiu", m.st.muted.Render("aperta ")+"s"+m.st.muted.Render(", escolhe ")+"entrar com código"+
-			m.st.muted.Render(" e digita o código da sala")) + "\n" +
-		row("no terminal", m.st.title.Render(m.invite+" "+s.Code))
+	return bold.Render(m.t("por enquanto, só tem você aqui.")) + m.st.muted.Render(m.t(" para a turma entrar na sala:")) + "\n\n" +
+		row(m.t("no sshiu"), m.st.muted.Render(m.t("aperta "))+"s"+m.st.muted.Render(m.t(", escolhe "))+m.t("entrar com código")+
+			m.st.muted.Render(m.t(" e digita o código da sala"))) + "\n" +
+		row(m.t("no terminal"), m.st.title.Render(m.invite+" "+s.Code))
 }
 
 // soloView: o painel do foco à esquerda e o modo jardim à direita (ADR 0006). O jardim anda só
@@ -399,12 +399,12 @@ func (m model) soloView() string {
 // apagado e o valor na cor do texto. O streak e os minutos vêm do banco, então só aparecem
 // depois da primeira tarefa encerrada no dia.
 func (m model) soloWho() string {
-	rows := [][2]string{{"humor", pet.MoodName[pet.MoodOf(m.me().Energy)]}}
+	rows := [][2]string{{m.t("humor"), m.t(pet.MoodName[pet.MoodOf(m.me().Energy)])}}
 	if p := m.pet; p.Today == m.now.Format("2006-01-02") {
 		if n := p.StreakAt(m.now); n > 0 {
-			rows = append(rows, [2]string{"streak", fmt.Sprintf("%d %s", n, plural(n, "dia seguido", "dias seguidos"))})
+			rows = append(rows, [2]string{m.t("streak"), fmt.Sprintf("%d %s", n, plural(n, m.t("dia seguido"), m.t("dias seguidos")))})
 		}
-		rows = append(rows, [2]string{"hoje", fmt.Sprintf("%d min focados", int(p.TodayMin))})
+		rows = append(rows, [2]string{m.t("hoje"), m.tf("%d min focados", int(p.TodayMin))})
 	}
 	var b strings.Builder
 	for _, r := range rows {
@@ -424,11 +424,11 @@ func plural(n int, um, varios string) string {
 func (m model) soloLog() string {
 	ev := m.w.Rooms[m.room].Events
 	if len(ev) == 0 {
-		return m.st.muted.Render("a primeira tarefa que você começar aparece aqui")
+		return m.st.muted.Render(m.t("a primeira tarefa que você começar aparece aqui"))
 	}
 	var b strings.Builder
 	for _, e := range ev[:min(len(ev), soloEvents)] {
-		verb := e.Verb
+		verb := m.t(e.Verb)
 		if e.Verb == "cumpriu" {
 			verb = m.st.ok.Render(verb)
 		}
@@ -446,13 +446,13 @@ func (m model) focusPanel() string {
 	}
 	switch {
 	case m.entering:
-		return bold.Render("qual a próxima coisa concreta que você vai fazer?") + "\n" + m.in.View()
+		return bold.Render(m.t("qual a próxima coisa concreta que você vai fazer?")) + "\n" + m.in.View()
 	case m.choosing && m.cont:
-		return bold.Render(f.Task) + "\n" + choice("mais quanto tempo?")
+		return bold.Render(f.Task) + "\n" + choice(m.t("mais quanto tempo?"))
 	case m.choosing:
-		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n" + choice("quanto tempo?")
+		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n" + choice(m.t("quanto tempo?"))
 	case me.Status != rooms.Focusing:
-		return bold.Render("nenhuma tarefa em andamento.") + "\n" + m.st.muted.Render("enter começa uma tarefa")
+		return bold.Render(m.t("nenhuma tarefa em andamento.")) + "\n" + m.st.muted.Render(m.t("enter começa uma tarefa"))
 	}
 	// A tarefa e os números ficam no topo do relógio, nunca ao lado dele por inteiro: o painel da
 	// sala solo tem 54 colunas, e texto comprido ao lado do relógio quebrava a tela em pedaços.
@@ -461,16 +461,16 @@ func (m model) focusPanel() string {
 	c := m.st.title
 	if f.Expired(m.now) {
 		c = m.st.bad
-		lines = append(lines, m.st.bad.Render("tempo esgotado"))
+		lines = append(lines, m.st.bad.Render(m.t("tempo esgotado")))
 	}
-	lines = append(lines, m.st.muted.Render(fmt.Sprintf("%d de %d min focados",
+	lines = append(lines, m.st.muted.Render(m.tf("%d de %d min focados",
 		int(f.Focused(m.now).Minutes()), f.Declared)))
 	block := lipgloss.JoinHorizontal(lipgloss.Top, c.Render(bigText(mmss(f.Ends.Sub(m.now)))), "   ",
 		strings.Join(lines, "\n"))
 	if f.Expired(m.now) { // as escolhas embaixo do relógio, onde cabem em qualquer largura
-		block += "\n\n" + m.st.bad.Render("c continuar") + m.st.muted.Render(" · ") +
-			m.st.bad.Render("t trocar") + m.st.muted.Render(" · ") + m.st.bad.Render("p parar") +
-			m.st.muted.Render(" · ") + m.st.ok.Render("f feito")
+		block += "\n\n" + m.st.bad.Render(m.t("c continuar")) + m.st.muted.Render(" · ") +
+			m.st.bad.Render(m.t("t trocar")) + m.st.muted.Render(" · ") + m.st.bad.Render(m.t("p parar")) +
+			m.st.muted.Render(" · ") + m.st.ok.Render(m.t("f feito"))
 	}
 	return block
 }
@@ -528,9 +528,9 @@ const (
 func (m model) nameLine(x rooms.Member, mood pet.Mood) (name, moodName string) {
 	name = x.Nick
 	if x.ID == m.id {
-		name = "você"
+		name = m.t("você")
 	}
-	return name, pet.MoodName[mood]
+	return name, m.t(pet.MoodName[mood])
 }
 
 // cardInner: o miolo dos cards da sala, o mesmo para todos, para a grade não desalinhar.
@@ -585,9 +585,9 @@ func (m model) card(x rooms.Member, got int, compact bool, inner int) string {
 	reacts := " "
 	switch {
 	case got == 1:
-		reacts = m.st.muted.Render("1 reação")
+		reacts = m.st.muted.Render(m.t("1 reação"))
 	case got > 1:
-		reacts = m.st.muted.Render(fmt.Sprintf("%d reações", got))
+		reacts = m.st.muted.Render(m.tf("%d reações", got))
 	}
 	if x.Status == rooms.Offline { // quem fechou o terminal dorme: o humor volta quando a pessoa volta
 		st = st.BorderForeground(m.st.off)
@@ -609,14 +609,14 @@ func (m model) feed(n int) string {
 	ev := m.events()
 	ev = ev[:min(max(n, 0), len(ev))]
 	if len(ev) == 0 {
-		return m.st.muted.Render("silêncio por aqui. quando alguém começar ou cumprir uma tarefa, aparece aqui")
+		return m.st.muted.Render(m.t("silêncio por aqui. quando alguém começar ou cumprir uma tarefa, aparece aqui"))
 	}
 	text := func(e rooms.Event) string {
 		nick := e.Nick
 		if e.Who == m.id {
-			nick = "você"
+			nick = m.t("você")
 		}
-		line := m.st.muted.Render(e.At.Format("15:04")) + " " + bold.Render(nick) + " " + e.Verb
+		line := m.st.muted.Render(e.At.Format("15:04")) + " " + bold.Render(nick) + " " + m.t(e.Verb)
 		if e.Task != "" { // entrar e sair não têm tarefa
 			line += " \"" + e.Task + "\""
 		}
@@ -654,5 +654,5 @@ func (m model) legend() string {
 	for k, g := range reactionGlyphs {
 		ks = append(ks, fmt.Sprintf("%d %s", k+1, g))
 	}
-	return m.st.muted.Render("reagir ao evento selecionado: ") + strings.Join(ks, "  ")
+	return m.st.muted.Render(m.t("reagir ao evento selecionado: ")) + strings.Join(ks, "  ")
 }

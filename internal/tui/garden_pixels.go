@@ -667,7 +667,7 @@ func (s *road) draw(c *canvas, t, dt float64) {
 		c.ink(int(rx)-2, row+3, "x1000", "137")
 	}
 	if extras {
-		c.ink(int(rx-r)-15, row-1, "viagem", "137")
+		c.ink(int(rx-r)-15, row-1, c.lang.t("viagem"), "137")
 		c.ink(int(rx-r)-15, row, strings.Replace(fmt.Sprintf("%06.1f km", t*62/3600), ".", ",", 1), "252")
 	}
 }

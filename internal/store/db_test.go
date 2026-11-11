@@ -88,3 +88,29 @@ func TestRoomMembersOrder(t *testing.T) {
 		t.Fatalf("membros %v %v", got, err)
 	}
 }
+
+// O idioma começa em inglês, inclusive para quem já existia antes da coluna (#86), e a escolha fica.
+func TestLang(t *testing.T) {
+	path := t.TempDir() + "/t.db"
+	if err := Open(path); err != nil {
+		t.Fatal(err)
+	}
+	if got := Lang("ninguem"); got != "en" {
+		t.Fatalf("sem usuário: %q", got)
+	}
+	if err := PutUser("u", "ana", 50); err != nil {
+		t.Fatal(err)
+	}
+	if got := Lang("u"); got != "en" {
+		t.Fatalf("usuário novo: %q", got)
+	}
+	if err := SetLang("u", "pt"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Open(path); err != nil { // reabrir roda o ALTER TABLE de novo, sem mexer na escolha
+		t.Fatal(err)
+	}
+	if got := Lang("u"); got != "pt" {
+		t.Fatalf("depois de escolher: %q", got)
+	}
+}

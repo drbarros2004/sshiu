@@ -50,6 +50,8 @@ func Open(path string) error {
 	d.Exec(`ALTER TABLE rooms ADD COLUMN obra TEXT NOT NULL DEFAULT ''`)
 	d.Exec(`ALTER TABLE rooms ADD COLUMN obra_meta INTEGER NOT NULL DEFAULT 60`)
 	d.Exec(`ALTER TABLE tasks ADD COLUMN room_code TEXT NOT NULL DEFAULT ''`)
+	// o padrão é inglês para todo mundo, inclusive quem já usava o app; quem quiser volta na aba visual (#86)
+	d.Exec(`ALTER TABLE users ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'`)
 	db = d
 	return nil
 }
@@ -76,6 +78,18 @@ func GetGarden(id string) Garden {
 func SetGarden(id string, g Garden) error {
 	_, err := db.Exec(`UPDATE users SET garden_wallpaper = ?, garden_clock = ?, garden_task = ?, garden_room = ?, garden_auto = ?, garden_joke = ? WHERE id = ?`,
 		g.Wallpaper, g.Clock, g.Task, g.Room, g.Auto, g.Joke, id)
+	return err
+}
+
+// Lang: o idioma da interface, "en" ou "pt". Sem usuário ainda, inglês.
+func Lang(id string) string {
+	l := "en"
+	db.QueryRow(`SELECT lang FROM users WHERE id = ?`, id).Scan(&l)
+	return l
+}
+
+func SetLang(id, l string) error {
+	_, err := db.Exec(`UPDATE users SET lang = ? WHERE id = ?`, l, id)
 	return err
 }
 

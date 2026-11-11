@@ -105,7 +105,7 @@ func (m model) energyBar(energy float64, mood pet.Mood, fill lipgloss.Style) str
 	}
 	unfilled := lipgloss.NewStyle().Background(unfilledColor)
 	remaining := unfilled.Render(strings.Repeat(" ", cells-filled))
-	caption := "humor máximo"
+	caption := m.t("humor máximo")
 
 	if next, limit, ok := pet.NextMood(mood); ok {
 		// O traço fica no fim da célula que o preenchimento completa ao chegar ao limite.
@@ -115,9 +115,9 @@ func (m model) energyBar(energy float64, mood pet.Mood, fill lipgloss.Style) str
 		remaining = unfilled.Render(strings.Repeat(" ", markerCell-filled)) +
 			marker + unfilled.Render(strings.Repeat(" ", cells-markerCell-1))
 		pointsLeft := limit - points
-		caption = fmt.Sprintf("próximo humor em %d · %s %d", limit, plural(pointsLeft, "falta", "faltam"), pointsLeft)
+		caption = m.tf("próximo humor em %d · %s %d", limit, plural(pointsLeft, m.t("falta"), m.t("faltam")), pointsLeft)
 	}
 
-	return "energia  " + fill.Render(strings.Repeat("█", filled)) + remaining + fmt.Sprintf(" %d\n", points) +
+	return fmt.Sprintf("%-9s", m.t("energia")) + fill.Render(strings.Repeat("█", filled)) + remaining + fmt.Sprintf(" %d\n", points) +
 		"         " + m.st.muted.Render(caption)
 }
