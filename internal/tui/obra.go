@@ -241,7 +241,7 @@ func (m model) obraBlock(s rooms.Snapshot, cols int, flat bool) string {
 		out = append(out, [3]string{
 			lipgloss.JoinHorizontal(lipgloss.Top, arts...),
 			lipgloss.NewStyle().Foreground(lipgloss.Color(o.chao[0])).Background(lipgloss.Color(o.chao[1])).
-				Render(strings.Repeat("▀", max(floor, 1))),
+				Reverse(true).Underline(true).Render(strings.Repeat("▄", max(floor, 1))), // ver pet.Pixels
 			strings.Join(names, "")})
 		i += n
 	}
@@ -275,8 +275,8 @@ func gapBlock(w int, o *obra) string {
 		lines[i] = strings.Repeat(" ", w)
 	}
 	if o != nil && o.engate != "" && o.linkY >= 0 && o.linkY < len(lines) {
-		lines[o.linkY] = lipgloss.NewStyle().Foreground(lipgloss.Color(o.engate)).
-			Render(strings.Repeat("▄", w))
+		lines[o.linkY] = lipgloss.NewStyle().Foreground(lipgloss.Color(o.engate)).Underline(true).
+			Render(strings.Repeat("▄", w)) // sublinhado: ver pet.Pixels
 	}
 	return strings.Join(lines, "\n")
 }

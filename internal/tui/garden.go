@@ -395,6 +395,20 @@ type cell struct {
 	r    rune
 	c, b string // cor 256 da frente e do fundo ("" = a do terminal)
 	g    string // o texto que ocupa a célula, quando não é um rune só de uma coluna: "田", "é"
+	rev  bool   // invertido: c pinta o fundo, b o glifo
+}
+
+// solid: "█" e "▀" viram espaço e "▄" invertidos, para a cor cobrir a célula pelo fundo: no
+// Terminal.app o glifo da fonte não preenche a célula e deixa frestas. Todo "▄" sai sublinhado,
+// que cobre a última linha de pixels (ver pet.Pixels).
+func solid(r rune) (rune, bool) {
+	switch r {
+	case '█':
+		return ' ', true
+	case '▀':
+		return '▄', true
+	}
+	return r, false
 }
 
 // cont: a segunda célula de um caractere largo (日, 🐱), que o terminal já preencheu.
@@ -428,7 +442,8 @@ func (c *canvas) set(x, y int, r rune, col string) {
 	if r == ' ' {
 		col = ""
 	}
-	c.cells[y*c.w+x] = cell{r: r, c: col}
+	r, rev := solid(r)
+	c.cells[y*c.w+x] = cell{r: r, c: col, rev: rev}
 }
 
 // glyphs: s em pedaços de uma célula na tela, com a largura de cada um (1 ou 2). Os pedaços sem
@@ -462,7 +477,11 @@ func (c *canvas) text(x, y int, s, col string) {
 		if ws[i] == 1 && g == " " {
 			c.set(x, y, ' ', "")
 		} else if x >= 0 && y >= 0 && x+ws[i] <= c.w && y < c.h {
-			c.cells[y*c.w+x] = glyphCell(g, ws[i], col, "")
+			cl := glyphCell(g, ws[i], col, "")
+			if cl.g == "" {
+				cl.r, cl.rev = solid(cl.r)
+			}
+			c.cells[y*c.w+x] = cl
 			if ws[i] == 2 {
 				c.cells[y*c.w+x+1] = cell{r: cont}
 			}
@@ -478,11 +497,18 @@ func (c *canvas) ink(x, y int, s, col string) {
 	for i, g := range gs {
 		if g != " " && x >= 0 && y >= 0 && x+ws[i] <= c.w && y < c.h {
 			cl := &c.cells[y*c.w+x]
-			bg := cl.b
-			if bg == "" && cl.r != '▀' { // "▄" e o meio bloco sem fundo: o pixel aceso é o de baixo
+			bg := cl.b // a cor da metade de baixo da célula
+			switch {
+			case cl.rev && cl.r != '▄': // invertido e cheio: a frente é o fundo
+				bg = cl.c
+			case cl.rev: // "▄" invertido: embaixo fica o glifo, que tem a cor de b
+			case bg == "":
 				bg = cl.c
 			}
 			*cl = glyphCell(g, ws[i], col, bg)
+			if cl.g == "" { // "▀" invertido: o texto em cima, o desenho embaixo
+				cl.r, cl.rev = solid(cl.r)
+			}
 			if ws[i] == 2 {
 				c.cells[y*c.w+x+1] = cell{r: cont, b: bg}
 			}
@@ -495,12 +521,12 @@ func (c *canvas) ink(x, y int, s, col string) {
 func (c *canvas) String() string {
 	var b strings.Builder
 	for y := range c.h {
-		fg, bg := "", ""
-		sgr := func(f, k string) {
-			if f == fg && k == bg {
+		fg, bg, attr := "", "", ""
+		sgr := func(f, k, a string) {
+			if f == fg && k == bg && a == attr {
 				return
 			}
-			b.WriteString("\x1b[0")
+			b.WriteString("\x1b[0" + a)
 			if f != "" {
 				b.WriteString(";38;5;" + f)
 			}
@@ -508,18 +534,25 @@ func (c *canvas) String() string {
 				b.WriteString(";48;5;" + k)
 			}
 			b.WriteByte('m')
-			fg, bg = f, k
+			fg, bg, attr = f, k, a
 		}
 		segs := c.raw[y]
 		for x := 0; x < c.w; x++ {
 			if i := slices.IndexFunc(segs, func(s rawSeg) bool { return s.x == x }); i >= 0 {
-				sgr("", "")
+				sgr("", "", "")
 				b.WriteString(segs[i].s) // termina com o reset
 				x += segs[i].w - 1
 				continue
 			}
 			cl := c.cells[y*c.w+x]
-			sgr(cl.c, cl.b)
+			a := ""
+			if cl.rev {
+				a = ";7"
+			}
+			if cl.r == '▄' {
+				a += ";4"
+			}
+			sgr(cl.c, cl.b, a)
 			switch {
 			case cl.r == cont: // a metade de um caractere largo que já foi escrito
 				if x == 0 || c.cells[y*c.w+x-1].g == "" || ansi.StringWidth(c.cells[y*c.w+x-1].g) < 2 {
@@ -533,7 +566,7 @@ func (c *canvas) String() string {
 				b.WriteRune(cl.r)
 			}
 		}
-		sgr("", "")
+		sgr("", "", "")
 		if y < c.h-1 {
 			b.WriteByte('\n')
 		}

@@ -1,8 +1,8 @@
 package tui
 
 // Os wallpapers em pixel art: café, árvore e estrada à noite. Cada célula mostra dois pixels em
-// meio bloco ("▀": a cor de cima na frente e a de baixo no fundo), então a imagem tem o dobro de
-// linhas e o pixel sai quase quadrado. A regra da banda (docs/research/wallpapers-ascii.md): o
+// meio bloco ("▄" invertido: a cor de cima no fundo e a de baixo no glifo), então a imagem tem o
+// dobro de linhas e o pixel sai quase quadrado. A regra da banda (docs/research/wallpapers-ascii.md): o
 // cenário fica parado e só o que é pequeno se mexe — o vapor, o café girando, as folhas, a faixa
 // da pista. E o que se mexe fica junto: o renderer reescreve a linha da primeira à última célula
 // que mudou, e no pontilhado cada célula leva o próprio código de cor. Duas coisas se mexendo nas
@@ -89,10 +89,11 @@ func (c *canvas) put(p *pix) {
 			switch {
 			case top == bot && top != 0:
 				*cl = cell{r: ' ', b: colorName[top]}
-			case top != 0 && bot != 0:
-				*cl = cell{r: '▀', c: colorName[top], b: colorName[bot]}
-			case top != 0:
-				*cl = cell{r: '▀', c: colorName[top]}
+			case top != 0: // invertido: o de cima no fundo, o de baixo no "▄" (ver solid)
+				*cl = cell{r: '▄', c: colorName[top], rev: true}
+				if bot != 0 {
+					cl.b = colorName[bot]
+				}
 			case bot != 0:
 				*cl = cell{r: '▄', c: colorName[bot]}
 			}
