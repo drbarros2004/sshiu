@@ -121,3 +121,21 @@ func TestLang(t *testing.T) {
 		t.Fatalf("depois de escolher: %q", got)
 	}
 }
+
+// As últimas tarefas saem pela data que a tela mostra, mesmo gravadas fora de ordem.
+func TestTasksByDate(t *testing.T) {
+	if err := Open(":memory:"); err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	PutUser("u", "ana", pet.EnergyStart)
+	now := time.Now()
+	for _, start := range []time.Time{now, now.Add(-time.Hour)} { // a mais velha gravada depois
+		if _, err := RecordTask("u", TaskRow{Start: start, End: start, Task: start.Format("15:04")}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if ts, err := Tasks("u"); err != nil || len(ts) != 2 || !ts[0].Start.After(ts[1].Start) {
+		t.Fatalf("ordem %+v %v", ts, err)
+	}
+}

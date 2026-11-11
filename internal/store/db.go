@@ -216,10 +216,11 @@ func OpenTasks() ([]OpenTask, error) {
 	return out, rows.Err()
 }
 
-// Tasks: as últimas tarefas do usuário, da mais nova para a mais velha.
+// Tasks: as últimas tarefas do usuário, da que começou por último para a mais velha. A ordem é a
+// da data que a tela mostra: o id só a segue enquanto ninguém grava uma tarefa fora de ordem.
 func Tasks(id string) ([]TaskRow, error) {
 	rows, err := db.Query(`SELECT started_at, ended_at, task, declared_min, focused_sec, result, room_code FROM tasks
-		WHERE user_id = ? ORDER BY id DESC LIMIT 8`, id)
+		WHERE user_id = ? ORDER BY started_at DESC, id DESC LIMIT 8`, id)
 	if err != nil {
 		return nil, err
 	}
