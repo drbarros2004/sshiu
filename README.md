@@ -4,7 +4,7 @@
 
 **a quiet focus room in your terminal, over ssh.**
 
-![the demo room with five bots](docs/telas/sala.png)
+![the demo room while focusing, with the big clock and five bots](docs/telas/sala.webp)
 
 </div>
 
@@ -14,18 +14,26 @@ a focus app for a study group, living in the terminal. you say the next concrete
 
 **room:** your focus on top, one card per member (pet, mood, task, status and the reactions they got) and the room's events below, with reactions.
 
-**garden mode:** the rest screen while you focus. press `j`, or let it turn on by itself after 30 s without a keystroke. a calm animated wallpaper, with the time left, your task and who else is focusing on top.
+**garden mode:** the rest screen while you focus. press `j`, or let it turn on by itself after 30 s without a keystroke. a calm animated wallpaper (a tree at sunset, a night road, a coffee by the window, rain, a lava lamp...) with the time left, your task and who else is focusing on top. `←/→` switches the wallpaper.
 
-![garden mode with the night road wallpaper](docs/telas/jardim.webp)
+![garden mode with the tree wallpaper](docs/telas/jardim.webp)
 
 <table>
   <tr>
-    <td width="50%"><b>profile:</b> your pet, energy, streak and latest tasks.</td>
-    <td width="50%"><b>visual:</b> the theme and what shows up in garden mode.</td>
+    <td width="50%"><b>mural:</b> what the room builds together today, one piece per member that grows as each one focuses. press <code>o</code> in the room.</td>
+    <td width="50%"><b>profile:</b> your pet and its color, energy, streak, a month of focus and your latest tasks.</td>
   </tr>
   <tr>
-    <td><img src="docs/telas/perfil.png" alt="the profile of a new user"></td>
-    <td><img src="docs/telas/visual.png" alt="the visual tab with the dracula theme"></td>
+    <td><img src="docs/telas/obra.webp" alt="the demo room's mural, a train with one car per member"></td>
+    <td><img src="docs/telas/perfil.webp" alt="the profile after the first finished task"></td>
+  </tr>
+  <tr>
+    <td width="50%"><b>look:</b> the theme, the language (english or português) and what shows up in garden mode.</td>
+    <td width="50%"><b>garden editor:</b> <code>v</code> in the look tab changes the same options over the garden itself.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/telas/visual.webp" alt="the look tab previewing the catppuccin theme"></td>
+    <td><img src="docs/telas/jardim-editor.webp" alt="the garden editor panel over the tree wallpaper"></td>
   </tr>
 </table>
 
