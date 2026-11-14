@@ -20,12 +20,20 @@ type bot struct {
 	offline       bool // começa offline: a sala mostra os três status
 }
 
-var bots = []*bot{
-	{"ana", 92, 0.9, []string{"terminar a lista 3 de Cálculo", "revisar a prova de Álgebra"}, false},
-	{"bruno", 68, 0.7, []string{"revisar o PR do login", "escrever os testes do parser"}, false},
-	{"caio", 48, 0.5, []string{"ler o cap. 4 de Sistemas Operacionais", "resumir o artigo de IHC"}, false},
-	{"duda", 27, 0.35, []string{"começar o relatório de Física", "configurar o Docker do projeto"}, false},
-	{"edu", 8, 0.15, []string{"instalar o ambiente do TCC", "abrir o projeto do TCC"}, true},
+var bots = []*bot{ // um personagem por bot (#14); as tarefas têm inglês no dicionário da tui
+	{"ana", 92, 0.9, []string{"reescrever a lista 3 de Cálculo em Rust", "resolver a lista antes do professor publicar"}, false},
+	{"bruno", 68, 0.7, []string{"revisar o PR que eu mesmo abri", "resolver o conflito de merge do grupo", "trocar x, y e aux2 por nomes de verdade"}, false},
+	{"caio", 48, 0.5, []string{"ler a documentação até o fim (de verdade)", "descobrir por que só funciona na minha máquina"}, false},
+	{"duda", 27, 0.35, []string{"centralizar uma div", "descobrir quem deu push --force na main"}, false},
+	{"edu", 8, 0.15, []string{"sair do vim", "instalar o ambiente do TCC (dia 3)"}, true},
+}
+
+// BotTasks: todas as tarefas dos bots, para o teste de tradução da interface.
+func BotTasks() (s []string) {
+	for _, b := range bots {
+		s = append(s, b.tasks...)
+	}
+	return s
 }
 
 type botReaction struct {

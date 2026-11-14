@@ -28,7 +28,7 @@ const (
 	maxEvents  = 20
 )
 
-var reconnectGrace = 2 * time.Minute // conexão instável (ou um restart) não interrompe a tarefa; var para o teste
+var ReconnectGrace = 2 * time.Minute // conexão instável (ou um restart) não interrompe a tarefa; var para o teste
 
 var Demo bool // flag -demo: a sala demo, com bots
 
@@ -205,7 +205,7 @@ func Disconnect(id string) {
 // senão a primeira queda cortava a segunda antes de ela ter a tolerância inteira. Chame com mu travado.
 func awaitReturn(u *user) {
 	if f, gone := u.focus, u.gone; f != nil {
-		time.AfterFunc(reconnectGrace, func() {
+		time.AfterFunc(ReconnectGrace, func() {
 			mu.Lock()
 			defer mu.Unlock()
 			if u.online == 0 && u.focus == f && u.gone.Equal(gone) {

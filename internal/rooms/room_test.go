@@ -317,8 +317,8 @@ func TestRestart(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	defer func(g time.Duration) { reconnectGrace = g }(reconnectGrace)
-	reconnectGrace = 200 * time.Millisecond
+	defer func(g time.Duration) { ReconnectGrace = g }(ReconnectGrace)
+	ReconnectGrace = 200 * time.Millisecond
 
 	Start("ana", "abc", "lista 3", 25) // grava a tarefa aberta
 	ana := *users["ana"].focus
@@ -335,7 +335,7 @@ func TestRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	Connect("ana") // dentro da tolerância
-	time.Sleep(3 * reconnectGrace)
+	time.Sleep(3 * ReconnectGrace)
 
 	mu.Lock()
 	f, bia := users["ana"].focus, users["bia"].focus
@@ -365,8 +365,8 @@ func TestGraceRestartsOnEachDrop(t *testing.T) {
 	if err := store.PutUser("gi", "gi", pet.EnergyStart); err != nil {
 		t.Fatal(err)
 	}
-	defer func(g time.Duration) { reconnectGrace = g }(reconnectGrace)
-	reconnectGrace = 300 * time.Millisecond
+	defer func(g time.Duration) { ReconnectGrace = g }(ReconnectGrace)
+	ReconnectGrace = 300 * time.Millisecond
 	defer delete(users, "gi")
 
 	Connect("gi")

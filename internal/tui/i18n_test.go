@@ -78,6 +78,10 @@ func dynamicTexts() []string {
 	s = append(s, weekdays[:]...)
 	s = append(s, periods...) // os períodos da tabela de foco
 	s = append(s, months[:]...)
+	s = append(s, rooms.BotTasks()...)
+	for _, f := range faqs {
+		s = append(s, f.flag, f.q, f.a)
+	}
 	for _, x := range bandLabels { // as faixas do tempo declarado nas stats
 		s = append(s, x[0], x[1])
 	}
