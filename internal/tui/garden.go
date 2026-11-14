@@ -350,8 +350,8 @@ func (g *garden) render(m model) {
 	if placed && len(lines) > 0 {
 		var x int
 		x, y0, ink = sp.spot(w, h, wd, len(lines))
-		cx = min(max(x, 1), w-wd-1) + wd/2
-		y0 = min(max(y0, 0), h-len(lines))
+		x, y0 = fitText(w, h, wd, len(lines), x, y0) // o mesmo ajuste que a cena usa para o quadro
+		cx = x + wd/2
 	}
 	g.scene.draw(c, t, dt)
 	put := func(ls []string, cx, y0, wd int, col func(i int) string) { // linhas centradas em cx

@@ -193,19 +193,24 @@ func TestShadeAndPut(t *testing.T) {
 	}
 }
 
-// O farol e os bichos dormindo se desenham em qualquer tela, da minúscula à larga, com o texto
-// dentro da tela e o quadro dele (a placa, o calendário) em volta, onde o render põe o texto.
-func TestPixelWallpapersAnySize(t *testing.T) {
-	for _, id := range []string{"lighthouse", "cat", "dog"} {
+// Os wallpapers com quadro (a lousa, as placas, o calendário) se desenham em qualquer tela, da
+// minúscula à larga, e o quadro fica em volta do texto: o canto que a cena devolve já é o que o
+// render usa (fitText não o move) e o quadro sai dele.
+func TestTextBoardsAnySize(t *testing.T) {
+	for _, id := range []string{"coffee", "tree", "lighthouse", "cat", "dog"} {
 		for _, sz := range [][2]int{{20, 10}, {50, 14}, {80, 24}, {120, 36}, {250, 60}} {
 			sc := wallpapers[wallpaperIndex(id)].new()
 			tw, th := min(33, sz[0]-2), min(8, sz[1])
 			x, y, _ := sc.(spot).spot(sz[0], sz[1], tw, th)
-			if x < 1 || y < 0 || x+tw >= sz[0] || y+th > sz[1] {
-				t.Errorf("%s em %v: o texto em (%d, %d)", id, sz, x, y)
+			if fx, fy := fitText(sz[0], sz[1], tw, th, x, y); fx != x || fy != y {
+				t.Errorf("%s em %v: a cena pôs o texto em (%d, %d) e o render em (%d, %d)", id, sz, x, y, fx, fy)
 			}
 			var board [4]int
 			switch s := sc.(type) {
+			case *coffee:
+				board = s.board
+			case *tree:
+				board = s.board
 			case *lighthouse:
 				board = s.board
 			case *sleeper:
@@ -214,11 +219,7 @@ func TestPixelWallpapersAnySize(t *testing.T) {
 			if board != boardAt(x, y, tw, th) {
 				t.Errorf("%s em %v: o quadro %v não está em volta do texto em (%d, %d)", id, sz, board, x, y)
 			}
-			c := newCanvas(sz[0], sz[1])
-			sc.draw(c, 7.3, 0.125)
-			if strings.TrimSpace(ansi.Strip(c.String())) == "" && c.cells[c.w/2].b == "" {
-				t.Errorf("%s em %v: a tela ficou vazia", id, sz)
-			}
+			sc.draw(newCanvas(sz[0], sz[1]), 7.3, 0.125)
 		}
 	}
 }

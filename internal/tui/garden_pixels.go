@@ -144,7 +144,7 @@ type coffee struct {
 
 // spot: o texto vai numa lousa de giz na parede, à esquerda da janela, escrito em giz.
 func (s *coffee) spot(w, h, tw, th int) (int, int, [3]string) {
-	x, y := max(6, w*26/100-tw/2), max(3, (h*6/10-th)/2)
+	x, y := fitText(w, h, tw, th, max(6, w*26/100-tw/2), max(3, (h*6/10-th)/2))
 	s.board = boardAt(x, y, tw, th)
 	return x, y, [3]string{"248", "229", "255"}
 }
@@ -322,7 +322,7 @@ var canopy = [][3]float64{
 
 // spot: o texto vai numa placa de madeira fincada no campo, à direita, abaixo do sol.
 func (s *tree) spot(w, h, tw, th int) (int, int, [3]string) {
-	x, y := w*70/100-tw/2, h-th-6
+	x, y := fitText(w, h, tw, th, w*70/100-tw/2, h-th-6)
 	s.board = boardAt(x, y, tw, th)
 	return x, y, [3]string{"223", "230", "255"}
 }
@@ -803,16 +803,21 @@ const lighthouseTurn, lighthouseSteps = 20.0, 4.0
 
 // spot: o texto vai numa placa de madeira no píer, à esquerda do farol.
 func (s *lighthouse) spot(w, h, tw, th int) (int, int, [3]string) {
-	pier := (h*2*63/100 + 2) / 2 // a linha do píer, em células
+	pier := lighthousePier(w, h*2) / 2 // a linha do píer, em células
 	x, y := fitText(w, h, tw, th, max(6, w*17/100-tw/2), max(2, pier-th-3))
 	s.board = boardAt(x, y, tw, th)
 	return x, y, [3]string{"223", "230", "255"}
 }
 
-// fitText: o canto do texto dentro da tela, do mesmo jeito que o render o põe. O quadro em volta
-// dele (a placa, o calendário) é desenhado a partir desse canto: os dois ficam juntos.
+// fitText: o canto do texto dentro da tela. O render e as cenas com quadro (a lousa, as placas, o
+// calendário) usam a mesma conta, para o quadro ficar em volta do texto em qualquer tela.
 func fitText(w, h, tw, th, x, y int) (int, int) {
 	return min(max(x, 1), w-tw-1), min(max(y, 0), h-th)
+}
+
+// lighthousePier: a linha do píer, em pixels: logo abaixo do horizonte, na escala da cena.
+func lighthousePier(W, H int) int {
+	return H*63/100 + int(2*min(float64(W)/100, float64(H)/60))
 }
 
 func (s *lighthouse) draw(c *canvas, t, dt float64) {
@@ -824,9 +829,9 @@ func (s *lighthouse) draw(c *canvas, t, dt float64) {
 	hz := H * 63 / 100
 	b := s.board
 	s.board = [4]int{} // vale para este quadro: sem texto no próximo, sem placa
-	lx := fw * 0.7     // o pé da torre: à direita da placa, se ela for larga
+	lx := fw * 0.7     // o pé da torre: à direita da placa, se ela for larga, sem sair da tela
 	if b[2] > 0 {
-		lx = max(lx, float64(b[0]+b[2])+23*kl)
+		lx = min(max(lx, float64(b[0]+b[2])+23*kl), fw-18*kl)
 	}
 	ly := float64(hz) - 30*kl // a lanterna
 
@@ -910,7 +915,7 @@ func (s *lighthouse) draw(c *canvas, t, dt float64) {
 		}
 	}
 
-	pier, end := hz+int(2*k), int(fw*0.34)
+	pier, end := lighthousePier(W, H), int(fw*0.34)
 	if b[2] > 0 {
 		end = max(end, b[0]+b[2]+4)
 	}
@@ -1025,7 +1030,7 @@ func (s *sleeper) spot(w, h, tw, th int) (int, int, [3]string) {
 	k, _, x1 := sleeperWindow(w, h*2)
 	x, y := fitText(w, h, tw, th, max(x1+int(7*k)+7, min(w*72/100-tw/2, w-tw-7)), 4)
 	s.board = boardAt(x, y, tw, th)
-	return x, y, [3]string{"236", "234", "234"} // no papel liso, tudo escuro
+	return x, y, [3]string{"234", "234", "234"} // no papel liso, tudo escuro; o nome do wallpaper, no chão
 }
 
 func (s *sleeper) draw(c *canvas, t, dt float64) {
@@ -1142,36 +1147,6 @@ func (s *sleeper) draw(c *canvas, t, dt float64) {
 		})
 	}
 
-	if b := s.board; b[2] > 0 { // o calendário, pendurado num prego
-		s.board = [4]int{}
-		bx, by, bw, bh := b[0], 2*b[1], b[2], 2*b[3]
-		nx := bx + bw/2
-		p.set(nx, by-3, 247)
-		for i := range 13 {
-			f := float64(i) / 12
-			p.set(nx-int(f*float64(bw/2-2)), by-3+int(f*3), 95)
-			p.set(nx+int(f*float64(bw/2-2)), by-3+int(f*3), 95)
-		}
-		for y := by; y < by+bh; y++ {
-			for x := bx; x < bx+bw; x++ {
-				col := uint8(230) // o papel liso: a tarefa não some no pontilhado
-				if y < by+2 {
-					col = 131 // a espiral
-					if y == by && (x-bx-3)%5 == 0 {
-						col = 95
-					}
-				}
-				p.set(x, y, col)
-			}
-		}
-		for x := bx + 1; x <= bx+bw; x++ {
-			p.set(x, by+bh, 95) // a sombra
-		}
-		for y := by + 1; y <= by+bh; y++ {
-			p.set(bx+bw, y, 95)
-		}
-	}
-
 	ax, ay := fw*0.44, float64(edge)+5*k // onde o bicho dorme
 	if s.dog {                           // o tapetinho branco
 		for y := int(ay + 2*k); y <= int(ay+12*k); y++ {
@@ -1210,6 +1185,36 @@ func (s *sleeper) draw(c *canvas, t, dt float64) {
 	} else {
 		drawCat(p, ax, ay, k, t, breath)
 	}
+	if b := s.board; b[2] > 0 { // o calendário, num prego: por cima do bicho, para o fundo do texto não mexer
+		s.board = [4]int{}
+		bx, by, bw, bh := b[0], 2*b[1], b[2], 2*b[3]
+		nx := bx + bw/2
+		p.set(nx, by-3, 247)
+		for i := range 13 {
+			f := float64(i) / 12
+			p.set(nx-int(f*float64(bw/2-2)), by-3+int(f*3), 95)
+			p.set(nx+int(f*float64(bw/2-2)), by-3+int(f*3), 95)
+		}
+		for y := by; y < by+bh; y++ {
+			for x := bx; x < bx+bw; x++ {
+				col := uint8(230) // o papel liso: a tarefa não some no pontilhado
+				if y < by+2 {
+					col = 131 // a espiral
+					if y == by && (x-bx-3)%5 == 0 {
+						col = 95
+					}
+				}
+				p.set(x, y, col)
+			}
+		}
+		for x := bx + 1; x <= bx+bw; x++ {
+			p.set(x, by+bh, 95) // a sombra
+		}
+		for y := by + 1; y <= by+bh; y++ {
+			p.set(bx+bw, y, 95)
+		}
+	}
+
 	c.put(p)
 }
 

@@ -153,7 +153,7 @@ O nome pede silêncio, e a ideia aparece no app sem forçar. Do brainstorming de
   | sala, sem modo jardim | ~90 KB/s | — |
 
   Os quadros do brainrot ocupam ~60 MB de memória, fixos, não por usuário. O gargalo é a banda: 20 pessoas no brainrot mandam uns 60 Mbit/s.
-- **Por onde começar:** o brainrot a 4 fps (metade da banda); por que dois vídeos custam 3× um só (117 KB/s), e não 2×; por que a sala parada manda 90 KB/s; e o custo de desenhar o modo jardim em si, que já é a maior parte da CPU da chuva.
+- **Por onde começar:** o brainrot a 4 fps (metade da banda); por que dois vídeos custam 3× um só (117 KB/s), e não 2×; por que a sala parada manda 90 KB/s; e o custo de desenhar o modo jardim em si, que já é a maior parte da CPU da chuva. As cenas em pixel art redesenham o cenário inteiro a cada quadro: o quarto do gato e do cachorro só muda no bicho, e o farol só muda 4 vezes por segundo (o facho) e 1 vez por segundo (as ondas). Guardar o cenário por tamanho de tela e só copiar é o primeiro corte de CPU delas.
 - **Como medir:** o harness em duas rodadas com durações diferentes (5 s e 35 s), diferença dos bytes recebidos e do `TotalProcessorTime` do servidor ÷ 30 s; para CPU, vários usuários ao mesmo tempo, porque um só fica no ruído.
 
 ### Tempo declarado personalizado (implementado em 14/11/2026)
