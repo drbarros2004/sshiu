@@ -90,11 +90,26 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
   - **Moeda → ciclos:** ciclos de CPU ganhos focando (ver [Moeda e loja](#moeda-e-loja)).
   - **Humor "murcho" → zumbi:** um processo zumbi já terminou, mas continua na lista porque ninguém veio buscar o resultado. É o pet largado.
 - **Keepalive**, para a apresentação: o SSH manda sinais para a conexão não cair, e o foco de cada um mantém o pet vivo.
+- **Mais termos** (brainstorming de 14/11/2026):
+  - **Interrompida → SIGHUP:** é o sinal que o processo recebe quando o SSH cai, ao pé da letra.
+  - **Feito / não cumprida → `exit 0` / `exit 1`:** o resultado da tarefa como código de saída.
+  - **Status como estado de processo:** focando → running, sem tarefa → idle, offline → sleep.
+  - **Dono da sala → root**, **sala solo → localhost**, **feed → `tail -f` da sala**.
+  - **Tempo declarado → timeout**, **continuar → retry**.
+  - **Humor como status HTTP:** radiante → 200 OK, murcho → 503.
+- **Jeitos de usar, além de renomear:**
+  - **Piada pontual:** os termos aparecem só no FAQ, nos bots e em mensagens raras.
+  - **Legenda:** o termo do app fica, e o de dev aparece apagado ao lado ("streak 12 dias · uptime").
+  - **Idioma `sysadmin`:** um terceiro idioma na aba visual que troca os termos. É caro: o `i18n.go` diz que um terceiro idioma pede trocar a chave por um id.
+  - **Easter eggs:** a tarefa digitada como comando (`sudo …`, `rm -rf`, `exit`) ganha uma resposta seca.
+  - **Forma visual:** o resultado no feed no estilo `git diff` (cumpriu `+` verde, parou `-` vermelho), sem trocar palavra nenhuma.
+- **Decidido no grill de 14/11/2026 ([#13](https://github.com/drbarros2004/ssh-focus-app/issues/13)):** fica tudo para depois. Nenhum termo renomeado, nenhum toque visível; as ideias ficam só anotadas aqui.
 
 ### Textos da demo mais engraçados
 - **O quê:** trocar as tarefas dos bots da demo por piadas de dev, como "reescrevendo X em Rust".
 - **Por quê:** a demo vai ser apresentada para uma plateia.
 - **Onde:** as tarefas dos bots ficam em `internal/rooms/bots.go`.
+- **Decidido no grill de 14/11/2026 ([#14](https://github.com/drbarros2004/ssh-focus-app/issues/14)):** cada bot ganha um personagem, com tarefas que misturam faculdade de verdade e piada de dev. As frases são traduzidas na hora de mostrar, como o nome da sala demo. Esforço pequeno: a sala demo não é mais o foco, e melhorá-la de verdade fica para uma sessão própria.
 
 ### Wallpaper de piada: "para desenvolvedores de verdade"
 - **O quê:** um wallpaper do modo jardim no estilo "brainrot": a tela dividida com um vídeo de Subway Surfers ou de corte de sabão, como nos cortes de vídeo que prendem a atenção. Só de piada, pensado para a demo.
@@ -108,6 +123,7 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **O quê:** um FAQ com perguntas e respostas sérias, misturadas com piadinhas. Tom de exemplo: "a focus app for real developers (or vibe-coders)".
 - **O nome:** é o lugar natural para explicar o sshiu, com as respostas que ficaram do brainstorming do nome: "por que sshiu? é o ssh de quem pede silêncio" e "por que não tem chat? aqui é uma biblioteca" ([ADR 0004](docs/adr/0004-sem-chat-so-reacoes.md)).
 - **Créditos:** a tela leva o crédito do Minecraft parkour do wallpaper brainrot (canal Orbital, CC BY): a licença pede crédito para quem vê o vídeo, e o `CREDITS.md` só chega a quem lê o repo ([ADR 0005](docs/adr/0005-arte-de-terceiros-so-com-licenca-permissiva.md)). Enquanto a tela não existe, o crédito fica embaixo do vídeo, no próprio wallpaper.
+- **Decidido no grill de 14/11/2026 ([#10](https://github.com/drbarros2004/ssh-focus-app/issues/10)):** vira uma 4ª aba, "sobre", depois de sala/perfil/visual. O formato saiu do protótipo `prototype/sobre` (acordeão `#`, man page e `--help`): ficou o `--help`, com cada pergunta como uma flag e a resposta da escolhida aberta embaixo. A linha de uso mostra o `ssh` de verdade do servidor, para não prometer um comando que não existe. O conteúdo começa com um rascunho de umas 10 perguntas, metade sérias e metade piadas, nos dois idiomas, para o usuário cortar. O crédito do Minecraft fica fora deste trabalho. #10, #13 e #14 vão num PR só.
 
 ### O silêncio do sshiu
 O nome pede silêncio, e a ideia aparece no app sem forçar. Do brainstorming de 02/11/2026 entraram só o feed vazio ("silêncio por aqui") e a linha embaixo do logo na primeira tela ("um lugar quieto para focar junto"). O resto ficou aqui, das mais discretas às mais ousadas:

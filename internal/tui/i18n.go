@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"regexp"
 	"sshiu/internal/rooms"
+	"strings"
 )
 
 // lang: "en" (o padrão de quem entra) ou "pt". O vazio também é português: é o idioma do código
@@ -34,6 +35,15 @@ func langIndex(l lang) int {
 		}
 	}
 	return 0
+}
+
+// taskText: a tarefa de quem na tela. A de um bot da sala demo é texto do servidor, em
+// português, e cada um a vê no próprio idioma; a de gente fica como foi escrita.
+func (m model) taskText(who, task string) string {
+	if strings.HasPrefix(who, "bot:") {
+		return m.t(task)
+	}
+	return task
 }
 
 // t: o texto no idioma l.
@@ -319,11 +329,23 @@ var en = map[string]string{
 	" · s salas":                     " · s rooms",
 	"s salas":                        "s rooms",
 	"%s · meta %s · a peça muda a cada %s · reinicia em %s": "%s · goal %s · the piece changes every %s · resets in %s",
-	"sair de %s":                           "leave %s",
-	"sair de %s?":                          "leave %s?",
-	"saiu":                                 "left",
-	"sala":                                 "room",
-	"sala demo":                            "demo room",
+	"sair de %s":  "leave %s",
+	"sair de %s?": "leave %s?",
+	"saiu":        "left",
+	"sala":        "room",
+	"sala demo":   "demo room",
+	// as tarefas dos bots (rooms.BotTasks)
+	"reescrever a lista 3 de Cálculo em Rust":        "rewrite calculus problem set 3 in Rust",
+	"resolver a lista antes do professor publicar":   "solve the problem set before the professor posts it",
+	"revisar o PR que eu mesmo abri":                 "review the PR I opened myself",
+	"resolver o conflito de merge do grupo":          "fix the group project's merge conflict",
+	"trocar x, y e aux2 por nomes de verdade":        "rename x, y and aux2 to real names",
+	"ler a documentação até o fim (de verdade)":      "read the docs to the end (for real)",
+	"descobrir por que só funciona na minha máquina": "find out why it only works on my machine",
+	"centralizar uma div":                            "center a div",
+	"descobrir quem deu push --force na main":        "find out who force-pushed to main",
+	"sair do vim":                          "exit vim",
+	"instalar o ambiente do TCC (dia 3)":   "set up the thesis environment (day 3)",
 	"sala solo criada: só você entra aqui": "solo room created: only you come in here",
 	"sala solo: para focar sem companhia, com o seu pet e o modo jardim": "solo room: to focus on your own, with your pet and garden mode",
 	"salas":       "rooms",
@@ -401,4 +423,49 @@ var en = map[string]string{
 	" · o tabela": " · o table",
 	"←/→ período · o volta para a sala":  "←/→ period · o back to the room",
 	"↑/↓ escolhe · ←/→ muda · esc volta": "↑/↓ choose · ←/→ change · esc back",
+	// a aba sobre (about.go)
+	"sobre":                                "about",
+	"↑/↓ escolhe a pergunta":               "↑/↓ choose a question",
+	"uso: %s":                              "usage: %s",
+	"perguntas:":                           "questions:",
+	"feito com café e pouco silêncio":      "made with coffee and not much silence",
+	"--o-que-e":                            "--what-is-this",
+	"--nome":                               "--name",
+	"--por-que-ssh":                        "--why-ssh",
+	"--dev-melhor":                         "--better-dev",
+	"--tarefa":                             "--task",
+	"--vibe-coding":                        "--vibe-coding",
+	"--pet":                                "--pet",
+	"--o-pet-morre":                        "--does-the-pet-die",
+	"--chat":                               "--chat",
+	"--conexao":                            "--connection",
+	"--dados":                              "--data",
+	"--rende-mais":                         "--more-productive",
+	"--modo-escuro":                        "--dark-mode",
+	"o que é isso?":                        "what is this?",
+	"por que sshiu?":                       "why sshiu?",
+	"por que SSH?":                         "why SSH?",
+	"o sshiu vai me tornar um dev melhor?": "will sshiu make me a better dev?",
+	"o que é uma tarefa?":                  "what is a task?",
+	"funciona para vibe-coders?":           "does it work for vibe-coders?",
+	"o que move o pet?":                    "what drives the pet?",
+	"o pet morre?":                         "does the pet die?",
+	"por que não tem chat?":                "why is there no chat?",
+	"e se a conexão cair?":                 "what if my connection drops?",
+	"que dados vocês guardam?":             "what data do you keep?",
+	"focar pelo terminal rende mais?":      "is focusing in the terminal more productive?",
+	"tem modo escuro?":                     "is there a dark mode?",
+	"um lugar quieto para focar junto, pelo terminal. você diz a próxima coisa concreta que vai fazer, foca por um tempo e a sala vê. sem chat, sem notificação: só um pet que reflete o seu foco.": "a quiet place to focus together, from the terminal. you say the next concrete thing you'll do, focus for a while and the room sees it. no chat, no notifications: just a pet that reflects your focus.",
+	"é o ssh de quem pede silêncio. shhh.": "it's ssh with the \"shhh\" of a library inside. shhh.",
+	"porque o terminal já está aberto. e porque nenhum app de foco no navegador sobrevive à aba do lado.":                                                                     "because the terminal is already open. and because no focus app in the browser survives the tab next to it.",
+	"não podemos prometer isso por escrito. mas o seu pet acredita em você.":                                                                                                  "we can't promise that in writing. but your pet believes in you.",
+	"a próxima coisa concreta, com um tempo: \"fazer o exercício 1 da lista 3\", não \"estudar Cálculo\". dá para marcar feito antes da hora. ninguém fiscaliza; o pet sabe.": "the next concrete thing, with a time: \"do exercise 1 of problem set 3\", not \"study calculus\". you can mark it done early. nobody checks; the pet knows.",
+	"funciona. a tarefa pode ser \"esperar o Claude terminar\". o pet não julga.":                                                                                             "it does. the task can be \"wait for Claude to finish\". the pet doesn't judge.",
+	"minutos focados e tarefas cumpridas enchem a energia, e cada dia parado tira um pouco. o humor sai da energia.":                                                          "focused minutes and done tasks fill its energy, and each idle day takes a little away. its mood comes from the energy.",
+	"não. ele só fica murcho e te olha. o que é pior.":                                                                                                                        "no. it just wilts and stares at you. which is worse.",
+	"aqui é uma biblioteca. dá para reagir a quem começou ou cumpriu uma tarefa, e só.":                                                                                       "this is a library. you can react to whoever started or finished a task, and that's it.",
+	"a tarefa espera %d minutos você voltar. se não voltar, ela fica interrompida, o que não é castigo: é o mesmo que parar.":                                                 "the task waits %d minutes for you to come back. if you don't, it's interrupted, which isn't a punishment: it's the same as stopping.",
+	"o seu apelido, a impressão digital da sua chave SSH, as suas tarefas e os minutos. nada de senha, e-mail ou nome. a chave privada nunca sai do seu computador.":          "your nickname, your SSH key's fingerprint, your tasks and minutes. no password, email or name. your private key never leaves your computer.",
+	"fonte monoespaçada, fundo escuro, zero notificação. não temos dados, mas temos convicção.":                                                                               "monospace font, dark background, zero notifications. we have no data, but we have conviction.",
+	"é um terminal.": "it's a terminal.",
 }

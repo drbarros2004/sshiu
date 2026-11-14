@@ -628,7 +628,7 @@ func (m model) card(x rooms.Member, got int, compact bool, inner int) string {
 		st = st.BorderForeground(m.st.accent)
 	}
 	if x.Status == rooms.Focusing {
-		task = x.Focus.Task
+		task = m.taskText(x.ID, x.Focus.Task)
 	}
 	reacts := " "
 	switch {
@@ -667,7 +667,7 @@ func (m model) feed(n, w int) string {
 		}
 		line := m.st.muted.Render(e.At.Format("15:04")) + " " + bold.Render(nick) + " " + m.t(e.Verb)
 		if e.Task != "" { // entrar e sair não têm tarefa
-			line += " \"" + e.Task + "\""
+			line += " \"" + m.taskText(e.Who, e.Task) + "\""
 		}
 		return line
 	}

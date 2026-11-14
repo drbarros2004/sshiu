@@ -77,9 +77,10 @@ const (
 	tabRoom tab = iota
 	tabProfile
 	tabVisual
+	tabAbout
 )
 
-var tabNames = [...]string{"sala", "perfil", "visual"}
+var tabNames = [...]string{"sala", "perfil", "visual", "sobre"}
 
 // Mensagens: o único jeito de o mundo de fora mudar o modelo.
 type (
@@ -126,6 +127,7 @@ type model struct {
 	arrived         time.Time // quando a sala atual foi criada ou aberta por código: segura o enter repetido
 	now             time.Time
 	tab             tab
+	aboutSel        int // a pergunta aberta na aba sobre
 	tick, width     int
 	height          int
 	pixel           bool // terminal com 256+ cores: pet em pixel art
@@ -462,6 +464,8 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.profileKey(msg)
 	case tabVisual:
 		return m.visualKey(msg)
+	case tabAbout:
+		return m.aboutKey(msg)
 	}
 	return m, nil
 }
@@ -557,6 +561,8 @@ func (m model) View() tea.View {
 			content, help = m.profileView, m.profileHelp()
 		case tabVisual:
 			content, help = func(int, int) string { return m.visualView() }, m.t("↑/↓ escolhe · ←/→ muda · j prévia · v editar no jardim · enter salva")
+		case tabAbout:
+			content, help = m.aboutView, m.t("↑/↓ escolhe a pergunta")
 		}
 		inner := max(m.width-4, 1)
 		footer := func(help string) string {
