@@ -272,6 +272,28 @@ func GetTotals(id string) (Totals, error) {
 	return t, err
 }
 
+// FocusBetween: os minutos focados de cada usuário nas tarefas que terminaram de from até antes
+// de until, em qualquer sala. A tarefa conta no dia em que termina, como o pet guarda os minutos
+// do dia. É a tabela de foco na semana, no mês e no total, até ontem (ADR 0010).
+func FocusBetween(from, until time.Time) (map[string]float64, error) {
+	rows, err := db.Query(`SELECT user_id, SUM(focused_sec) FROM tasks WHERE ended_at >= ? AND ended_at < ?
+		GROUP BY user_id`, from.Unix(), until.Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]float64{}
+	for rows.Next() {
+		var id string
+		var sec float64
+		if err := rows.Scan(&id, &sec); err != nil {
+			return nil, err
+		}
+		out[id] = sec / 60
+	}
+	return out, rows.Err()
+}
+
 type RoomRow struct {
 	Code, Name, Owner string
 	Max               int  // quantos membros a sala aceita
