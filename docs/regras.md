@@ -46,7 +46,9 @@ Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indica
 
 | Regra | Valor | Por quê | Código |
 |---|---|---|---|
-| Tempos declarados | 5, 10, 15, 20, 25, 30, 45 ou 60 min (padrão 25); na demo, também 1 min | O 5 min é para a tarefa curta que também é concreta ("responder o e-mail da monitoria"); sem ele, quem ia fazer algo rápido declarava 10 e parava no meio. 20 e 30 min permitem estimativas intermediárias sem exigir digitação. A plateia da demo vê o fluxo inteiro com 1 min. | [tui/room.go:42-46](../internal/tui/room.go#L42-L46) |
+| Tempos declarados | 5, 10, 15, 20, 25, 30, 45 ou 60 min; na demo, também 1 min | O 5 min é para a tarefa curta que também é concreta ("responder o e-mail da monitoria"); sem ele, quem ia fazer algo rápido declarava 10 e parava no meio. 20 e 30 min permitem estimativas intermediárias sem exigir digitação. A plateia da demo vê o fluxo inteiro com 1 min. | [tui/room.go:48](../internal/tui/room.go#L48) |
+| Outro tempo | o último item da lista, "outro", abre um campo de 5 a 120 min | O mínimo é o menor tempo da lista. O teto existe porque, com o tempo esgotado e sem resposta, os minutos só param no tempo declarado: 4 h declaradas seriam 4 h de foco com o terminal aberto e ninguém na frente ([#45](https://github.com/drbarros2004/sshiu/issues/45)). | [tui/room.go:57](../internal/tui/room.go#L57) |
+| Último tempo usado | o seletor abre nele, marcado com ↺; se ele veio do "outro", entra na lista no lugar dele. Quem nunca declarou começa em 25 min | Quem sempre faz 50 min não percorre a lista toda vez, e a lista não cresce com um item por tempo já usado. Vale para começar e para continuar. | [tui/room.go:61](../internal/tui/room.go#L61) |
 | Tempo esgotado sem resposta | os minutos param de contar | Estar ausente nunca rende mais do que o tempo que o próprio usuário declarou. | [room.go:62](../internal/rooms/room.go#L62) |
 | Trocar, parar, desconectar | sem penalidade | Os minutos já contaram; punir faria os usuários declararem tempos folgados ou deixarem o terminal aberto. | [room.go:247](../internal/rooms/room.go#L247) |
 | Tolerância de reconexão | 2 min | Conexão instável não interrompe a tarefa. Sem volta, a tarefa é interrompida com os minutos até a desconexão. | [room.go:30](../internal/rooms/room.go#L30) |
@@ -70,11 +72,27 @@ Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indica
 | Tabela de foco compacta na sala | até 3 pessoas, à direita do painel de foco, com "+N no o"; só quando sobram ao lado dela as 43 colunas do relógio com a tarefa (umas 100 colunas de terminal), e fora enquanto se escreve a tarefa | Fica uma ou duas linhas mais alta que o painel: cabe a 120×40 até com 10 pessoas. A largura decide, e não o estado do painel, para ela não aparecer e sumir a cada tecla. | [board.go](../internal/tui/board.go), [room.go](../internal/tui/room.go) |
 | Bots da demo | tarefas de 40 a 90 s, uns 90 s parados entre uma e outra | A sala parece viva sem empurrar os seus eventos para fora da tela. | [bots.go:78-79](../internal/rooms/bots.go#L78-L79) |
 
+## As stats
+
+O que o perfil e a sala solo parada mostram sobre o seu foco ([#45](https://github.com/drbarros2004/sshiu/issues/45)). Tudo em [`internal/tui/stats.go`](../internal/tui/stats.go), salvo onde indicado.
+
+| Regra | Valor | Por quê | Código |
+|---|---|---|---|
+| Dia de uma tarefa | o dia em que ela termina, no fuso do servidor | O mesmo dia do pet e da tabela de foco. Antes o calendário contava pelo início, e uma tarefa das 23h50 à 0h20 caía em dias diferentes no calendário e na tabela. | [db.go:279](../internal/store/db.go#L279) |
+| Meses do calendário | de janeiro de 2026 até o mês de agora, com ←/→ no perfil; a sala solo mostra só o mês de agora | O histórico do sshiu começa em 2026. Na sala solo, ←/→ já trocam o wallpaper. O perfil sempre abre no mês de agora. | [stats.go:78](../internal/tui/stats.go#L78) |
+| Cor do dia | 4 níveis: sem foco, até 25 min, de 25 min a 1 h, 1 h ou mais; os dias que ainda não chegaram ficam apagados | Os mesmos cortes de antes, agora em blocos do fundo apagado do tema até a cor de destaque, com a legenda "menos ▪▪▪▪ mais". | [stats.go:89](../internal/tui/stats.go#L89) |
+| Mês passado | no mês de agora, a comparação vai até o mesmo dia do mês anterior | Meio mês contra o anterior inteiro dava sempre "menos", e enganava. | [stats.go:153](../internal/tui/stats.go#L153) |
+| Recorde de streak | a maior sequência de dias com 15 min ou mais desde 2026, nunca abaixo do streak de agora | A mesma regra do dia que conta para o streak do pet. | [stats.go:208](../internal/tui/stats.go#L208) |
+| Faixas do tempo declarado | curtas até 15 min, médias até 30, longas acima de 30 | O tempo declarado inclui o que foi somado ao continuar e, com o "outro", pode ser qualquer número: as faixas não se espalham em minutos soltos. | [db.go:335](../internal/store/db.go#L335) |
+| Horário em que você foca | o foco de cada tarefa se espalha por igual entre o início e o fim; o pico são as 2 horas seguidas com mais foco; manhã é das 5h às 12h, tarde das 12h às 18h e noite o resto | Duas horas dizem mais que uma hora solta, e três partes do dia cabem numa linha. | [db.go:300](../internal/store/db.go#L300), [stats.go:275](../internal/tui/stats.go#L275) |
+| Layout | painéis por padrão; lista na aba visual | Provisório: os dois convivem até a turma escolher um, e aí o outro sai. | [profile.go:237](../internal/tui/profile.go#L237) |
+| Terminal baixo | as seções saem de baixo para cima (últimas tarefas, faixas, horário, números do mês), sempre inteiras; o pet, o estado e o calendário ficam | O que identifica a pessoa e o mês vem primeiro. Seção pela metade, ou o título das tarefas sem nenhuma, não aparece. | [stats.go:384](../internal/tui/stats.go#L384) |
+
 ## Ritmo da tela
 
 | Regra | Valor | Por quê | Código |
 |---|---|---|---|
-| Prévia dos humores no perfil | pet menor em terminais com menos de 30 linhas | Mantém o estado da prévia e o aviso de que humor e energia não mudam visíveis em 80×24. | [profile.go](../internal/tui/profile.go) |
+| Pet menor no perfil | quando falta altura para o pet grande (umas 30 linhas de terminal), também na prévia dos humores | Em 80×24 cabem inteiros o pet, o estado (com o aviso da prévia) e o calendário, nos dois layouts das stats. | [profile.go](../internal/tui/profile.go) |
 | Tick da tela | 500 ms | Anima o pet e o relógio e atualiza a sala. | [ui.go:103](../internal/tui/ui.go#L103) |
 | Avisos na tela | somem depois de 8 s, ou na primeira tecla da sala | "salvo", "código enviado" e "a sala agora é de…" dizem o que acabou de acontecer e logo deixam de valer. Ficam no fim de uma linha que já existe, para a tela não pular quando somem. | [ui.go:186](../internal/tui/ui.go#L186) |
 | Enter depois de chegar na sala | ignorado por 600 ms depois de criar a sala ou entrar por código | Quem aperta enter de novo enquanto a sala nasce caía no campo da tarefa da sala nova, e o enter seguinte mostrava um erro. | [room.go:264](../internal/tui/room.go#L264) |

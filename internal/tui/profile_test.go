@@ -87,23 +87,37 @@ func TestMoodPreviewIsolation(t *testing.T) {
 	}
 }
 
-// O perfil cabe na altura: as tarefas encurtam, depois o calendário sai, e a seção das tarefas
-// nunca fica só com o título.
+// O perfil cabe na altura, nos dois layouts: as seções saem de baixo para cima, o estado e o
+// calendário ficam até o fim (em 80×24 também), e a seção das tarefas nunca fica só com o título.
 func TestProfileFitsHeight(t *testing.T) {
-	m := model{nick: "ana", now: time.Now(), st: newStyles(themes[0]),
-		pet: pet.Pet{LastActive: time.Now(), Energy: 50}, totals: store.Totals{Tasks: 3, Done: 3}}
+	m := model{nick: "ana", now: time.Now(), st: newStyles(themes[0]), days: map[string]float64{},
+		pet: pet.Pet{LastActive: time.Now(), Energy: 50}, totals: store.Totals{Tasks: 3, Done: 3, Bands: [3][2]int{{3, 3}}}}
+	m.hours[9] = 60
+	m.days[dayKey(m.now)], m.days[dayKey(m.now.AddDate(0, -1, 0))] = 30, 600 // "mês passado −9h 30 até o dia N": o número mais largo
 	for range 8 {
 		m.tasks = append(m.tasks, store.TaskRow{Start: m.now, Task: "lista 3", Result: pet.Done})
 	}
-	for _, h := range []int{15, 21, 26, 40} {
-		view := ansi.Strip(m.profileView(76, h))
-		lines := strings.Split(view, "\n")
-		if len(lines) > h || !strings.Contains(view, "por tarefa") {
-			t.Fatalf("altura %d: %d linhas, ou sem os números:\n%s", h, len(lines), view)
-		}
-		if i := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "últimas tarefas") }); i >= 0 &&
-			(i+1 >= len(lines) || !strings.Contains(lines[i+1], "lista 3")) {
-			t.Fatalf("altura %d: o título das tarefas sem nenhuma:\n%s", h, view)
+	for _, list := range []bool{false, true} {
+		m.statsList = list
+		// 106 colunas: o mês ainda não cabe inteiro ao lado do calendário e não pode sair cortado com "…"
+		for _, wh := range [][2]int{{76, 17}, {76, 21}, {90, 33}, {106, 60}, {116, 33}, {116, 60}} {
+			w, h := wh[0], wh[1]
+			view := ansi.Strip(m.profileView(w, h))
+			lines := strings.Split(view, "\n")
+			if len(lines) > h || !strings.Contains(view, "humor") || strings.Contains(view, "…") ||
+				slices.ContainsFunc(lines, func(l string) bool { return ansi.StringWidth(l) > w }) {
+				t.Fatalf("lista %v, %dx%d: %d linhas, sem o estado, cortado ou mais largo que a tela:\n%s", list, w, h, len(lines), view)
+			}
+			if h >= 17 && !strings.Contains(view, m.t(months[m.now.Month()-1])) {
+				t.Fatalf("lista %v, %dx%d: sem o calendário:\n%s", list, w, h, view)
+			}
+			if i := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "últimas tarefas") }); i >= 0 &&
+				(i+1 >= len(lines) || !strings.Contains(lines[i+1], "lista 3")) {
+				t.Fatalf("lista %v, %dx%d: o título das tarefas sem nenhuma:\n%s", list, w, h, view)
+			}
+			if h == 60 && !strings.Contains(view, "quando você foca") {
+				t.Fatalf("lista %v, %dx%d: sem as stats com altura de sobra:\n%s", list, w, h, view)
+			}
 		}
 	}
 }
@@ -149,7 +163,7 @@ func TestEnergyBarThreshold(t *testing.T) {
 		{80, -1, "humor máximo"},
 		{100, -1, "humor máximo"},
 	} {
-		m := model{nick: "ana", st: newStyles(themes[0]), now: now, pet: pet.Pet{Energy: tc.energy, LastActive: now}}
+		m := model{nick: "ana", st: newStyles(themes[0]), now: now, pet: pet.Pet{Energy: tc.energy, LastActive: now}, statsList: true} // na lista a barra fica sem a borda do painel
 		view := ansi.Strip(m.profileView(80, 100))
 		_, after, ok := strings.Cut(view, "energia  ")
 		if !ok {

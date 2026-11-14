@@ -58,6 +58,8 @@ func Open(path string) error {
 	d.Exec(`ALTER TABLE tasks ADD COLUMN room_code TEXT NOT NULL DEFAULT ''`)
 	// o padrão é inglês para todo mundo, inclusive quem já usava o app; quem quiser volta na aba visual (#86)
 	d.Exec(`ALTER TABLE users ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'`)
+	d.Exec(`ALTER TABLE users ADD COLUMN last_min INTEGER NOT NULL DEFAULT 0`)
+	d.Exec(`ALTER TABLE users ADD COLUMN stats_list INTEGER NOT NULL DEFAULT 0`)
 	db = d
 	return nil
 }
@@ -105,6 +107,28 @@ func Lang(id string) string {
 
 func SetLang(id, l string) error {
 	_, err := db.Exec(`UPDATE users SET lang = ? WHERE id = ?`, l, id)
+	return err
+}
+
+// LastMin: o último tempo declarado, que o seletor de tempo já traz escolhido (0 = nenhum ainda).
+func LastMin(id string) (n int) {
+	db.QueryRow(`SELECT last_min FROM users WHERE id = ?`, id).Scan(&n)
+	return n
+}
+
+func SetLastMin(id string, n int) error {
+	_, err := db.Exec(`UPDATE users SET last_min = ? WHERE id = ?`, n, id)
+	return err
+}
+
+// StatsList: as stats do perfil e da sala solo em lista, em vez dos painéis do padrão (#45).
+func StatsList(id string) (list bool) {
+	db.QueryRow(`SELECT stats_list FROM users WHERE id = ?`, id).Scan(&list)
+	return list
+}
+
+func SetStatsList(id string, list bool) error {
+	_, err := db.Exec(`UPDATE users SET stats_list = ? WHERE id = ?`, list, id)
 	return err
 }
 
@@ -251,10 +275,10 @@ func Tasks(id string) ([]TaskRow, error) {
 // --- o histórico, para o calendário e os números do perfil ---
 
 // FocusByDay: os minutos focados em cada dia, de `from` para cá, com a chave "2006-01-02".
-// O dia é o do fuso do servidor, o mesmo que o pet usa para o streak.
+// O dia é o do fuso do servidor e o da tarefa é o em que ela termina, como no pet e na tabela de foco.
 func FocusByDay(id string, from time.Time) (map[string]float64, error) {
-	rows, err := db.Query(`SELECT date(started_at, 'unixepoch', 'localtime'), SUM(focused_sec)
-		FROM tasks WHERE user_id = ? AND started_at >= ? GROUP BY 1`, id, from.Unix())
+	rows, err := db.Query(`SELECT date(ended_at, 'unixepoch', 'localtime'), SUM(focused_sec)
+		FROM tasks WHERE user_id = ? AND ended_at >= ? GROUP BY 1`, id, from.Unix())
 	if err != nil {
 		return nil, err
 	}
@@ -271,17 +295,54 @@ func FocusByDay(id string, from time.Time) (map[string]float64, error) {
 	return out, rows.Err()
 }
 
+// FocusByHour: os minutos focados em cada hora do dia (0 a 23), em todas as tarefas. O foco de
+// uma tarefa se espalha por igual entre o início e o fim dela.
+func FocusByHour(id string) ([24]float64, error) {
+	var out [24]float64
+	rows, err := db.Query(`SELECT started_at, ended_at, focused_sec FROM tasks WHERE user_id = ? AND ended_at > started_at`, id)
+	if err != nil {
+		return out, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var start, end, sec int64
+		if err := rows.Scan(&start, &end, &sec); err != nil {
+			return out, err
+		}
+		perSec := float64(sec) / float64(end-start) / 60 // minutos focados por segundo de relógio
+		for at := time.Unix(start, 0); at.Unix() < end; {
+			// a próxima hora cheia no relógio local (Truncate erraria em fuso de meia hora)
+			next := time.Date(at.Year(), at.Month(), at.Day(), at.Hour()+1, 0, 0, 0, at.Location())
+			if next.Unix() > end {
+				next = time.Unix(end, 0)
+			}
+			out[at.Hour()] += perSec * next.Sub(at).Seconds()
+			at = next
+		}
+	}
+	return out, rows.Err()
+}
+
 // Totals: o resumo de todas as tarefas encerradas de um usuário.
 type Totals struct {
 	Tasks, Done       int
 	Focused, Declared time.Duration // somadas: a média sai dividindo por Tasks
+	// por faixa do tempo declarado (curtas até 15 min, médias até 30, longas acima; docs/regras.md):
+	// cumpridas e encerradas
+	Bands [3][2]int
 }
 
 func GetTotals(id string) (Totals, error) {
 	var t Totals
 	var sec, min int64
+	b := &t.Bands
 	err := db.QueryRow(`SELECT COUNT(*), COALESCE(SUM(result = 'done'), 0), COALESCE(SUM(focused_sec), 0),
-		COALESCE(SUM(declared_min), 0) FROM tasks WHERE user_id = ?`, id).Scan(&t.Tasks, &t.Done, &sec, &min)
+		COALESCE(SUM(declared_min), 0),
+		COALESCE(SUM(declared_min <= 15 AND result = 'done'), 0), COALESCE(SUM(declared_min <= 15), 0),
+		COALESCE(SUM(declared_min > 15 AND declared_min <= 30 AND result = 'done'), 0), COALESCE(SUM(declared_min > 15 AND declared_min <= 30), 0),
+		COALESCE(SUM(declared_min > 30 AND result = 'done'), 0), COALESCE(SUM(declared_min > 30), 0)
+		FROM tasks WHERE user_id = ?`, id).Scan(&t.Tasks, &t.Done, &sec, &min,
+		&b[0][0], &b[0][1], &b[1][0], &b[1][1], &b[2][0], &b[2][1])
 	t.Focused, t.Declared = time.Duration(sec)*time.Second, time.Duration(min)*time.Minute
 	return t, err
 }

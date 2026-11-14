@@ -1,6 +1,6 @@
 package tui
 
-// Abas "perfil" (o pet grande + as últimas tarefas) e "visual" (tema e modo jardim).
+// Abas "perfil" (o pet, as stats e as últimas tarefas) e "visual" (tema, idioma, stats e modo jardim).
 
 import (
 	"fmt"
@@ -17,25 +17,35 @@ import (
 
 var resultLabel = map[pet.Result]string{pet.Done: "✓ cumprida", pet.NotDone: "não cumprida", pet.Interrupted: "interrompida"}
 
-// profileView: o pet à esquerda e as informações à direita, em h linhas. Quando a altura não dá
-// para tudo, as últimas tarefas encurtam; se nem uma cabe, o calendário sai (ele também está na
-// sala solo) para os números e as tarefas ficarem. Seção sem nenhuma linha não aparece.
-func (m model) profileView(_, h int) string {
+// profileView: o pet, o estado e as stats em w×h, em painéis (o padrão) ou em lista, como a aba
+// visual escolhe (#45). Quando falta altura, as seções saem de baixo para cima: as últimas
+// tarefas encurtam primeiro, e o pet, o estado e o calendário são os últimos a sair.
+func (m model) profileView(w, h int) string {
 	if m.pet.LastActive.IsZero() {
 		return m.st.muted.Render(m.t("carregando…"))
 	}
 	e := m.pet.EnergyAt(m.now)
 	mood := pet.MoodOf(e)
 	moodSt := lipgloss.NewStyle().Foreground(energyColors.barColor(mood))
-	head := bold.Render(m.nick) + "\n\n"
-	if m.first { // o primeiro acesso: o apelido foi o primeiro passo, este é o último
-		head = bold.Render(m.nick) + "\n" + m.st.title.Render(m.t("último passo: a cor do pet")) + "\n" +
+	first, gap := "", "\n" // gap: o que separa o apelido do humor na lista
+	if m.first {           // o primeiro acesso: o apelido foi o primeiro passo, este é o último
+		first = m.st.title.Render(m.t("último passo: a cor do pet")) + "\n" +
 			m.st.muted.Render(m.t("enter salva e abre a aba sala")) + "\n\n"
+		gap = first
 	}
-	head += fmt.Sprintf("%-9s", m.t("humor")) + moodSt.Render(m.t(pet.MoodName[mood])) + "\n" +
-		m.energyBar(e, mood, moodSt) + "\n" +
-		fmt.Sprintf("%-9s%d %s", m.t("streak"), m.pet.StreakAt(m.now), plural(m.pet.StreakAt(m.now), m.t("dia seguido"), m.t("dias seguidos"))) + "\n" +
-		m.colorRow()
+	humor := fmt.Sprintf("%-9s", m.t("humor")) + moodSt.Render(m.t(pet.MoodName[mood])) + "\n" + m.energyBar(e, mood, moodSt) + "\n"
+	drawing := func(big bool) string {
+		render := pet.Render
+		if big {
+			render = pet.RenderBig
+		}
+		if !m.custom {
+			return render(mood, m.tick, m.pixel, m.myColor())
+		}
+		return bold.Render(m.t("prévia do pet")) + "\n\n" + render(m.previewMood, m.tick, m.pixel, m.myColor()) + "\n\n" +
+			m.st.muted.Render("↑/↓ ") + m.t(pet.MoodName[m.previewMood]) + "\n" +
+			m.st.muted.Render(m.t("apenas para visualização")+"\n"+m.t("(não altera humor ou energia)"))
+	}
 	tasks := []string{m.st.muted.Render(m.t("nenhuma ainda"))}
 	if len(m.tasks) > 0 {
 		tasks = nil
@@ -53,40 +63,84 @@ func (m model) profileView(_, h int) string {
 		}
 		tasks = append(tasks, line)
 	}
-	build := func(cal bool, k int) string {
-		parts := []string{head}
-		if cal {
-			parts = append(parts, m.calendar())
-		}
-		parts = append(parts, m.taskNumbers())
-		if k > 0 {
-			parts = append(parts, bold.Render(m.t("últimas tarefas"))+"\n"+strings.Join(tasks[:k], "\n"))
-		}
-		return strings.Join(parts, "\n\n")
+	month := m.shownMonth()
+	title, calG, legend := m.monthTitle(month, true), m.calendar(month), m.heatLegend()
+	nums := m.rows(m.monthRows(month), 15)
+	hoursT, bandsT := m.st.title.Render(m.t("quando você foca")), m.st.title.Render(m.t("o que você cumpre"))+m.st.muted.Render(m.t(" · pelo tempo declarado"))
+	hours, bands := "", ""
+	if m.totals.Tasks > 0 { // sem tarefa encerrada não há hora nem faixa a mostrar
+		hours, bands = m.hoursBody(), m.bandsBody()
 	}
-	info := build(true, len(tasks))
-	for _, cal := range []bool{true, false} {
-		for k := len(tasks); k >= 1 && lipgloss.Height(info) > h; k-- {
-			info = build(cal, k)
+
+	if m.statsList {
+		d := drawing(h >= 23) // baixo (80×24): o pet menor, para o calendário caber embaixo do estado
+		iw := w - lipgloss.Width(d) - 4
+		cal := title + "\n" + calG + "\n" + legend
+		monthSec, numsSec := cal, nums // estreito: os números descem para depois do calendário, e saem antes dele
+		switch {
+		case iw >= lipgloss.Width(cal)+4+lipgloss.Width(nums): // largo: ao lado do calendário, na altura dos dias
+			monthSec, numsSec = lipgloss.JoinHorizontal(lipgloss.Top, cal, "    ", "\n\n"+nums), ""
+		case lipgloss.Width(title)+3+lipgloss.Width(legend) <= iw: // a legenda sobe para a linha do mês: uma linha a menos
+			monthSec = title + "   " + legend + "\n" + calG
+		}
+		sec := func(title, body string) string {
+			if body == "" {
+				return ""
+			}
+			return title + "\n" + body
+		}
+		info := stack(h, "\n\n", []string{
+			bold.Render(m.nick) + "\n" + gap + humor + fmt.Sprintf("%-9s", m.t("streak")) + m.streakText() + "\n" + m.colorRow(),
+			monthSec, numsSec, sec(hoursT, hours), sec(bandsT, bands),
+		}, func(k int) string { return bold.Render(m.t("últimas tarefas")) + "\n" + strings.Join(tasks[:k], "\n") }, len(tasks))
+		return lipgloss.JoinHorizontal(lipgloss.Top, d, "    ", info)
+	}
+
+	// a legenda da energia sem o recuo: com ele o painel do pet fica largo demais para o
+	// calendário caber ao lado em 80 colunas
+	state := strings.Replace(humor, "\n"+strings.Repeat(" ", 9), "\n", 1) + fmt.Sprintf("%-9s", m.t("streak")) + m.streakDays() + "\n" +
+		fmt.Sprintf("%-9s", m.t("recorde")) + m.recordText() + "\n" +
+		m.colorRow()
+	left := func(big bool) string {
+		d := drawing(big)
+		in := max(lipgloss.Width(d), lipgloss.Width(state), lipgloss.Width(first))
+		return m.box(bold.Render(m.nick), first+lipgloss.PlaceHorizontal(in, lipgloss.Center, d)+"\n\n"+state, in+4, 0)
+	}
+	recent := func(k int) string {
+		return m.box(m.st.title.Render(m.t("últimas tarefas")), strings.Join(tasks[:k], "\n"), w, 0)
+	}
+	calBody := calG + "\n\n" + legend
+	calB := m.box(title, calBody, calCols+4, 0)
+	monthT := m.st.title.Render(m.t("o mês"))
+	// o mês ao lado do calendário só com largura para os números inteiros, sem o "…" do box
+	beside := calCols + 4 + 1 + lipgloss.Width(nums) + 4
+
+	// largo e alto: o pet grande à esquerda, e à direita o mês, a hora e as faixas
+	l := left(true)
+	if rw := w - lipgloss.Width(l) - 1; rw >= calCols+4+1+30 {
+		calRow := lipgloss.JoinHorizontal(lipgloss.Top, calB, " ", m.box(monthT, nums, rw-calCols-5, lipgloss.Height(calB)-2))
+		if rw < beside { // os números não cabem inteiros ao lado: descem para baixo do calendário
+			calRow = m.box(title, calBody, rw, 0) + "\n" + m.box(monthT, nums, rw, 0)
+		}
+		right := lipgloss.JoinVertical(lipgloss.Left, calRow, m.box(hoursT, hours, rw, 0), m.box(bandsT, bands, rw, 0))
+		if top := lipgloss.JoinHorizontal(lipgloss.Top, l, " ", right); lipgloss.Height(top) <= h {
+			return stack(h, "\n", []string{top}, recent, len(tasks))
 		}
 	}
-	if lipgloss.Height(info) > h { // nem uma tarefa cabe: os números ficam, com o calendário se der
-		if info = build(true, 0); lipgloss.Height(info) > h {
-			info = build(false, 0)
-		}
+	// pequeno: o pet menor, e em cima só o pet, o estado e o calendário; o resto desce
+	l = left(false)
+	lh := lipgloss.Height(l) - 2
+	secs := []string{l, m.box(title, calBody, w, 0), m.box(monthT, nums, w, 0)}
+	switch rw := w - lipgloss.Width(l) - 1; {
+	case rw >= beside: // sobra largura: o mês também sobe, ao lado do calendário
+		secs = []string{lipgloss.JoinHorizontal(lipgloss.Top, l, " ", m.box(title, calBody, calCols+4, lh),
+			" ", m.box(monthT, nums, rw-calCols-5, lh))}
+	case rw >= calCols+4:
+		secs = []string{lipgloss.JoinHorizontal(lipgloss.Top, l, " ", m.box(title, calBody, rw, lh)),
+			m.box(monthT, nums, w, 0)}
 	}
-	drawing := pet.RenderBig(mood, m.tick, m.pixel, m.myColor())
-	if m.custom {
-		preview := pet.RenderBig(m.previewMood, m.tick, m.pixel, m.myColor())
-		if m.height > 0 && m.height < 30 { // o desenho menor mantém os avisos visíveis em 80×24
-			preview = pet.Render(m.previewMood, m.tick, m.pixel, m.myColor())
-		}
-		drawing = bold.Render(m.t("prévia do pet")) + "\n\n" +
-			preview + "\n\n" +
-			m.st.muted.Render("↑/↓ ") + m.t(pet.MoodName[m.previewMood]) + "\n" +
-			m.st.muted.Render(m.t("apenas para visualização")+"\n"+m.t("(não altera humor ou energia)"))
-	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, drawing, "    ", info)
+	secs = append(secs, m.box(hoursT, hours, w, 0), m.box(bandsT, bands, w, 0))
+	return stack(h, "\n", secs, recent, len(tasks))
 }
 
 // myColor: a cor do pet em prévia — a salva, fora do modo personalizar.
@@ -114,16 +168,22 @@ func (m model) profileHelp() string {
 	if m.custom {
 		return m.t("←/→ cor · ↑/↓ prévia do humor · enter salva a cor · esc volta")
 	}
-	return m.t("c personaliza o pet")
+	return m.t("←/→ mês · c personaliza o pet")
 }
 
-// profileKey: a cor é salva; o humor escolhido só troca o desenho da prévia.
+// profileKey: fora do personalizar, ←/→ trocam o mês do calendário. A cor é salva; o humor
+// escolhido só troca o desenho da prévia.
 func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
 	if !m.custom {
-		if k == "c" {
+		switch k {
+		case "c":
 			m.custom, m.notice = true, ""
 			m.previewMood = pet.MoodOf(m.pet.EnergyAt(m.now))
+		case "left":
+			m = m.shiftMonth(-1)
+		case "right":
+			m = m.shiftMonth(1)
 		}
 		return m, nil
 	}
@@ -162,8 +222,12 @@ func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// firstGardenRow: a primeira linha do modo jardim na aba visual, depois do tema e do idioma.
-const firstGardenRow = 2
+// firstGardenRow: a primeira linha do modo jardim na aba visual, depois do tema, do idioma e das stats.
+const firstGardenRow = 3
+
+// statsLayouts: os dois jeitos das stats na aba visual; o padrão são os painéis (#45).
+// ponytail: as duas versões convivem até a turma escolher uma; aí sai a outra e esta linha.
+var statsLayouts = map[bool]string{false: "painéis", true: "lista"}
 
 // visualRows: as linhas da aba visual, cada uma com o valor em prévia.
 func (m model) visualRows() [][2]string {
@@ -176,6 +240,7 @@ func (m model) visualRows() [][2]string {
 		{m.t("tema"), m.t(themes[m.theme].name)},
 		// o rótulo nos dois idiomas: quem não lê o da tela acha a linha pela palavra do outro
 		{m.t("idioma") + " · " + map[bool]string{true: "idioma", false: "language"}[m.lang == "en"], langs[langIndex(m.lang)].name},
+		{m.t("estatísticas"), m.t(statsLayouts[m.statsList])},
 		{m.t("wallpaper"), wp},
 		{m.t("relógio"), m.t(clockModes[m.vis.Clock])},
 		{m.t("tarefa"), shown[m.vis.Task]},
@@ -201,8 +266,8 @@ func (m model) visualKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "v":
 		return m.openGarden(gardenEditor)
 	case "enter":
-		id, name, g, l := m.id, themes[m.theme].name, m.vis, m.lang
-		m.saved, m.visSaved, m.langSaved = m.theme, m.vis, m.lang
+		id, name, g, l, list := m.id, themes[m.theme].name, m.vis, m.lang, m.statsList
+		m.saved, m.visSaved, m.langSaved, m.listSaved = m.theme, m.vis, m.lang, m.statsList
 		m.notice = m.t("salvo")
 		return m, act(func() {
 			if err := store.SetTheme(id, name); err != nil {
@@ -210,6 +275,9 @@ func (m model) visualKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			if err := store.SetLang(id, string(l)); err != nil {
 				log.Error("setLang", "err", err)
+			}
+			if err := store.SetStatsList(id, list); err != nil {
+				log.Error("setStatsList", "err", err)
 			}
 			if err := store.SetGarden(id, g); err != nil {
 				log.Error("setGarden", "err", err)
@@ -228,16 +296,18 @@ func (m model) visualKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case 1: // a tela toda já muda de idioma, como o tema muda de cor
 		m.lang = langs[cycle(langIndex(m.lang), len(langs))].id
 	case 2:
-		m.vis.Wallpaper = cycleWallpaper(m.vis, step)
+		m.statsList = !m.statsList
 	case 3:
-		m.vis.Clock = cycle(m.vis.Clock, len(clockModes))
+		m.vis.Wallpaper = cycleWallpaper(m.vis, step)
 	case 4:
-		m.vis.Task = !m.vis.Task
+		m.vis.Clock = cycle(m.vis.Clock, len(clockModes))
 	case 5:
-		m.vis.Room = !m.vis.Room
+		m.vis.Task = !m.vis.Task
 	case 6:
-		m.vis.Auto = !m.vis.Auto
+		m.vis.Room = !m.vis.Room
 	case 7:
+		m.vis.Auto = !m.vis.Auto
+	case 8:
 		m.vis.Joke = !m.vis.Joke
 		if i := wallpaperIndex(m.vis.Wallpaper); i >= 0 && wallpapers[i].joke && !m.vis.Joke {
 			m.vis.Wallpaper = "" // o de piada escolhido some da lista: volta para o sorteado

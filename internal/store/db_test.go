@@ -1,6 +1,7 @@
 package store
 
 import (
+	"math"
 	"path/filepath"
 	"slices"
 	"sshiu/internal/pet"
@@ -29,8 +30,8 @@ func TestRecordTask(t *testing.T) {
 		t.Fatalf("tasks %+v %v", ts, err)
 	}
 
-	start := end.Add(-20 * time.Minute) // o dia do gráfico é o do início da tarefa
-	if days, err := FocusByDay("u", start.AddDate(0, 0, -1)); err != nil || days[start.Format("2006-01-02")] != 15 {
+	start := end.Add(-20 * time.Minute)
+	if days, err := FocusByDay("u", start.AddDate(0, 0, -1)); err != nil || days[end.Format("2006-01-02")] != 15 {
 		t.Fatalf("por dia %v %v", days, err)
 	}
 	// a tarefa conta no dia em que termina: começou antes de from, mas terminou dentro
@@ -68,6 +69,48 @@ func TestRecordTask(t *testing.T) {
 	}
 	if rs, _ := Rooms(); len(rs) != 0 { // o último saiu: a sala some
 		t.Fatalf("rooms %+v", rs)
+	}
+}
+
+// As consultas das stats (#45): o dia é o do fim da tarefa, a hora espalha o foco entre o início e
+// o fim, e as faixas separam pelo tempo declarado.
+func TestStatsQueries(t *testing.T) {
+	if err := Open(t.TempDir() + "/t.db"); err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := PutUser("u", "ana", pet.EnergyStart); err != nil {
+		t.Fatal(err)
+	}
+	night := time.Date(2026, 3, 9, 23, 50, 0, 0, time.Local) // passa da meia-noite: 10 min no dia 9, 20 no dia 10
+	morning := time.Date(2026, 3, 11, 10, 0, 0, 0, time.Local)
+	for _, r := range []TaskRow{
+		{night, night.Add(30 * time.Minute), "lista", 45, 30 * time.Minute, pet.NotDone, ""},
+		{morning, morning.Add(20 * time.Minute), "e-mail", 15, 15 * time.Minute, pet.Done, ""},
+	} {
+		if _, err := RecordTask("u", r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	days, err := FocusByDay("u", night.AddDate(0, 0, -1))
+	if err != nil || days["2026-03-10"] != 30 || days["2026-03-09"] != 0 || days["2026-03-11"] != 15 {
+		t.Fatalf("por dia %v %v", days, err)
+	}
+	hours, err := FocusByHour("u")
+	if err != nil || math.Abs(hours[23]-10) > 0.01 || math.Abs(hours[0]-20) > 0.01 || math.Abs(hours[10]-15) > 0.01 {
+		t.Fatalf("por hora %v %v", hours, err)
+	}
+	if got, err := GetTotals("u"); err != nil || got.Bands != [3][2]int{{1, 1}, {0, 0}, {0, 1}} {
+		t.Fatalf("faixas %+v %v", got.Bands, err)
+	}
+	if LastMin("u") != 0 || StatsList("u") {
+		t.Fatal("padrões: sem último tempo e com painéis")
+	}
+	if err := SetLastMin("u", 50); err != nil || LastMin("u") != 50 {
+		t.Fatalf("último tempo %d %v", LastMin("u"), err)
+	}
+	if err := SetStatsList("u", true); err != nil || !StatsList("u") {
+		t.Fatalf("lista %v", err)
 	}
 }
 
