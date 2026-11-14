@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	barCols  = 16       // largura das barras da semana e das faixas
+	barCols  = 16        // largura das barras da semana e das faixas
 	calCols  = 34        // largura do calendário: 7 dias de 4 colunas, com 1 entre eles
 	onAccent = "#11111b" // o texto em cima da cor de destaque (aba ativa, dia cheio no calendário)
 )
@@ -227,20 +227,30 @@ func (m model) record() (int, time.Time) {
 	return m.rec, m.recAt
 }
 
-// recordText: "11 em março", o recorde e o mês em que ele terminou; sem recorde, só o 0.
+// recordText: "11 em março", o recorde e o mês em que ele terminou; de outro ano, o ano no lugar do
+// mês ("11 em 2026"), que é mais curto que os dois juntos e cabe na linha do streak em 80 colunas.
+// Sem recorde, só o 0.
 func (m model) recordText() string {
 	rec, at := m.record()
 	if rec == 0 {
 		return m.st.title.Render("0")
 	}
-	return m.st.title.Render(strconv.Itoa(rec)) + m.st.muted.Render(" "+m.tf("em %s", m.t(months[at.Month()-1])))
+	when := m.t(months[at.Month()-1])
+	if at.Year() != m.now.Year() {
+		when = strconv.Itoa(at.Year())
+	}
+	return m.st.title.Render(strconv.Itoa(rec)) + m.st.muted.Render(" "+m.tf("em %s", when))
+}
+
+// streakDays: "4 dias seguidos", o streak de agora (o do pet).
+func (m model) streakDays() string {
+	n := m.pet.StreakAt(m.now)
+	return fmt.Sprintf("%d %s", n, plural(n, m.t("dia seguido"), m.t("dias seguidos")))
 }
 
 // streakText: "4 dias seguidos · recorde 11 em março".
 func (m model) streakText() string {
-	n := m.pet.StreakAt(m.now)
-	return fmt.Sprintf("%d %s", n, plural(n, m.t("dia seguido"), m.t("dias seguidos"))) +
-		m.st.muted.Render(m.t(" · recorde ")) + m.recordText()
+	return m.streakDays() + m.st.muted.Render(m.t(" · recorde ")) + m.recordText()
 }
 
 // spark: os minutos focados em cada hora do dia numa linha, cada hora com cell colunas, e as horas
@@ -289,16 +299,21 @@ func (m model) peak() (string, string) {
 			part[2] += v
 		}
 	}
-	pct := func(v float64) string { return fmt.Sprintf("%.0f%%", 100*v/max(total, 1)) }
+	pct := func(v float64) string { return fmt.Sprintf("%.0f%%", 100*v/total) } // hoursBody só chama com foco
 	sep := m.st.muted.Render(" · ")
 	return m.tf("%dh às %dh", at, (at+2)%24),
 		m.t("manhã") + " " + pct(part[0]) + sep + m.t("tarde") + " " + pct(part[1]) + sep + m.t("noite") + " " + pct(part[2])
 }
 
-// hoursBody: o horário com o pico e a divisão do dia, para o painel e para a lista.
+// hoursBody: o horário com o pico e a divisão do dia, para o painel e para a lista. Vazio sem
+// nenhum minuto focado: as tarefas encerradas em 0 min não têm pico a mostrar.
 func (m model) hoursBody() string {
+	sp := m.spark(2)
+	if sp == "" {
+		return ""
+	}
 	pk, split := m.peak()
-	return m.spark(2) + "\n" + m.st.muted.Render(m.t("pico ")) + m.st.title.Render(pk) + "   " + split
+	return sp + "\n" + m.st.muted.Render(m.t("pico ")) + m.st.title.Render(pk) + "   " + split
 }
 
 // bandsBody: quanto você cumpre em cada faixa de tempo declarado, a média e o total.
@@ -360,8 +375,12 @@ func (m model) bar(n, cols int) string {
 }
 
 // box: um painel de w colunas e pelo menos h linhas por dentro, com o título na borda de cima,
-// como num monitor de terminal. O que passa da largura é cortado com "…".
+// como num monitor de terminal. O que passa da largura é cortado com "…". Sem corpo, não há painel
+// (a seção some, e o stack a pula).
 func (m model) box(title, body string, w, h int) string {
+	if body == "" {
+		return ""
+	}
 	bc := lipgloss.NewStyle().Foreground(lipgloss.Color(themes[m.theme].border))
 	t := " " + title + " "
 	lines := strings.Split(body, "\n")
@@ -412,9 +431,8 @@ func (m model) soloStats(w int) string {
 	for d := month; !d.After(m.now); d = d.AddDate(0, 0, 1) {
 		total += m.days[dayKey(d)]
 	}
-	n := m.pet.StreakAt(m.now)
 	stats := m.rows([][2]string{
-		{m.t("streak"), fmt.Sprintf("%d %s", n, plural(n, m.t("dia seguido"), m.t("dias seguidos")))},
+		{m.t("streak"), m.streakDays()},
 		{m.t("recorde"), m.recordText()},
 		{m.t("hoje"), dur(m.days[dayKey(m.now)])},
 		{m.t("semana"), dur(week)},

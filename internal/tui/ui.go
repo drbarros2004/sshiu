@@ -207,7 +207,8 @@ func (m *model) setWorld(w rooms.World) {
 	// a sala de que você saiu não volta: um tick tirado antes da saída ainda a tem
 	mine := slices.DeleteFunc(w.MyRooms(m.id), func(c string) bool { return c == m.left })
 	if !slices.Contains(mine, m.room) {
-		m.room = ""
+		// a tarefa escrita era para a sala que sumiu: não começa na próxima sem você escolher
+		m.room, m.entering, m.choosing, m.other = "", false, false, false
 		if len(mine) > 0 {
 			m.room = mine[0]
 		}
@@ -436,6 +437,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.err = m.lang.errText(msg.error)
 	case tea.PasteMsg: // colar vai para o campo ativo; o texto vem do terminal (bracketed paste)
+		if m.other { // os minutos do "outro" não são o m.in: cada caractere passa pela mesma regra da tecla
+			for _, r := range msg.Content {
+				next, _ := m.otherKey(string(r))
+				m = next.(model)
+			}
+			return m, nil
+		}
 		if m.nick == "" || m.typing() {
 			var cmd tea.Cmd
 			m.in, cmd = m.in.Update(msg)

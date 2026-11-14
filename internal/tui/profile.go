@@ -96,22 +96,15 @@ func (m model) profileView(w, h int) string {
 		return lipgloss.JoinHorizontal(lipgloss.Top, d, "    ", info)
 	}
 
-	n := m.pet.StreakAt(m.now)
 	// a legenda da energia sem o recuo: com ele o painel do pet fica largo demais para o
 	// calendário caber ao lado em 80 colunas
-	state := strings.Replace(humor, "\n"+strings.Repeat(" ", 9), "\n", 1) + fmt.Sprintf("%-9s%d %s", m.t("streak"), n, plural(n, m.t("dia seguido"), m.t("dias seguidos"))) + "\n" +
+	state := strings.Replace(humor, "\n"+strings.Repeat(" ", 9), "\n", 1) + fmt.Sprintf("%-9s", m.t("streak")) + m.streakDays() + "\n" +
 		fmt.Sprintf("%-9s", m.t("recorde")) + m.recordText() + "\n" +
 		m.colorRow()
 	left := func(big bool) string {
 		d := drawing(big)
 		in := max(lipgloss.Width(d), lipgloss.Width(state), lipgloss.Width(first))
 		return m.box(bold.Render(m.nick), first+lipgloss.PlaceHorizontal(in, lipgloss.Center, d)+"\n\n"+state, in+4, 0)
-	}
-	box := func(title, body string, bw, bh int) string {
-		if body == "" {
-			return ""
-		}
-		return m.box(title, body, bw, bh)
 	}
 	recent := func(k int) string {
 		return m.box(m.st.title.Render(m.t("últimas tarefas")), strings.Join(tasks[:k], "\n"), w, 0)
@@ -129,7 +122,7 @@ func (m model) profileView(w, h int) string {
 		if rw < beside { // os números não cabem inteiros ao lado: descem para baixo do calendário
 			calRow = m.box(title, calBody, rw, 0) + "\n" + m.box(monthT, nums, rw, 0)
 		}
-		right := lipgloss.JoinVertical(lipgloss.Left, calRow, box(hoursT, hours, rw, 0), box(bandsT, bands, rw, 0))
+		right := lipgloss.JoinVertical(lipgloss.Left, calRow, m.box(hoursT, hours, rw, 0), m.box(bandsT, bands, rw, 0))
 		if top := lipgloss.JoinHorizontal(lipgloss.Top, l, " ", right); lipgloss.Height(top) <= h {
 			return stack(h, "\n", []string{top}, recent, len(tasks))
 		}
@@ -146,7 +139,7 @@ func (m model) profileView(w, h int) string {
 		secs = []string{lipgloss.JoinHorizontal(lipgloss.Top, l, " ", m.box(title, calBody, rw, lh)),
 			m.box(monthT, nums, w, 0)}
 	}
-	secs = append(secs, box(hoursT, hours, w, 0), box(bandsT, bands, w, 0))
+	secs = append(secs, m.box(hoursT, hours, w, 0), m.box(bandsT, bands, w, 0))
 	return stack(h, "\n", secs, recent, len(tasks))
 }
 

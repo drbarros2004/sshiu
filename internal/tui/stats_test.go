@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"sshiu/internal/pet"
 )
@@ -23,6 +24,11 @@ func TestRecord(t *testing.T) {
 	if m.rec, m.recAt = longestRun(days, now); m.rec != 5 || m.recAt.Day() != 6 {
 		t.Fatalf("recorde %d em %v", m.rec, m.recAt)
 	}
+	m.st = newStyles(themes[0])
+	if m.now = now.AddDate(1, 0, 0); ansi.Strip(m.recordText()) != "5 em 2026" { // de outro ano: o ano no lugar do mês
+		t.Fatalf("recorde de 2026 visto em 2027: %q", ansi.Strip(m.recordText()))
+	}
+	m.now = now
 	m.pet = pet.Pet{Streak: 9, StreakDay: "2026-03-19"} // o streak do pet vale mais que a conta
 	if rec, _ := m.record(); rec != max(5, m.pet.StreakAt(now)) {
 		t.Fatalf("recorde abaixo do streak: %d", rec)
@@ -99,6 +105,24 @@ func TestChoicesAndOther(t *testing.T) {
 	next, _ := model{other: true, otherMin: "7"}.otherKey("a") // só algarismos
 	if next, _ = next.(model).otherKey("5"); next.(model).otherMin != "75" {
 		t.Fatalf("digitado %q", next.(model).otherMin)
+	}
+	// colar vai para os minutos, com a mesma regra, e não para a tarefa já escrita
+	m = model{choosing: true, other: true, in: newInput("", 80)}
+	m.in.SetValue("lista 3")
+	if next, _ = m.Update(tea.PasteMsg{Content: "5a07"}); next.(model).otherMin != "507" || next.(model).in.Value() != "lista 3" {
+		t.Fatalf("colado: minutos %q, tarefa %q", next.(model).otherMin, next.(model).in.Value())
+	}
+}
+
+// Sem nenhum minuto focado, o painel das horas some: não há pico a mostrar.
+func TestHoursBodyWithoutFocus(t *testing.T) {
+	m := model{st: newStyles(themes[0])}
+	if got := m.hoursBody(); got != "" {
+		t.Fatalf("sem foco: %q", ansi.Strip(got))
+	}
+	m.hours[9] = 0.5 // meio minuto: a divisão ainda soma 100%
+	if got := ansi.Strip(m.hoursBody()); !strings.Contains(got, "manhã 100%") {
+		t.Fatalf("meio minuto: %q", got)
 	}
 }
 

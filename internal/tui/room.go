@@ -534,8 +534,8 @@ func (m model) soloWho(stats bool) string {
 	if stats {
 		rows = append(rows, [2]string{m.t("energia"), fmt.Sprintf("%.0f", m.me().Energy)})
 	} else if p := m.pet; p.Today == m.now.Format("2006-01-02") {
-		if n := p.StreakAt(m.now); n > 0 {
-			rows = append(rows, [2]string{m.t("streak"), fmt.Sprintf("%d %s", n, plural(n, m.t("dia seguido"), m.t("dias seguidos")))})
+		if p.StreakAt(m.now) > 0 {
+			rows = append(rows, [2]string{m.t("streak"), m.streakDays()})
 		}
 		rows = append(rows, [2]string{m.t("hoje"), m.tf("%d min focados", int(p.TodayMin))})
 	}
