@@ -78,6 +78,10 @@ func dynamicTexts() []string {
 	s = append(s, weekdays[:]...)
 	s = append(s, periods...) // os períodos da tabela de foco
 	s = append(s, months[:]...)
+	for _, x := range bandLabels { // as faixas do tempo declarado nas stats
+		s = append(s, x[0], x[1])
+	}
+	s = append(s, statsLayouts[false], statsLayouts[true])
 	s = append(s, "começou", "cumpriu", "entrou", "saiu") // os verbos dos eventos, em rooms
 	// os erros fixos de rooms, que chegam pelo errText (os com nome ou número casam com enErrors)
 	s = append(s, "só o dono muda a sala", "a sala precisa de um nome", "para sair da sala, use sair",

@@ -55,7 +55,7 @@ func newStyles(t theme) styles {
 		card:   lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(c(t.border)).Width(18).Align(lipgloss.Center),
 		task:   lipgloss.NewStyle().Italic(true).Width(16).Height(2).MaxHeight(2).Align(lipgloss.Center),
 		sel:    lipgloss.NewStyle().Bold(true).Foreground(c(t.accent)),
-		tabOn:  lipgloss.NewStyle().Bold(true).Foreground(c("#11111b")).Background(c(t.accent)).Padding(0, 1),
+		tabOn:  lipgloss.NewStyle().Bold(true).Foreground(c(onAccent)).Background(c(t.accent)).Padding(0, 1),
 		tabOff: lipgloss.NewStyle().Foreground(c(t.muted)).Padding(0, 1),
 	}
 }
@@ -96,6 +96,7 @@ type (
 		pet    pet.Pet
 		tasks  []store.TaskRow
 		days   map[string]float64 // minutos focados por dia, para o calendário
+		hours  [24]float64        // minutos focados por hora do dia
 		totals store.Totals
 	}
 	errMsg  struct{ error }
@@ -135,6 +136,8 @@ type model struct {
 	st              styles
 	theme, saved    int          // tema em prévia e tema salvo
 	lang, langSaved lang         // idioma em prévia e idioma salvo (#86)
+	statsList       bool         // as stats em lista, em vez de painéis (#45)...
+	listSaved       bool         // ...e o que está no banco
 	pcolor          int          // cor do pet em prévia (índice em pet.Colors)
 	pcSaved         int          // a cor do pet que está no banco
 	custom          bool         // aba de perfil no modo personalizar
@@ -154,7 +157,10 @@ type model struct {
 	entering bool               // escrevendo a tarefa
 	choosing bool               // escolhendo o tempo declarado
 	cont     bool               // ...para continuar a tarefa esgotada
-	mins     int                // índice em minuteChoices()
+	mins     int                // índice em m.choices()
+	lastMin  int                // o último tempo declarado, já escolhido ao abrir o seletor
+	other    bool               // digitando os minutos do "outro"...
+	otherMin string             // ...e o que já foi digitado
 	sel      int                // evento selecionado (ID)
 	picking  bool               // menu de salas aberto
 	cfg      bool               // menu do dono da sala aberto (tecla c)
@@ -175,7 +181,9 @@ type model struct {
 	joining  string             // código da sala na prévia, esperando o enter
 	pet      pet.Pet            // perfil, carregado ao abrir a aba
 	tasks    []store.TaskRow
-	days     map[string]float64 // minutos focados por dia (uns 40 dias)
+	days     map[string]float64 // minutos focados por dia, desde statsFrom
+	hours    [24]float64        // minutos focados por hora do dia
+	smonth   time.Time          // o mês do calendário no perfil (zero = o de agora)
 	totals   store.Totals
 }
 
@@ -216,7 +224,7 @@ func (m model) noticeStyle() lipgloss.Style {
 
 func New(id, invite, code string) model {
 	m := model{id: id, invite: invite, pending: code, width: 80, height: 24, now: time.Now(),
-		lastKey: time.Now(), mins: slices.Index(minuteChoices(), 25)}
+		lastKey: time.Now()}
 	m.setWorld(rooms.SnapshotWorld())
 	nick, p, ok, err := store.GetUser(id)
 	if err != nil {
@@ -231,6 +239,9 @@ func New(id, invite, code string) model {
 	m.langSaved = m.lang
 	m.vis = store.GetGarden(id)
 	m.visSaved = m.vis
+	m.statsList = store.StatsList(id)
+	m.listSaved = m.statsList
+	m.lastMin = store.LastMin(id)
 	if !ok {
 		m.in = newInput(m.t("seu apelido"), 16)
 	}
@@ -300,7 +311,7 @@ func (m model) loadProfile() tea.Cmd {
 		if err != nil {
 			return errMsg{err}
 		}
-		days, err := store.FocusByDay(id, time.Now().AddDate(0, 0, -40)) // o mês inteiro, com folga
+		days, err := store.FocusByDay(id, statsFrom)
 		if err != nil {
 			return errMsg{err}
 		}
@@ -308,7 +319,11 @@ func (m model) loadProfile() tea.Cmd {
 		if err != nil {
 			return errMsg{err}
 		}
-		return profileMsg{p, ts, days, totals}
+		hours, err := store.FocusByHour(id)
+		if err != nil {
+			return errMsg{err}
+		}
+		return profileMsg{p, ts, days, hours, totals}
 	}
 }
 
@@ -404,7 +419,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 	case profileMsg:
-		m.pet, m.tasks, m.days, m.totals = msg.pet, msg.tasks, msg.days, msg.totals
+		m.pet, m.tasks, m.days, m.hours, m.totals = msg.pet, msg.tasks, msg.days, msg.hours, msg.totals
 	case boardMsg:
 		switch {
 		case msg.err != nil: // sem marcar o dia como lido: o próximo tick tenta de novo
@@ -468,14 +483,15 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 	if m.tab == tabVisual && t != tabVisual { // saiu sem salvar: desfaz a prévia
-		m.theme, m.st, m.vis, m.lang = m.saved, newStyles(themes[m.saved]), m.visSaved, m.langSaved
+		m.theme, m.st, m.vis, m.lang, m.statsList = m.saved, newStyles(themes[m.saved]), m.visSaved, m.langSaved, m.listSaved
 	}
 	if m.tab == tabProfile && t != tabProfile { // idem para a cor do pet
 		m.pcolor, m.custom = m.pcSaved, false
 	}
 	m.obraFull = false
-	m.tab, m.err, m.notice, m.entering, m.choosing, m.picking, m.form = t, "", "", false, false, false, formNone
+	m.tab, m.err, m.notice, m.entering, m.choosing, m.other, m.picking, m.form = t, "", "", false, false, false, false, formNone
 	if t == tabProfile {
+		m.smonth = time.Time{} // o perfil abre no mês de agora
 		return m, m.loadProfile()
 	}
 	return m, nil
@@ -485,7 +501,7 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 // Os formulários sem campo (o tamanho da sala, a confirmação de saída) não entram: neles as
 // teclas de sempre valem, inclusive o q.
 func (m model) typing() bool {
-	return m.entering || m.cname || m.form == formNew || m.form == formCode
+	return m.entering || m.other || m.cname || m.form == formNew || m.form == formCode
 }
 
 func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

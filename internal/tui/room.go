@@ -8,11 +8,14 @@ import (
 	"slices"
 	"sshiu/internal/pet"
 	"sshiu/internal/rooms"
+	"sshiu/internal/store"
+	"strconv"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"charm.land/log/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -47,6 +50,71 @@ func minuteChoices() []int {
 		return []int{1, 5, 10, 15, 20, 25, 30, 45, 60}
 	}
 	return []int{5, 10, 15, 20, 25, 30, 45, 60}
+}
+
+// O "outro" aceita de otherMin a otherMax minutos (docs/regras.md): acima disso, o tempo esgotado
+// deixaria contar foco demais com o terminal aberto e ninguém na frente.
+const otherMin, otherMax = 5, 120
+
+// choices: os tempos do seletor. O último usado entra no lugar dele quando não é um dos fixos, e o
+// "outro" (0) fica no fim, para digitar os minutos.
+func (m model) choices() []int {
+	cs := minuteChoices()
+	if m.lastMin > 0 && !slices.Contains(cs, m.lastMin) {
+		cs = append(cs, m.lastMin)
+		slices.Sort(cs)
+	}
+	return append(cs, 0)
+}
+
+// openChoice: abre o seletor de tempo já no último tempo usado (no 25 para quem nunca declarou).
+func (m model) openChoice(cont bool) model {
+	m.choosing, m.cont, m.other, m.otherMin = true, cont, false, ""
+	if m.mins = slices.Index(m.choices(), m.lastMin); m.lastMin == 0 || m.mins < 0 { // o 0 é o "outro", não um tempo
+		m.mins = slices.Index(m.choices(), 25)
+	}
+	return m
+}
+
+// declare: começa a tarefa (ou continua a esgotada) com mins e guarda mins como o último tempo.
+func (m model) declare(mins int) (tea.Model, tea.Cmd) {
+	id, code, task, cont := m.id, m.room, strings.TrimSpace(m.in.Value()), m.cont
+	m.choosing, m.other, m.otherMin, m.err, m.lastMin = false, false, "", "", mins
+	return m, act(func() {
+		if err := store.SetLastMin(id, mins); err != nil {
+			log.Error("setLastMin", "err", err)
+		}
+		if cont {
+			rooms.Continue(id, mins)
+			return
+		}
+		rooms.Start(id, code, task, mins)
+	})
+}
+
+// otherKey: o campo do "outro", só com algarismos. O enter confere o limite antes de começar.
+func (m model) otherKey(k string) (tea.Model, tea.Cmd) {
+	switch {
+	case k == "enter":
+		n, err := strconv.Atoi(m.otherMin)
+		switch {
+		case err != nil:
+			m.err = m.t("digite os minutos")
+		case n < otherMin:
+			m.err = m.tf("o mínimo é %d min", otherMin)
+		case n > otherMax:
+			m.err = m.tf("o máximo é %d min", otherMax)
+		default:
+			return m.declare(n)
+		}
+	case k == "esc": // volta para a lista, no "outro"
+		m.other, m.otherMin, m.err = false, "", ""
+	case k == "backspace" && m.otherMin != "":
+		m.otherMin, m.err = m.otherMin[:len(m.otherMin)-1], ""
+	case len(k) == 1 && k[0] >= '0' && k[0] <= '9' && len(m.otherMin) < 3:
+		m.otherMin, m.err = m.otherMin+k, ""
+	}
+	return m, nil
 }
 
 // events: os eventos navegáveis. A sala solo não tem nenhum (nem cursor, nem reações); o que
@@ -88,15 +156,18 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.err = m.t("escreva a próxima coisa concreta que você vai fazer")
 				return m, nil
 			}
-			m.entering, m.choosing, m.cont, m.err = false, true, false, ""
+			m.entering, m.err = false, ""
+			m = m.openChoice(false)
 		case "esc":
 			m.entering, m.err = false, ""
 		default:
 			m.in, cmd = m.in.Update(msg)
 		}
 		return m, cmd
+	case m.choosing && m.other:
+		return m.otherKey(k)
 	case m.choosing:
-		choices := minuteChoices()
+		choices := m.choices()
 		m.mins = min(m.mins, len(choices)-1)
 		switch k {
 		case "left":
@@ -106,12 +177,11 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "esc": // volta um passo: para a tarefa escrita, que continua no campo
 			m.choosing, m.entering = false, !m.cont
 		case "enter":
-			m.choosing = false
-			task, mins := strings.TrimSpace(m.in.Value()), choices[m.mins]
-			if m.cont {
-				return m, act(func() { rooms.Continue(id, mins) })
+			if choices[m.mins] == 0 { // o "outro": abre o campo dos minutos
+				m.other = true
+				return m, nil
 			}
-			return m, act(func() { rooms.Start(id, code, task, mins) })
+			return m.declare(choices[m.mins])
 		}
 		return m, nil
 	}
@@ -163,7 +233,7 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "c":
 		switch {
 		case expired: // o painel está em "c continuar": a configuração espera a resposta
-			m.choosing, m.cont = true, true
+			m = m.openChoice(true)
 		case m.owns():
 			return m.openConfig()
 		}
@@ -208,6 +278,8 @@ func (m model) roomHelp() string {
 		return m.t("↑/↓ escolhe · enter abre") + map[bool]string{true: m.t(" · esc volta"), false: ""}[m.room != ""]
 	case m.entering:
 		return m.t("enter confirma · esc volta")
+	case m.choosing && m.other:
+		return m.t("enter começa · esc volta")
 	case m.choosing:
 		return m.t("←/→ escolhe · enter começa · esc volta")
 	case focusing && me.Focus.Expired(m.now): // as escolhas já estão em destaque no painel
@@ -431,15 +503,17 @@ func (m model) invitePanel(s rooms.Snapshot) string {
 func (m model) soloView() string {
 	// o pet com quem você é ao lado, na altura dele: embaixo o nome ficava solto, longe do desenho
 	// (o sprite é centralizado numa caixa de 16, então ele nunca encosta na margem).
+	cols := soloGardenWidth(max(m.width-4, 40))
+	stats := cols > 0 && m.side == nil // a coluna da direita mostra as stats: o streak e o hoje ficam lá
 	who := lipgloss.JoinHorizontal(lipgloss.Center,
 		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel, m.me().Color)),
-		m.soloWho())
+		m.soloWho(stats))
 	panel := strings.Join([]string{m.focusPanel(panelCols - 1), "", who, "", m.soloLog()}, "\n")
-	if soloGardenWidth(max(m.width-4, 40)) == 0 {
+	if cols == 0 {
 		return panel // terminal estreito: não cabe coluna nenhuma
 	}
-	// a direita muda com o estado: focando é o jardim, parado são os seus números.
-	right := m.statsBlock(true)
+	// a direita muda com o estado: focando é o jardim, parado são as suas stats.
+	right := m.soloStats(cols)
 	if m.side != nil {
 		right = m.side.frame
 	}
@@ -453,10 +527,13 @@ func (m model) soloView() string {
 
 // soloWho: as informações ao lado do pet, em colunas, como a saída de um comando: o rótulo
 // apagado e o valor na cor do texto. O streak e os minutos vêm do banco, então só aparecem
-// depois da primeira tarefa encerrada no dia.
-func (m model) soloWho() string {
+// depois da primeira tarefa encerrada no dia. Com as stats ao lado, eles já estão lá, e aqui fica a
+// energia.
+func (m model) soloWho(stats bool) string {
 	rows := [][2]string{{m.t("humor"), m.t(pet.MoodName[pet.MoodOf(m.me().Energy)])}}
-	if p := m.pet; p.Today == m.now.Format("2006-01-02") {
+	if stats {
+		rows = append(rows, [2]string{m.t("energia"), fmt.Sprintf("%.0f", m.me().Energy)})
+	} else if p := m.pet; p.Today == m.now.Format("2006-01-02") {
 		if n := p.StreakAt(m.now); n > 0 {
 			rows = append(rows, [2]string{m.t("streak"), fmt.Sprintf("%d %s", n, plural(n, m.t("dia seguido"), m.t("dias seguidos")))})
 		}
@@ -497,8 +574,21 @@ func (m model) soloLog() string {
 func (m model) focusPanel(w int) string {
 	me := m.me()
 	f := me.Focus
+	// o tempo escolhido entre as setas; o último usado leva o ↺, e o "outro" vira o campo dos minutos
 	choice := func(label string) string {
-		return label + "  " + m.st.muted.Render("‹ ") + m.st.title.Render(fmt.Sprintf("%d min", minuteChoices()[min(m.mins, len(minuteChoices())-1)])) + m.st.muted.Render(" ›")
+		if m.other {
+			return m.t("quantos minutos?") + "  " + m.otherMin + m.st.title.Render("▏") + "  " +
+				m.st.muted.Render(m.tf("de %d a %d", otherMin, otherMax))
+		}
+		cs := m.choices()
+		c, val := cs[min(m.mins, len(cs)-1)], m.t("outro")
+		if c > 0 {
+			val = fmt.Sprintf("%d min", c)
+		}
+		if c > 0 && c == m.lastMin {
+			val += " ↺"
+		}
+		return label + "  " + m.st.muted.Render("‹ ") + m.st.title.Render(val) + m.st.muted.Render(" ›")
 	}
 	switch {
 	case m.entering:
