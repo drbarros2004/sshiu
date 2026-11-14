@@ -7,7 +7,9 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
 	"math"
+	"sshiu/internal/pet"
 	"strconv"
 	"strings"
 	"time"
@@ -17,10 +19,9 @@ import (
 )
 
 const (
-	barCols   = 16        // largura das barras da semana e das faixas
-	calCols   = 34        // largura do calendário: 7 dias de 4 colunas, com 1 entre eles
-	streakMin = 15        // minutos no dia para ele contar no streak, como no pet (mood.go)
-	onAccent  = "#11111b" // o texto em cima da cor de destaque (aba ativa, dia cheio no calendário)
+	barCols  = 16       // largura das barras da semana e das faixas
+	calCols  = 34        // largura do calendário: 7 dias de 4 colunas, com 1 entre eles
+	onAccent = "#11111b" // o texto em cima da cor de destaque (aba ativa, dia cheio no calendário)
 )
 
 // bandLabels: as faixas do tempo declarado, na ordem de store.Totals.Bands (docs/regras.md).
@@ -77,6 +78,9 @@ func (m model) shownMonth() time.Time {
 func (m model) shiftMonth(step int) model {
 	if next := m.shownMonth().AddDate(0, step, 0); !next.Before(statsFrom) && !next.After(m.now) {
 		m.smonth = next
+		if next.Equal(monthOf(m.now)) { // de volta ao mês de agora: o zero acompanha a virada do mês
+			m.smonth = time.Time{}
+		}
 	}
 	return m
 }
@@ -199,24 +203,28 @@ func (m model) rows(rs [][2]string, w int) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// record: o maior streak desde 2026, nos dias com 15 min ou mais, e o dia em que ele terminou.
-// Nunca fica abaixo do streak de agora, que é o do pet.
-func (m model) record() (int, time.Time) {
-	best, end, run := 0, m.now, 0
-	for d := statsFrom; !d.After(m.now); d = d.AddDate(0, 0, 1) {
-		switch {
-		case m.days[dayKey(d)] >= streakMin:
-			if run++; run > best {
-				best, end = run, d
-			}
-		case dayKey(d) != dayKey(m.now): // hoje ainda pode chegar aos 15 min
+// longestRun: a maior sequência de dias com 15 min ou mais desde 2026 e o dia em que ela terminou.
+// Percorre o ano inteiro, então sai uma vez no loadProfile, e não a cada quadro.
+func longestRun(days map[string]float64, now time.Time) (best int, end time.Time) {
+	run := 0
+	for d := statsFrom; !d.After(now); d = d.AddDate(0, 0, 1) {
+		run++
+		if days[dayKey(d)] < pet.StreakMinutes {
 			run = 0
 		}
-	}
-	if s := m.pet.StreakAt(m.now); s > best {
-		best, end = s, m.now
+		if run > best {
+			best, end = run, d
+		}
 	}
 	return best, end
+}
+
+// record: o recorde de streak, que nunca fica abaixo do streak de agora (o do pet).
+func (m model) record() (int, time.Time) {
+	if s := m.pet.StreakAt(m.now); s > m.rec {
+		return s, m.now
+	}
+	return m.rec, m.recAt
 }
 
 // recordText: "11 em março", o recorde e o mês em que ele terminou; sem recorde, só o 0.
@@ -295,7 +303,6 @@ func (m model) hoursBody() string {
 
 // bandsBody: quanto você cumpre em cada faixa de tempo declarado, a média e o total.
 func (m model) bandsBody() string {
-
 	var b strings.Builder
 	for i, bd := range m.totals.Bands {
 		b.WriteString(m.st.muted.Render(fmt.Sprintf("%-8s", m.t(bandLabels[i][0]))+fmt.Sprintf("%-12s", m.t(bandLabels[i][1]))) + " ")
@@ -308,8 +315,7 @@ func (m model) bandsBody() string {
 		if f < 0.5 {
 			fill = m.st.muted.GetForeground()
 		}
-		b.WriteString(lipgloss.NewStyle().Foreground(fill).Render(strings.Repeat("█", n)) + m.off().Render(strings.Repeat("█", barCols-n)) +
-			fmt.Sprintf(" %3.0f%%", 100*f) + m.st.muted.Render(" "+m.tf("%d de %d", bd[0], bd[1])) + "\n")
+		b.WriteString(m.solid(fill, n) + fmt.Sprintf(" %3.0f%%", 100*f) + m.st.muted.Render(" "+m.tf("%d de %d", bd[0], bd[1])) + "\n")
 	}
 	t := m.totals
 	foca := strconv.Itoa(int(t.Focused.Minutes()) / t.Tasks)
@@ -322,8 +328,11 @@ func (m model) bandsBody() string {
 	return b.String()
 }
 
-// off: a cor apagada do tema, para o fundo das barras.
-func (m model) off() lipgloss.Style { return lipgloss.NewStyle().Foreground(m.st.off) }
+// solid: uma barra de barCols células, as n primeiras em fill e o resto na cor apagada do tema.
+func (m model) solid(fill color.Color, n int) string {
+	return lipgloss.NewStyle().Foreground(fill).Render(strings.Repeat("█", n)) +
+		lipgloss.NewStyle().Foreground(m.st.off).Render(strings.Repeat("█", barCols-n))
+}
 
 // weekBars: os minutos de cada dia desta semana, da segunda até hoje.
 func (m model) weekBars() string {
@@ -339,8 +348,7 @@ func (m model) weekBars() string {
 		if top > 0 {
 			n = int(float64(barCols) * min / top)
 		}
-		b.WriteString(m.st.muted.Render(fmt.Sprintf("%-5s", m.t(weekdays[i]))) + lipgloss.NewStyle().Foreground(m.st.accent).Render(strings.Repeat("█", n)) +
-			m.off().Render(strings.Repeat("█", barCols-n)) + m.st.muted.Render(fmt.Sprintf(" %7s", dur(min))) + "\n")
+		b.WriteString(m.st.muted.Render(fmt.Sprintf("%-5s", m.t(weekdays[i]))) + m.solid(m.st.accent, n) + m.st.muted.Render(fmt.Sprintf(" %7s", dur(min))) + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }

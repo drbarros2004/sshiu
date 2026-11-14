@@ -311,7 +311,8 @@ func FocusByHour(id string) ([24]float64, error) {
 		}
 		perSec := float64(sec) / float64(end-start) / 60 // minutos focados por segundo de relógio
 		for at := time.Unix(start, 0); at.Unix() < end; {
-			next := at.Truncate(time.Hour).Add(time.Hour)
+			// a próxima hora cheia no relógio local (Truncate erraria em fuso de meia hora)
+			next := time.Date(at.Year(), at.Month(), at.Day(), at.Hour()+1, 0, 0, 0, at.Location())
 			if next.Unix() > end {
 				next = time.Unix(end, 0)
 			}
@@ -322,18 +323,13 @@ func FocusByHour(id string) ([24]float64, error) {
 	return out, rows.Err()
 }
 
-// Faixas do tempo declarado: curtas até 15 min, médias até 30, longas acima (docs/regras.md).
-const (
-	Short = iota
-	Medium
-	Long
-)
-
 // Totals: o resumo de todas as tarefas encerradas de um usuário.
 type Totals struct {
 	Tasks, Done       int
 	Focused, Declared time.Duration // somadas: a média sai dividindo por Tasks
-	Bands             [3][2]int     // por faixa do tempo declarado: cumpridas e encerradas
+	// por faixa do tempo declarado (curtas até 15 min, médias até 30, longas acima; docs/regras.md):
+	// cumpridas e encerradas
+	Bands [3][2]int
 }
 
 func GetTotals(id string) (Totals, error) {
@@ -346,7 +342,7 @@ func GetTotals(id string) (Totals, error) {
 		COALESCE(SUM(declared_min > 15 AND declared_min <= 30 AND result = 'done'), 0), COALESCE(SUM(declared_min > 15 AND declared_min <= 30), 0),
 		COALESCE(SUM(declared_min > 30 AND result = 'done'), 0), COALESCE(SUM(declared_min > 30), 0)
 		FROM tasks WHERE user_id = ?`, id).Scan(&t.Tasks, &t.Done, &sec, &min,
-		&b[Short][0], &b[Short][1], &b[Medium][0], &b[Medium][1], &b[Long][0], &b[Long][1])
+		&b[0][0], &b[0][1], &b[1][0], &b[1][1], &b[2][0], &b[2][1])
 	t.Focused, t.Declared = time.Duration(sec)*time.Second, time.Duration(min)*time.Minute
 	return t, err
 }

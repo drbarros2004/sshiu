@@ -80,15 +80,15 @@ func (m model) openChoice(cont bool) model {
 func (m model) declare(mins int) (tea.Model, tea.Cmd) {
 	id, code, task, cont := m.id, m.room, strings.TrimSpace(m.in.Value()), m.cont
 	m.choosing, m.other, m.otherMin, m.err, m.lastMin = false, false, "", "", mins
-	return m, act(func() {
+	return m, act(func() { // a tarefa começa antes de o banco gravar o tempo
+		if cont {
+			rooms.Continue(id, mins)
+		} else {
+			rooms.Start(id, code, task, mins)
+		}
 		if err := store.SetLastMin(id, mins); err != nil {
 			log.Error("setLastMin", "err", err)
 		}
-		if cont {
-			rooms.Continue(id, mins)
-			return
-		}
-		rooms.Start(id, code, task, mins)
 	})
 }
 

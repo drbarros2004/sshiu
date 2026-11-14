@@ -10,17 +10,18 @@ import (
 	"sshiu/internal/pet"
 )
 
-// O recorde conta os dias com 15 min ou mais desde 2026, e hoje abaixo dos 15 não quebra a sequência.
+// O recorde conta os dias com 15 min ou mais desde 2026 e nunca fica abaixo do streak do pet.
 func TestRecord(t *testing.T) {
 	now := time.Date(2026, 3, 20, 10, 0, 0, 0, time.Local)
-	m := model{now: now, days: map[string]float64{}}
+	days := map[string]float64{}
 	for d := 2; d <= 6; d++ { // 5 dias seguidos
-		m.days[dayKey(time.Date(2026, 3, d, 0, 0, 0, 0, time.Local))] = 20
+		days[dayKey(time.Date(2026, 3, d, 0, 0, 0, 0, time.Local))] = 20
 	}
-	m.days["2026-03-07"] = 14 // abaixo dos 15: quebra
-	m.days["2026-03-18"], m.days["2026-03-19"] = 15, 30
-	if rec, at := m.record(); rec != 5 || at.Day() != 6 {
-		t.Fatalf("recorde %d em %v", rec, at)
+	days["2026-03-07"] = 14 // abaixo dos 15: quebra
+	days["2026-03-18"], days["2026-03-19"] = 15, 30
+	m := model{now: now}
+	if m.rec, m.recAt = longestRun(days, now); m.rec != 5 || m.recAt.Day() != 6 {
+		t.Fatalf("recorde %d em %v", m.rec, m.recAt)
 	}
 	m.pet = pet.Pet{Streak: 9, StreakDay: "2026-03-19"} // o streak do pet vale mais que a conta
 	if rec, _ := m.record(); rec != max(5, m.pet.StreakAt(now)) {
@@ -51,6 +52,9 @@ func TestMonthRows(t *testing.T) {
 	}
 	if !m.shownMonth().Equal(statsFrom) { // nem de janeiro de 2026
 		t.Fatalf("voltou para %v", m.shownMonth())
+	}
+	if m = m.shiftMonth(1).shiftMonth(1); !m.smonth.IsZero() { // de volta a março: acompanha a virada do mês
+		t.Fatalf("preso em %v", m.smonth)
 	}
 }
 

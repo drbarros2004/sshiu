@@ -99,12 +99,14 @@ func TestProfileFitsHeight(t *testing.T) {
 	}
 	for _, list := range []bool{false, true} {
 		m.statsList = list
-		for _, wh := range [][2]int{{76, 17}, {76, 21}, {90, 33}, {116, 33}, {116, 60}} {
+		// 106 colunas: o mês ainda não cabe inteiro ao lado do calendário e não pode sair cortado com "…"
+		for _, wh := range [][2]int{{76, 17}, {76, 21}, {90, 33}, {106, 60}, {116, 33}, {116, 60}} {
 			w, h := wh[0], wh[1]
 			view := ansi.Strip(m.profileView(w, h))
 			lines := strings.Split(view, "\n")
-			if len(lines) > h || !strings.Contains(view, "humor") || slices.ContainsFunc(lines, func(l string) bool { return ansi.StringWidth(l) > w }) {
-				t.Fatalf("lista %v, %dx%d: %d linhas, sem o estado ou mais largo que a tela:\n%s", list, w, h, len(lines), view)
+			if len(lines) > h || !strings.Contains(view, "humor") || strings.Contains(view, "…") ||
+				slices.ContainsFunc(lines, func(l string) bool { return ansi.StringWidth(l) > w }) {
+				t.Fatalf("lista %v, %dx%d: %d linhas, sem o estado, cortado ou mais largo que a tela:\n%s", list, w, h, len(lines), view)
 			}
 			if h >= 17 && !strings.Contains(view, m.t(months[m.now.Month()-1])) {
 				t.Fatalf("lista %v, %dx%d: sem o calendário:\n%s", list, w, h, view)

@@ -35,16 +35,14 @@ func (m model) profileView(w, h int) string {
 	}
 	humor := fmt.Sprintf("%-9s", m.t("humor")) + moodSt.Render(m.t(pet.MoodName[mood])) + "\n" + m.energyBar(e, mood, moodSt) + "\n"
 	drawing := func(big bool) string {
-		d := func(md pet.Mood) string {
-			if big {
-				return pet.RenderBig(md, m.tick, m.pixel, m.myColor())
-			}
-			return pet.Render(md, m.tick, m.pixel, m.myColor())
+		render := pet.Render
+		if big {
+			render = pet.RenderBig
 		}
 		if !m.custom {
-			return d(mood)
+			return render(mood, m.tick, m.pixel, m.myColor())
 		}
-		return bold.Render(m.t("prévia do pet")) + "\n\n" + d(m.previewMood) + "\n\n" +
+		return bold.Render(m.t("prévia do pet")) + "\n\n" + render(m.previewMood, m.tick, m.pixel, m.myColor()) + "\n\n" +
 			m.st.muted.Render("↑/↓ ") + m.t(pet.MoodName[m.previewMood]) + "\n" +
 			m.st.muted.Render(m.t("apenas para visualização")+"\n"+m.t("(não altera humor ou energia)"))
 	}
@@ -66,7 +64,7 @@ func (m model) profileView(w, h int) string {
 		tasks = append(tasks, line)
 	}
 	month := m.shownMonth()
-	cal := m.monthTitle(month, true) + "\n" + m.calendar(month) + "\n" + m.heatLegend()
+	title, calG, legend := m.monthTitle(month, true), m.calendar(month), m.heatLegend()
 	nums := m.rows(m.monthRows(month), 15)
 	hoursT, bandsT := m.st.title.Render(m.t("quando você foca")), m.st.title.Render(m.t("o que você cumpre"))+m.st.muted.Render(m.t(" · pelo tempo declarado"))
 	hours, bands := "", ""
@@ -77,13 +75,13 @@ func (m model) profileView(w, h int) string {
 	if m.statsList {
 		d := drawing(h >= 23) // baixo (80×24): o pet menor, para o calendário caber embaixo do estado
 		iw := w - lipgloss.Width(d) - 4
-		title := m.monthTitle(month, true)
+		cal := title + "\n" + calG + "\n" + legend
 		monthSec, numsSec := cal, nums // estreito: os números descem para depois do calendário, e saem antes dele
 		switch {
 		case iw >= lipgloss.Width(cal)+4+lipgloss.Width(nums): // largo: ao lado do calendário, na altura dos dias
 			monthSec, numsSec = lipgloss.JoinHorizontal(lipgloss.Top, cal, "    ", "\n\n"+nums), ""
-		case lipgloss.Width(title)+3+lipgloss.Width(m.heatLegend()) <= iw: // a legenda sobe para a linha do mês: uma linha a menos
-			monthSec = title + "   " + m.heatLegend() + "\n" + m.calendar(month)
+		case lipgloss.Width(title)+3+lipgloss.Width(legend) <= iw: // a legenda sobe para a linha do mês: uma linha a menos
+			monthSec = title + "   " + legend + "\n" + calG
 		}
 		sec := func(title, body string) string {
 			if body == "" {
@@ -118,29 +116,34 @@ func (m model) profileView(w, h int) string {
 	recent := func(k int) string {
 		return m.box(m.st.title.Render(m.t("últimas tarefas")), strings.Join(tasks[:k], "\n"), w, 0)
 	}
-	calB := m.box(m.monthTitle(month, true), m.calendar(month)+"\n\n"+m.heatLegend(), calCols+4, 0)
+	calBody := calG + "\n\n" + legend
+	calB := m.box(title, calBody, calCols+4, 0)
 	monthT := m.st.title.Render(m.t("o mês"))
+	// o mês ao lado do calendário só com largura para os números inteiros, sem o "…" do box
+	beside := calCols + 4 + 1 + lipgloss.Width(nums) + 4
 
 	// largo e alto: o pet grande à esquerda, e à direita o mês, a hora e as faixas
 	l := left(true)
 	if rw := w - lipgloss.Width(l) - 1; rw >= calCols+4+1+30 {
-		right := lipgloss.JoinVertical(lipgloss.Left,
-			lipgloss.JoinHorizontal(lipgloss.Top, calB, " ", m.box(monthT, nums, rw-calCols-5, lipgloss.Height(calB)-2)),
-			box(hoursT, hours, rw, 0), box(bandsT, bands, rw, 0))
+		calRow := lipgloss.JoinHorizontal(lipgloss.Top, calB, " ", m.box(monthT, nums, rw-calCols-5, lipgloss.Height(calB)-2))
+		if rw < beside { // os números não cabem inteiros ao lado: descem para baixo do calendário
+			calRow = m.box(title, calBody, rw, 0) + "\n" + m.box(monthT, nums, rw, 0)
+		}
+		right := lipgloss.JoinVertical(lipgloss.Left, calRow, box(hoursT, hours, rw, 0), box(bandsT, bands, rw, 0))
 		if top := lipgloss.JoinHorizontal(lipgloss.Top, l, " ", right); lipgloss.Height(top) <= h {
 			return stack(h, "\n", []string{top}, recent, len(tasks))
 		}
 	}
 	// pequeno: o pet menor, e em cima só o pet, o estado e o calendário; o resto desce
 	l = left(false)
-	calBody, lh := m.calendar(month)+"\n\n"+m.heatLegend(), lipgloss.Height(l)-2
-	secs := []string{l, m.box(m.monthTitle(month, true), calBody, w, 0), m.box(monthT, nums, w, 0)}
+	lh := lipgloss.Height(l) - 2
+	secs := []string{l, m.box(title, calBody, w, 0), m.box(monthT, nums, w, 0)}
 	switch rw := w - lipgloss.Width(l) - 1; {
-	case rw >= calCols+4+1+30: // sobra largura: o mês também sobe, ao lado do calendário
-		secs = []string{lipgloss.JoinHorizontal(lipgloss.Top, l, " ", m.box(m.monthTitle(month, true), calBody, calCols+4, lh),
+	case rw >= beside: // sobra largura: o mês também sobe, ao lado do calendário
+		secs = []string{lipgloss.JoinHorizontal(lipgloss.Top, l, " ", m.box(title, calBody, calCols+4, lh),
 			" ", m.box(monthT, nums, rw-calCols-5, lh))}
 	case rw >= calCols+4:
-		secs = []string{lipgloss.JoinHorizontal(lipgloss.Top, l, " ", m.box(m.monthTitle(month, true), calBody, rw, lh)),
+		secs = []string{lipgloss.JoinHorizontal(lipgloss.Top, l, " ", m.box(title, calBody, rw, lh)),
 			m.box(monthT, nums, w, 0)}
 	}
 	secs = append(secs, box(hoursT, hours, w, 0), box(bandsT, bands, w, 0))

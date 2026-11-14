@@ -98,6 +98,8 @@ type (
 		days   map[string]float64 // minutos focados por dia, para o calendário
 		hours  [24]float64        // minutos focados por hora do dia
 		totals store.Totals
+		rec    int       // a maior sequência nos dias carregados (longestRun)...
+		recAt  time.Time // ...e o dia em que ela terminou
 	}
 	errMsg  struct{ error }
 	roomMsg struct { // entrei numa sala (criada agora ou por código)
@@ -185,6 +187,8 @@ type model struct {
 	hours    [24]float64        // minutos focados por hora do dia
 	smonth   time.Time          // o mês do calendário no perfil (zero = o de agora)
 	totals   store.Totals
+	rec      int       // o recorde de streak nos dias carregados (longestRun)...
+	recAt    time.Time // ...e o dia em que ele terminou
 }
 
 // me: você como a sala te vê (status e tarefa).
@@ -323,7 +327,8 @@ func (m model) loadProfile() tea.Cmd {
 		if err != nil {
 			return errMsg{err}
 		}
-		return profileMsg{p, ts, days, hours, totals}
+		rec, recAt := longestRun(days, time.Now())
+		return profileMsg{p, ts, days, hours, totals, rec, recAt}
 	}
 }
 
@@ -420,6 +425,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case profileMsg:
 		m.pet, m.tasks, m.days, m.hours, m.totals = msg.pet, msg.tasks, msg.days, msg.hours, msg.totals
+		m.rec, m.recAt = msg.rec, msg.recAt
 	case boardMsg:
 		switch {
 		case msg.err != nil: // sem marcar o dia como lido: o próximo tick tenta de novo
