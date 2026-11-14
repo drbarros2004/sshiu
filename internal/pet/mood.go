@@ -27,7 +27,7 @@ const (
 	energyPer30Min   = 8.0  // 30 min de foco devolvem um dia parado
 	doneBonus        = 3.0  // tarefa cumprida...
 	doneBonusMinutes = 10.0 // ...com pelo menos estes minutos focados
-	streakMinutes    = 15.0 // minutos focados no dia para o dia contar no streak
+	StreakMinutes    = 15.0 // minutos focados no dia para o dia contar no streak
 )
 
 // Focus soma ao pet uma tarefa encerrada: os minutos que contaram e se foi cumprida.
@@ -41,7 +41,7 @@ func (p *Pet) Focus(minutes float64, done bool, now time.Time) {
 		p.Today, p.TodayMin = day(now), 0
 	}
 	p.TodayMin += minutes
-	if p.TodayMin < streakMinutes {
+	if p.TodayMin < StreakMinutes {
 		return
 	}
 	switch p.StreakDay {
