@@ -6,8 +6,8 @@ package tui
 // wallpaper (a troca vale para a tarefa); qualquer outra tecla volta sem executar nada.
 //
 // Wallpapers escritos do zero (ADR 0005, créditos em CREDITS.md): céu noturno, chuva e lâmpada de
-// lava inspirados em projetos MIT/Apache; café, árvore e estrada são desenhos nossos, em pixels
-// (garden_pixels.go).
+// lava inspirados em projetos MIT/Apache; café, árvore, estrada, farol e o gato e o cachorro
+// dormindo são desenhos nossos, em pixels (garden_pixels.go).
 
 import (
 	"fmt"
@@ -46,6 +46,9 @@ var wallpapers = []wallpaper{
 	{"coffee", "café", func() scene { return &coffee{} }, false},
 	{"tree", "árvore", func() scene { return &tree{} }, false},
 	{"road", "estrada à noite", func() scene { return &road{} }, false},
+	{"lighthouse", "farol", func() scene { return &lighthouse{} }, false},
+	{"cat", "gato dormindo", func() scene { return &sleeper{} }, false},
+	{"dog", "cachorro dormindo", func() scene { return &sleeper{dog: true} }, false},
 	{"brainrot", "brainrot (para devs de verdade)", brainrotScene, true},
 }
 

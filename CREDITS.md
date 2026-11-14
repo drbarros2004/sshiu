@@ -11,7 +11,7 @@ Todos foram escritos do zero em Go, em [`internal/tui/garden.go`](internal/tui/g
 | céu noturno | [ascii-splash](https://github.com/reowens/ascii-splash) (NightSky) e [bruh.animate](https://github.com/ethanlchristensen/bruh.animate) (twinkle) | MIT e Apache-2.0 |
 | chuva lenta | [Terminal Rain](https://github.com/rmaake1/terminal-rain-lightning) | MIT |
 | lâmpada de lava | [lavat](https://github.com/AngelJumbo/lavat) | MIT |
-| café, árvore, estrada à noite | desenhos nossos | — |
+| café, árvore, estrada à noite, farol, gato dormindo, cachorro dormindo | desenhos nossos | — |
 
 ## Vídeos do wallpaper brainrot
 

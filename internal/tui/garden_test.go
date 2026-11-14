@@ -193,6 +193,25 @@ func TestShadeAndPut(t *testing.T) {
 	}
 }
 
+// O farol e os bichos dormindo se desenham em qualquer tela, da minúscula à larga, com o quadro
+// do texto (a placa, o calendário) no lugar e o texto dentro da tela.
+func TestPixelWallpapersAnySize(t *testing.T) {
+	for _, id := range []string{"lighthouse", "cat", "dog"} {
+		for _, sz := range [][2]int{{20, 10}, {64, 20}, {120, 36}, {250, 60}} {
+			sc := wallpapers[wallpaperIndex(id)].new()
+			x, y, _ := sc.(spot).spot(sz[0], sz[1], 30, 8)
+			if x < 0 || y < 0 {
+				t.Errorf("%s em %v: o texto em (%d, %d)", id, sz, x, y)
+			}
+			c := newCanvas(sz[0], sz[1])
+			sc.draw(c, 7.3, 0.125)
+			if strings.TrimSpace(ansi.Strip(c.String())) == "" && c.cells[c.w/2].b == "" {
+				t.Errorf("%s em %v: a tela ficou vazia", id, sz)
+			}
+		}
+	}
+}
+
 // caractere largo, acento combinante e espaço de largura zero ocupam as colunas que o terminal
 // usa, e a linha nunca passa da largura do jardim (#85).
 func TestCanvasWideText(t *testing.T) {
