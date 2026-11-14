@@ -62,9 +62,10 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 - **Por quê:** personalização. Pelo ritmo em que os sprites atuais saíram, 10 a 15 pets parece viável para o MVP.
 - **O nome "pet":** continua provisório. Ficou de fora da decisão do nome do app ([#28](https://github.com/drbarros2004/ssh-focus-app/issues/28)).
 
-### Leaderboard da sala
-- **O quê:** um ranking dentro de cada sala.
-- **Por quê:** dá um motivo coletivo para voltar, além do pet de cada um.
+### Tabela de foco (implementada em 10/11/2026)
+- **O que entrou:** os minutos de cada membro hoje, na semana, no mês ou no total, no menu do dono, em tabela ou ranking, fechada ou aberta para a sala na tecla `o` ([ADR 0010](docs/adr/0010-tabela-de-foco.md), [#16](https://github.com/drbarros2004/sshiu/issues/16)).
+- **Falta da [#83](https://github.com/drbarros2004/sshiu/issues/83):** o log de todas as tarefas de todos, com filtro por pessoa. Sai da tabela `tasks`, que já guarda a sala de cada tarefa (`room_code`).
+- **Administrador de instituição:** uma empresa parceira com um espaço mais privado e alguém acima das salas acompanhando tudo. É um modelo novo de gente (o dono hoje é de uma sala só, [ADR 0007](docs/adr/0007-dono-da-sala.md)), então pede um ADR próprio antes de código.
 
 ### Pôr no ar: `ssh sshiu`
 - **O quê:** um servidor público com domínio, ouvindo na porta 22, para entrar só com `ssh sshiu` (ou `ssh sshiu.<domínio>`), como o `ssh terminal.shop`. O convite de uma sala vira uma linha para colar no grupo da turma: `ssh -t sshiu <código>`. O `-t` está lá porque, com o código no fim, o ssh não pede terminal; ler o código do usuário (`ssh <código>@<nome>`) dispensaria o `-t` e deixaria o convite mais curto.
