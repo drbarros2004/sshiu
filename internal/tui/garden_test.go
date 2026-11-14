@@ -193,15 +193,26 @@ func TestShadeAndPut(t *testing.T) {
 	}
 }
 
-// O farol e os bichos dormindo se desenham em qualquer tela, da minúscula à larga, com o quadro
-// do texto (a placa, o calendário) no lugar e o texto dentro da tela.
+// O farol e os bichos dormindo se desenham em qualquer tela, da minúscula à larga, com o texto
+// dentro da tela e o quadro dele (a placa, o calendário) em volta, onde o render põe o texto.
 func TestPixelWallpapersAnySize(t *testing.T) {
 	for _, id := range []string{"lighthouse", "cat", "dog"} {
-		for _, sz := range [][2]int{{20, 10}, {64, 20}, {120, 36}, {250, 60}} {
+		for _, sz := range [][2]int{{20, 10}, {50, 14}, {80, 24}, {120, 36}, {250, 60}} {
 			sc := wallpapers[wallpaperIndex(id)].new()
-			x, y, _ := sc.(spot).spot(sz[0], sz[1], 30, 8)
-			if x < 0 || y < 0 {
+			tw, th := min(33, sz[0]-2), min(8, sz[1])
+			x, y, _ := sc.(spot).spot(sz[0], sz[1], tw, th)
+			if x < 1 || y < 0 || x+tw >= sz[0] || y+th > sz[1] {
 				t.Errorf("%s em %v: o texto em (%d, %d)", id, sz, x, y)
+			}
+			var board [4]int
+			switch s := sc.(type) {
+			case *lighthouse:
+				board = s.board
+			case *sleeper:
+				board = s.board
+			}
+			if board != boardAt(x, y, tw, th) {
+				t.Errorf("%s em %v: o quadro %v não está em volta do texto em (%d, %d)", id, sz, board, x, y)
 			}
 			c := newCanvas(sz[0], sz[1])
 			sc.draw(c, 7.3, 0.125)
