@@ -102,6 +102,7 @@ func TestLang(t *testing.T) {
 	if err := Open(path); err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { db.Close() }) // no Windows, o TempDir não apaga um banco aberto
 	if got := Lang("ninguem"); got != "en" {
 		t.Fatalf("sem usuário: %q", got)
 	}
@@ -114,6 +115,7 @@ func TestLang(t *testing.T) {
 	if err := SetLang("u", "pt"); err != nil {
 		t.Fatal(err)
 	}
+	db.Close()
 	if err := Open(path); err != nil { // reabrir roda o ALTER TABLE de novo, sem mexer na escolha
 		t.Fatal(err)
 	}
