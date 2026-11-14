@@ -100,6 +100,12 @@ func TestDono(t *testing.T) {
 	if err := Join("dan", DemoCode); err == nil { // tem vaga, mas a sala está fechada
 		t.Fatal("entrou numa sala fechada")
 	}
+	if err := SetBoard("bia", DemoCode, true, true); err == nil || r.boardOpen || r.boardRank {
+		t.Fatal("quem não é dono abriu a tabela de foco")
+	}
+	if err := SetBoard("ana", DemoCode, true, true); err != nil || !r.boardOpen || !r.boardRank {
+		t.Fatalf("o dono não abriu a tabela de foco: %v", err)
+	}
 	if err := Transfer("ana", DemoCode, "bia"); err != nil || r.owner != "bia" {
 		t.Fatalf("passar a sala: %v %q", err, r.owner)
 	}

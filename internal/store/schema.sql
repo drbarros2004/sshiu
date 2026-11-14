@@ -31,7 +31,9 @@ CREATE TABLE IF NOT EXISTS rooms (
 	max_members INTEGER NOT NULL DEFAULT 10,  -- tamanho, mudado pelo dono
 	closed      INTEGER NOT NULL DEFAULT 0,   -- 1 = não aceita mais ninguém, mesmo com vaga
 	obra        TEXT NOT NULL DEFAULT '',     -- o tema da obra ("" = sem obra, ADR 0008)
-	obra_meta   INTEGER NOT NULL DEFAULT 60   -- minutos focados que completam uma peça
+	obra_meta   INTEGER NOT NULL DEFAULT 60,  -- minutos focados que completam uma peça
+	board_open  INTEGER NOT NULL DEFAULT 0,   -- 1 = a sala toda vê a tabela de foco (ADR 0010)
+	board_rank  INTEGER NOT NULL DEFAULT 0    -- 1 = a tabela de foco em ranking, em vez da tabela
 );
 CREATE TABLE IF NOT EXISTS room_members (
 	code    TEXT NOT NULL REFERENCES rooms(code),

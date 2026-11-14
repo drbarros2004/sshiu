@@ -98,12 +98,16 @@ func (m model) weekBars() string {
 		if top > 0 {
 			n = int(float64(barCols) * min / top)
 		}
-		bar := lipgloss.NewStyle().Foreground(m.st.accent).Render(strings.Repeat("█", n)) +
-			m.st.muted.Render(strings.Repeat("░", barCols-n))
-		b.WriteString(fmt.Sprintf("%s  %s %s\n", m.st.muted.Render(m.t(weekdays[i])), bar,
+		b.WriteString(fmt.Sprintf("%s  %s %s\n", m.st.muted.Render(m.t(weekdays[i])), m.bar(n, barCols),
 			m.st.muted.Render(fmt.Sprintf("%7s", dur(min)))))
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// bar: uma barra de cols células com as n primeiras acesas.
+func (m model) bar(n, cols int) string {
+	return lipgloss.NewStyle().Foreground(m.st.accent).Render(strings.Repeat("█", n)) +
+		m.st.muted.Render(strings.Repeat("░", cols-n))
 }
 
 // taskNumbers: o que as tarefas encerradas dizem sobre o seu foco.

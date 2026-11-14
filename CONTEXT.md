@@ -29,7 +29,7 @@ Um usuário que entrou numa sala e ainda não saiu. A sala deixa de existir quan
 _Evite_: participante
 
 **Dono da sala**:
-Quem criou a sala, ou o membro para quem ela foi passada. É quem muda o nome e o tamanho, fecha a sala para novas entradas, remove um membro e encerra a sala ([ADR 0007](docs/adr/0007-dono-da-sala.md)). Nenhum outro membro tem poderes.
+Quem criou a sala, ou o membro para quem ela foi passada. É quem muda o nome e o tamanho, fecha a sala para novas entradas, remove um membro, escolhe a obra, vê a tabela de foco e encerra a sala ([ADR 0007](docs/adr/0007-dono-da-sala.md)). Nenhum outro membro tem poderes.
 _Evite_: admin, moderador, host, criador
 
 **Sala fechada**:
@@ -123,6 +123,10 @@ _Evite_: projeto, conquista, missão
 **Peça**:
 A sua parte da obra — o vagão, o vaso, a casa. Cresce com os seus minutos focados no dia.
 _Evite_: item, pedaço, bloco
+
+**Tabela de foco**:
+Quanto cada membro focou hoje, na semana, no mês ou no total, com o tempo exato ou em ranking. É do dono, no menu da sala; a sala toda vê, junto da obra, só se o dono abrir. O período é de quem olha ([ADR 0010](docs/adr/0010-tabela-de-foco.md)).
+_Evite_: leaderboard, placar, relatório
 
 **Meta da sala**:
 Quantos minutos focados completam uma peça. O dono escolhe; o padrão é 1 h.

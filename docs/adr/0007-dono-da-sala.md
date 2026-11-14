@@ -4,7 +4,7 @@ O [ADR 0003](0003-so-salas-privadas.md) deixou a sala sem ninguém no comando: q
 
 ## O que o dono faz
 
-Trocar o nome, mudar o tamanho, fechar a sala para novas entradas, remover um membro, passar a sala para outro membro e encerrar a sala.
+Trocar o nome, mudar o tamanho, fechar a sala para novas entradas, remover um membro, passar a sala para outro membro e encerrar a sala. Depois vieram a obra e a meta dela ([ADR 0008](0008-obra-da-sala.md)) e a tabela de foco, que só o dono vê até abrir para a sala ([ADR 0010](0010-tabela-de-foco.md)).
 
 ## Consequências
 

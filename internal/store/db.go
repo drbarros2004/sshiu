@@ -49,6 +49,8 @@ func Open(path string) error {
 	}
 	d.Exec(`ALTER TABLE rooms ADD COLUMN obra TEXT NOT NULL DEFAULT ''`)
 	d.Exec(`ALTER TABLE rooms ADD COLUMN obra_meta INTEGER NOT NULL DEFAULT 60`)
+	d.Exec(`ALTER TABLE rooms ADD COLUMN board_open INTEGER NOT NULL DEFAULT 0`)
+	d.Exec(`ALTER TABLE rooms ADD COLUMN board_rank INTEGER NOT NULL DEFAULT 0`)
 	d.Exec(`ALTER TABLE tasks ADD COLUMN room_code TEXT NOT NULL DEFAULT ''`)
 	// o padrão é inglês para todo mundo, inclusive quem já usava o app; quem quiser volta na aba visual (#86)
 	d.Exec(`ALTER TABLE users ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'`)
@@ -270,12 +272,36 @@ func GetTotals(id string) (Totals, error) {
 	return t, err
 }
 
+// FocusBetween: os minutos focados de cada usuário nas tarefas que terminaram de from até antes
+// de until, em qualquer sala. A tarefa conta no dia em que termina, como o pet guarda os minutos
+// do dia. É a tabela de foco na semana, no mês e no total, até ontem (ADR 0010).
+func FocusBetween(from, until time.Time) (map[string]float64, error) {
+	rows, err := db.Query(`SELECT user_id, SUM(focused_sec) FROM tasks WHERE ended_at >= ? AND ended_at < ?
+		GROUP BY user_id`, from.Unix(), until.Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]float64{}
+	for rows.Next() {
+		var id string
+		var sec float64
+		if err := rows.Scan(&id, &sec); err != nil {
+			return nil, err
+		}
+		out[id] = sec / 60
+	}
+	return out, rows.Err()
+}
+
 type RoomRow struct {
 	Code, Name, Owner string
 	Max               int  // quantos membros a sala aceita
 	Closed            bool // fechada para novas entradas
 	Obra              string
-	ObraMeta          int // minutos focados que completam uma peça
+	ObraMeta          int  // minutos focados que completam uma peça
+	BoardOpen         bool // a sala toda vê a tabela de foco, não só o dono (ADR 0010)
+	BoardRank         bool // a tabela de foco em ranking
 }
 
 // newCode: 6 letras sem as ambíguas (0/o, 1/l/i), fácil de ditar para um colega.
@@ -291,7 +317,7 @@ func newCode() string {
 
 // Rooms lista todas as salas.
 func Rooms() ([]RoomRow, error) {
-	rows, err := db.Query(`SELECT code, name, owner, max_members, closed, obra, obra_meta FROM rooms`)
+	rows, err := db.Query(`SELECT code, name, owner, max_members, closed, obra, obra_meta, board_open, board_rank FROM rooms`)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +325,7 @@ func Rooms() ([]RoomRow, error) {
 	var out []RoomRow
 	for rows.Next() {
 		var r RoomRow
-		if err := rows.Scan(&r.Code, &r.Name, &r.Owner, &r.Max, &r.Closed, &r.Obra, &r.ObraMeta); err != nil {
+		if err := rows.Scan(&r.Code, &r.Name, &r.Owner, &r.Max, &r.Closed, &r.Obra, &r.ObraMeta, &r.BoardOpen, &r.BoardRank); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -307,10 +333,10 @@ func Rooms() ([]RoomRow, error) {
 	return out, rows.Err()
 }
 
-// SetRoom grava o que o dono mudou na sala: nome, tamanho, dono e se ela está fechada.
+// SetRoom grava o que o dono mudou na sala: nome, tamanho, dono, se ela está fechada, a obra e a tabela de foco.
 func SetRoom(r RoomRow) error {
-	_, err := db.Exec(`UPDATE rooms SET name = ?, owner = ?, max_members = ?, closed = ?, obra = ?, obra_meta = ? WHERE code = ?`,
-		r.Name, r.Owner, r.Max, r.Closed, r.Obra, r.ObraMeta, r.Code)
+	_, err := db.Exec(`UPDATE rooms SET name = ?, owner = ?, max_members = ?, closed = ?, obra = ?, obra_meta = ?, board_open = ?, board_rank = ? WHERE code = ?`,
+		r.Name, r.Owner, r.Max, r.Closed, r.Obra, r.ObraMeta, r.BoardOpen, r.BoardRank, r.Code)
 	return err
 }
 

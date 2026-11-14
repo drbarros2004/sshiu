@@ -115,6 +115,9 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	switch k {
 	case "left", "right": // na sala solo, trocam o wallpaper da coluna, como na tela cheia
+		if m.oScreen() && m.boardShown(m.w.Rooms[code]) { // na tecla o, trocam o período da tabela de foco
+			return m.shiftPeriod(map[string]int{"left": -1, "right": 1}[k])
+		}
 		if m.side != nil {
 			return m.swapWallpaper(m.side, map[string]int{"left": -1, "right": 1}[k])
 		}
@@ -161,9 +164,11 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case m.owns():
 			return m.openConfig()
 		}
-	case "o": // a obra sozinha na tela, para quem não tem altura para ela junto com os cards
-		if m.obraOf(m.w.Rooms[code]) != nil {
-			m.obraFull = !m.obraFull
+	case "o": // a obra sozinha na tela, para quem não tem altura para ela junto com os cards, e a tabela de foco
+		if s := m.w.Rooms[code]; m.obraFull || m.obraOf(s) != nil || m.boardShown(s) { // voltar sempre dá
+			if m.obraFull = !m.obraFull; m.obraFull { // ao abrir, a tabela relê o período
+				return m, m.loadBoard()
+			}
 		}
 	case "y": // o servidor não sabe se o terminal aceitou o OSC 52: o aviso diz só que mandou
 		if !m.solo() && code != rooms.DemoCode { // as duas salas sem código para passar adiante
@@ -182,7 +187,9 @@ func (m model) roomHelp() string {
 	me := m.me()
 	focusing := me.Status == rooms.Focusing
 	switch {
-	case m.obraFull:
+	case m.oScreen() && m.boardShown(m.w.Rooms[m.room]):
+		return m.t("←/→ período · o volta para a sala")
+	case m.oScreen():
 		return m.t("o volta para a sala")
 	case m.cfg:
 		return m.cfgHelp()
@@ -226,12 +233,26 @@ func (m model) sideHint() string {
 	return m.t(" · ←/→ wallpaper")
 }
 
-// obraHint: a tecla da obra, que só existe onde há obra para ver.
+// oScreen: a tela da tecla o está na frente. Ela cede ao menu, ao menu de salas e aos campos de
+// texto, e some quando não há mais obra nem tabela para mostrar (o dono fechou, ou a sala mudou).
+func (m model) oScreen() bool {
+	s := m.w.Rooms[m.room]
+	return m.obraFull && !m.cfg && !m.inPicker() && !m.entering && !m.choosing &&
+		(m.obraOf(s) != nil || m.boardShown(s))
+}
+
+// obraHint: a tecla da obra, que só existe onde há obra ou tabela de foco para ver. Com as duas,
+// a dica fica só "obra": a tabela compacta já diz "no o", e o rodapé do dono não cabe em 120
+// colunas com as duas palavras.
 func (m model) obraHint() string {
-	if m.obraOf(m.w.Rooms[m.room]) == nil {
-		return ""
+	s := m.w.Rooms[m.room]
+	switch {
+	case m.obraOf(s) != nil:
+		return m.t(" · o obra")
+	case m.boardShown(s):
+		return m.t(" · o tabela")
 	}
-	return m.t(" · o obra")
+	return ""
 }
 
 // reactHelp: as teclas de evento e reação, que a sala solo não tem.
@@ -252,7 +273,7 @@ func (m model) roomView(w, h int) string {
 	}
 	s := m.w.Rooms[m.room]
 	if m.cfg {
-		return m.cfgView()
+		return m.cfgView(h)
 	}
 	me := m.me()
 	// com o tempo esgotado o c é "continuar", e digitando a tarefa as teclas são texto
@@ -274,7 +295,7 @@ func (m model) roomView(w, h int) string {
 	if m.notice != "" {
 		title += "\n" + m.st.ok.Render(m.notice)
 	}
-	if m.obraFull { // a obra sozinha, na tecla o
+	if m.oScreen() { // a obra sozinha, na tecla o
 		return m.obraView(s, w, h)
 	}
 	if m.solo() { // a sala solo tem uma pessoa e nenhum card: ela já cabe
@@ -282,9 +303,9 @@ func (m model) roomView(w, h int) string {
 	}
 	var out string
 	for _, st := range m.fitSteps(s, w) {
-		// sem eventos só depois de a obra ou os pets já terem encolhido
-		for n := shownEvents; n >= 0 && (st.compact || st.ob != "" || n > 0); n -= 2 {
-			out = m.roomBody(s, title, w, n, st.compact, st.ob)
+		// sem eventos só depois de a obra ou os pets já terem encolhido, e nunca com a tabela na tela
+		for n := shownEvents; n >= 0 && (n > 0 || st.bd == "" && (st.compact || st.ob != "")); n -= 2 {
+			out = m.roomBody(s, title, w, n, st.compact, st.ob, st.bd)
 			if lipgloss.Height(out) <= h {
 				return out
 			}
@@ -296,35 +317,52 @@ func (m model) roomView(w, h int) string {
 // fitStep: uma tentativa de caber na altura, da tela cheia para a mais apertada.
 type fitStep struct {
 	ob      string // a obra desenhada, ou "" quando ela já não cabe
+	bd      string // a tabela de foco compacta, ou "" quando ela já não cabe (ADR 0010)
 	compact bool   // os pets viram um ponto da cor do corpo do pet
 }
 
 // fitSteps: a ordem em que a tela abre mão das coisas. Dentro de cada passo o feed encurta
 // primeiro; depois a obra troca o arranjo do tema por uma fileira só, depois os pets viram ponto,
-// e a obra sai por último — tirando ela, os pets voltam ao tamanho normal.
+// e a obra sai por último — tirando ela, os pets voltam ao tamanho normal. Com a tabela de foco,
+// tudo isso acontece com ela na tela, e ela só sai depois da obra: sem ela, a obra não volta (ADR 0010).
 //
 // Ela saía primeiro, e numa janela pequena isso queria dizer nunca aparecer: numa sala de seis
 // pessoas a obra pedia umas 50 linhas, que é mais do que um terminal costuma ter (ADR 0008).
 func (m model) fitSteps(s rooms.Snapshot, w int) []fitStep {
-	steps := []fitStep{{"", false}, {"", true}}
-	full := m.obraBlock(s, w, false)
-	if full == "" {
+	steps := []fitStep{{"", "", false}, {"", "", true}}
+	if full := m.obraBlock(s, w, false); full != "" {
+		first := []fitStep{{full, "", false}}
+		if flat := m.obraBlock(s, w, true); flat != full { // o trem já é uma fileira: achatar não muda
+			first = append(first, fitStep{flat, "", false}, fitStep{flat, "", true})
+		} else {
+			first = append(first, fitStep{full, "", true})
+		}
+		steps = append(first, steps...)
+	}
+	bd := m.boardSide(s)
+	if bd == "" {
 		return steps
 	}
-	first := []fitStep{{full, false}}
-	if flat := m.obraBlock(s, w, true); flat != full { // o trem já é uma fileira: achatar não muda
-		first = append(first, fitStep{flat, false}, fitStep{flat, true})
-	} else {
-		first = append(first, fitStep{full, true})
+	with := slices.Clone(steps)
+	for i := range with {
+		with[i].bd = bd
 	}
-	return append(first, steps...)
+	return append(with, steps[len(steps)-2:]...) // depois da tabela, só os passos sem obra
 }
 
-// roomBody: a tela montada com n eventos, os pets do tamanho que couber e, se ob não for vazio,
-// a obra. O trem ocupa a largura e fica embaixo dos cards; a cidade cabe ao lado do log e vai
-// para o canto que hoje fica vazio, descendo para baixo dele quando a janela é estreita.
-func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, ob string) string {
-	out := title + "\n\n" + m.focusPanel() + "\n\n" + m.cards(s, w, compact)
+// roomBody: a tela montada com n eventos, os pets do tamanho que couber e, se ob e bd não forem
+// vazios, a obra e a tabela de foco. A tabela fica à direita do painel de foco, presa na borda,
+// onde o alto da tela costuma estar vazio; se o painel não deixa espaço, ela fica só na tecla o.
+// O trem ocupa a largura e fica embaixo dos cards; a cidade cabe ao lado do log, no canto que
+// fica vazio, e sobe para entre os cards e o log quando a janela é estreita.
+func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, ob, bd string) string {
+	panel := m.focusPanel(w)
+	// a largura decide, não o estado do painel: a tabela fica onde o relógio cabe ao lado dela e
+	// só sai enquanto você escreve a tarefa, que tem um campo largo
+	if left := w - lipgloss.Width(bd) - obraGap; bd != "" && left >= clockCols+23 && !m.entering {
+		panel = lipgloss.JoinHorizontal(lipgloss.Top, lipgloss.NewStyle().Width(left+obraGap).Render(m.focusPanel(left)), bd)
+	}
+	out := title + "\n\n" + panel + "\n\n" + m.cards(s, w, compact)
 	alone := len(s.Members) == 1 && m.room != rooms.DemoCode // sozinho numa sala de mais
 	if alone {                                               // o convite vale mais que o feed vazio, e não encolhe
 		if ob != "" {
@@ -341,7 +379,7 @@ func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, 
 	case m.obraOf(s).wide:
 		out += "\n\n" + ob
 	case log == "" || w-lipgloss.Width(log)-obraGap < lipgloss.Width(ob):
-		out += "\n\n" + ob // não cabe ao lado: desce para baixo do log
+		out += "\n\n" + ob // não cabe ao lado: fica entre os cards e o log
 	default:
 		log = lipgloss.JoinHorizontal(lipgloss.Top, log, strings.Repeat(" ", obraGap), ob)
 	}
@@ -380,7 +418,7 @@ func (m model) soloView() string {
 	who := lipgloss.JoinHorizontal(lipgloss.Center,
 		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel, m.me().Color)),
 		m.soloWho())
-	panel := strings.Join([]string{m.focusPanel(), "", who, "", m.soloLog()}, "\n")
+	panel := strings.Join([]string{m.focusPanel(panelCols), "", who, "", m.soloLog()}, "\n")
 	if soloGardenWidth(max(m.width-4, 40)) == 0 {
 		return panel // terminal estreito: não cabe coluna nenhuma
 	}
@@ -437,8 +475,8 @@ func (m model) soloLog() string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// focusPanel: o seu foco, conforme o momento.
-func (m model) focusPanel() string {
+// focusPanel: o seu foco em até w colunas, conforme o momento.
+func (m model) focusPanel(w int) string {
 	me := m.me()
 	f := me.Focus
 	choice := func(label string) string {
@@ -448,15 +486,15 @@ func (m model) focusPanel() string {
 	case m.entering:
 		return bold.Render(m.t("qual a próxima coisa concreta que você vai fazer?")) + "\n" + m.in.View()
 	case m.choosing && m.cont:
-		return bold.Render(f.Task) + "\n" + choice(m.t("mais quanto tempo?"))
+		return bold.Render(ellipsize(f.Task, w, 1)) + "\n" + choice(m.t("mais quanto tempo?"))
 	case m.choosing:
-		return bold.Render(strings.TrimSpace(m.in.Value())) + "\n" + choice(m.t("quanto tempo?"))
+		return bold.Render(ellipsize(strings.TrimSpace(m.in.Value()), w, 1)) + "\n" + choice(m.t("quanto tempo?"))
 	case me.Status != rooms.Focusing:
 		return bold.Render(m.t("nenhuma tarefa em andamento.")) + "\n" + m.st.muted.Render(m.t("enter começa uma tarefa"))
 	}
 	// A tarefa e os números ficam no topo do relógio, nunca ao lado dele por inteiro: o painel da
 	// sala solo tem 54 colunas, e texto comprido ao lado do relógio quebrava a tela em pedaços.
-	side := max(20, m.panelWidth()-clockCols-3)
+	side := max(20, w-clockCols-3)
 	lines := []string{bold.Render(ellipsize(f.Task, side, 2))}
 	c := m.st.title
 	if f.Expired(m.now) {
@@ -473,14 +511,6 @@ func (m model) focusPanel() string {
 			m.st.muted.Render(" · ") + m.st.ok.Render(m.t("f feito"))
 	}
 	return block
-}
-
-// panelWidth: a largura útil de quem mostra o foco — o painel da sala solo ou a tela inteira.
-func (m model) panelWidth() int {
-	if m.solo() {
-		return panelCols
-	}
-	return max(m.width-4, 40)
 }
 
 // received: quantas reações cada membro recebeu nos eventos da sala (o contador do card, ADR 0004).

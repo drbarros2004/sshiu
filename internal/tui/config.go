@@ -21,13 +21,14 @@ const (
 	cfgEntries
 	cfgObra
 	cfgMeta
+	cfgBoard
 	cfgGive
 	cfgKick
 	cfgEnd
 )
 
-// cfgList: as linhas que aparecem nesta sala. A sala solo não tem obra (ADR 0008), e a meta só
-// existe depois de haver um tema: configuração que não faz nada não ocupa linha.
+// cfgList: as linhas que aparecem nesta sala. A sala solo não tem obra (ADR 0008) nem tabela de foco
+// (ADR 0010), e a meta só existe depois de haver um tema: configuração que não faz nada não ocupa linha.
 func cfgList(s rooms.Snapshot) []int {
 	rows := []int{cfgName, cfgSize, cfgEntries}
 	if s.Max > rooms.MinMembers {
@@ -35,6 +36,7 @@ func cfgList(s rooms.Snapshot) []int {
 		if s.Obra != "" {
 			rows = append(rows, cfgMeta)
 		}
+		rows = append(rows, cfgBoard)
 	}
 	return append(rows, cfgGive, cfgKick, cfgEnd)
 }
@@ -55,6 +57,7 @@ const (
 	pageKick
 	pageEnd
 	pageGiveYes // a confirmação de passar a sala para cwho
+	pageBoard   // a tabela de foco, onde o dono troca a tabela pelo ranking
 )
 
 // owns: a sala que você está vendo é sua (ADR 0007). A demo não tem dono.
@@ -111,6 +114,27 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	switch m.cpage {
+	case pageBoard:
+		switch k {
+		case "up":
+			m.brow = max(0, m.brow-1)
+		case "down":
+			m.brow = min(2, m.brow+1)
+		case "left", "right":
+			open, rank := s.BoardOpen, s.BoardRank
+			switch m.brow {
+			case 0:
+				open = k == "right"
+			case 1:
+				rank = k == "right"
+			default:
+				return m.shiftPeriod(map[string]int{"left": -1, "right": 1}[k])
+			}
+			return m, do(func() error { return rooms.SetBoard(id, code, open, rank) })
+		case "esc":
+			m.cpage = pageMenu
+		}
+		return m, nil
 	case pageGive, pageKick:
 		others := m.others()
 		switch k {
@@ -211,6 +235,9 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case cfgEntries: // o enter também abre e fecha: ninguém adivinha que ali só vale ←/→
 			closed := !s.Closed
 			return m, do(func() error { return rooms.SetClosed(id, code, closed) })
+		case cfgBoard:
+			m.cpage, m.brow = pageBoard, 0
+			return m, m.loadBoard()
 		case cfgGive:
 			m.cpage, m.mcur = pageGive, 0
 		case cfgKick:
@@ -234,15 +261,19 @@ func (m model) cfgHelp() string {
 			return m.t("↑/↓ escolhe · enter remove · esc volta")
 		}
 		return m.t("↑/↓ escolhe · enter passa a sala · esc volta")
+	case m.cpage == pageBoard:
+		return m.t("↑/↓ escolhe · ←/→ muda · esc volta")
 	case m.cpage == pageEnd, m.cpage == pageGiveYes:
 		return m.t("←/→ escolhe · enter confirma · esc volta")
 	}
 	return m.t("↑/↓ escolhe · ←/→ muda · enter abre · esc volta")
 }
 
-func (m model) cfgView() string {
+func (m model) cfgView(h int) string {
 	s := m.w.Rooms[m.room]
 	switch m.cpage {
+	case pageBoard:
+		return m.boardPage(s, h)
 	case pageGive, pageKick:
 		titulo, vazio := m.t("passar a sala para quem?"), m.t("você é a única pessoa na sala.")
 		if m.cpage == pageKick {
@@ -285,7 +316,7 @@ func (m model) cfgView() string {
 	im := max(slices.Index(rooms.ObraMetas, s.Meta), 0)
 
 	label := map[int]string{cfgName: m.t("nome"), cfgSize: m.t("tamanho"), cfgEntries: m.t("novas entradas"),
-		cfgObra: m.t("obra"), cfgMeta: m.t("meta da obra"), cfgGive: m.t("passar a sala"),
+		cfgObra: m.t("obra"), cfgMeta: m.t("meta da obra"), cfgBoard: m.t("tabela de foco"), cfgGive: m.t("passar a sala"),
 		cfgKick: m.t("remover alguém"), cfgEnd: m.t("encerrar a sala")}
 	value := map[int]string{
 		cfgName:    name,
