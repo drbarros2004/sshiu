@@ -52,7 +52,8 @@ Decidido no grill de 28/10/2026, validado nos protótipos e implementado em 29/1
 ### Histórico, stats e gráficos
 - **Prioridade:** essencial. É a próxima feature grande, antes dos vários pets.
 - **Primeira parte, feita em 31/10/2026** (na aba perfil e na coluna da sala solo parada, em `internal/tui/stats.go`): calendário do mês com o dia mais aceso quanto mais tempo focado, barras de minutos por dia da semana, e três números — focado no mês e no total, tarefas cumpridas de quantas, e a média declarada contra a focada. Sai de duas consultas (`store.FocusByDay` e `store.GetTotals`).
-- **Falta por usuário:** o recorde de streak, o histórico além do mês (rolar meses para trás) e o horário do dia em que a pessoa foca mais.
+- **Segunda parte, feita em 14/11/2026** ([#45](https://github.com/drbarros2004/sshiu/issues/45)): o calendário em blocos de calor, com os meses desde janeiro de 2026 (←/→ no perfil); os números do mês (focado, dias com foco, melhor dia e a comparação com o mês passado até o mesmo dia); o recorde de streak; o horário em que a pessoa foca (pico e manhã, tarde e noite); e o quanto ela cumpre em tarefas curtas, médias e longas. Em painéis ou em lista, escolhido na aba visual, até a turma decidir um dos dois.
+- **Ideias que ficaram da #45:** `ssh sshiu stats`, que imprime o resumo e sai (o layout em lista já é quase isso); uma retrospectiva "o seu 2026" na virada do ano; "focou junto", os minutos em que alguém da mesma sala também focava; "no que o tempo foi", as tarefas agrupadas pelo texto; e uma linha com o resumo da semana passada na primeira conexão de segunda.
 - **Gráficos da sala:** os mesmos agregados para a sala inteira, mais o pico de usuários focando ao mesmo tempo e quanto tempo esse pico durou. O pico sai dos intervalos de início e fim das tarefas dos membros. A tarefa encerrada guarda a sala em que começou (`tasks.room_code`, desde 31/10/2026), então o agregado por sala é uma consulta.
 - **Aba de histórico:** com filtro por sala (a coluna já existe), se os números do perfil não bastarem.
 
@@ -135,11 +136,11 @@ O nome pede silêncio, e a ideia aparece no app sem forçar. Do brainstorming de
 - **Por onde começar:** o brainrot a 4 fps (metade da banda); por que dois vídeos custam 3× um só (117 KB/s), e não 2×; por que a sala parada manda 90 KB/s; e o custo de desenhar o modo jardim em si, que já é a maior parte da CPU da chuva.
 - **Como medir:** o harness em duas rodadas com durações diferentes (5 s e 35 s), diferença dos bytes recebidos e do `TotalProcessorTime` do servidor ÷ 30 s; para CPU, vários usuários ao mesmo tempo, porque um só fica no ruído.
 
-### Tempo declarado personalizado
+### Tempo declarado personalizado (implementado em 14/11/2026)
 
-As opções fixas incluem 20 e 30 min. Se ainda faltar precisão, avaliar uma opção
-"outro tempo" para digitar minutos, preservando os atalhos da lista. Definir limites e validação
-antes de implementar; não transformar cada minuto em mais uma opção para percorrer com as setas.
+O "outro", no fim da lista, abre um campo de 5 a 120 min ([`docs/regras.md`](docs/regras.md)). O
+seletor abre no último tempo usado, marcado com ↺, e esse tempo entra na lista no lugar dele, sem
+virar mais uma opção fixa para percorrer com as setas ([#45](https://github.com/drbarros2004/sshiu/issues/45)).
 
 ### Sessões marcadas
 - Um horário opcional e configurável da sala para focar todo mundo junto, sem ser o único jeito de focar ([ADR 0002](docs/adr/0002-foco-individual-sem-horario-marcado.md)).
@@ -223,3 +224,4 @@ Também marcada no código com comentários `ponytail:`.
 - **Tradução com o português como chave** (`internal/tui/i18n.go`): `m.t("texto em português")` busca o inglês num mapa. Mudar uma frase em português pede mudar a chave no mapa também, e o `TestEveryTextTranslated` avisa quando isso fica para trás. Os erros de `rooms` chegam em português e são traduzidos na tela, os que têm nome ou número por padrão (`enErrors`). Um terceiro idioma pede trocar a chave por um id.
 - **A demo fala português** (`internal/rooms/bots.go`): as tarefas dos bots são conteúdo, não interface, e aparecem em português mesmo para quem usa o app em inglês.
 - **Pixel art pela fonte** (`pet.Pixels`, `solid` em `internal/tui/garden.go`): os meios blocos saem como "▄" invertido e sublinhado, para o fundo e o sublinhado cobrirem a célula no Terminal.app (issue #56). Medido só no Terminal.app com a fonte padrão: lá sobram emendas verticais bem fracas, da suavização da fonte. Falta ver o terminal do VS Code; se o sublinhado aparecer como linha em algum terminal, a saída é tirar o sublinhado e aceitar 1 px na base da meia célula.
+- **Dois layouts das stats** (`statsLayouts` em `internal/tui/profile.go`): painéis e lista convivem, com a escolha na aba visual e a coluna `users.stats_list`, só até a turma escolher um ([#45](https://github.com/drbarros2004/sshiu/issues/45)). Escolhido, sai o outro ramo de `profileView` e de `soloStats`, a linha da aba visual e a coluna.
