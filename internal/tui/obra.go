@@ -284,13 +284,34 @@ func gapBlock(w int, o *obra) string {
 // obraView: a obra sozinha na tela, na tecla o. A tela da sala encolhe até a obra sair, e num
 // terminal pequeno ela sai sempre; aqui ela não divide espaço com nada, então existe em qualquer
 // tamanho. É o mesmo caminho do modo jardim, que também é uma tela inteira atrás de uma tecla.
+// A tabela de foco vem em cima da obra, ou sozinha na sala sem obra; se as duas não cabem, a
+// tabela fica e a obra sai, com um aviso (ADR 0010). Antes disso, a tabela fica enxuta.
 func (m model) obraView(s rooms.Snapshot, w, h int) string {
-	head := bold.Render(m.roomName(s)) + m.st.muted.Render(m.t(" · a obra de hoje")) + "\n\n"
-	ob := m.obraBlock(s, w, false)
-	if lipgloss.Height(head+ob) > h { // a tabela do tema não cabe: vira uma fileira só
-		ob = m.obraBlock(s, w, true)
+	head := bold.Render(m.roomName(s))
+	if m.obraOf(s) != nil {
+		head += m.st.muted.Render(m.t(" · a obra de hoje"))
 	}
-	return head + ob
+	head += "\n\n"
+	reset := m.obraOf(s) == nil // com a obra, o "reinicia em" é dela
+	for _, tight := range []bool{false, true} {
+		body := head
+		if m.boardShown(s) {
+			body += m.boardBlock(s, reset, tight) + "\n\n"
+		}
+		if m.obraOf(s) == nil {
+			if body = strings.TrimRight(body, "\n"); lipgloss.Height(body) <= h || tight {
+				return body
+			}
+			continue
+		}
+		for _, flat := range []bool{false, true} { // a tabela do tema não cabe: vira uma fileira só
+			if out := body + m.obraBlock(s, w, flat); lipgloss.Height(out) <= h || flat && !m.boardShown(s) {
+				return out
+			}
+		}
+	}
+	return head + m.boardBlock(s, reset, true) + "\n\n" +
+		m.st.muted.Render(m.t("a obra não coube junto da tabela: aumente a janela para ver as duas"))
 }
 
 // obraHead: o tema e o que cada peça custa. Sem o passo, o desenho não diz o que falta para

@@ -59,7 +59,8 @@ func newList(size int) []int {
 }
 
 func (m model) openPicker() (tea.Model, tea.Cmd) {
-	m.picking, m.notice, m.err, m.pcur = true, "", "", 0
+	// a tela da tecla o fica para trás: a sala que você escolher abre na tela da sala
+	m.picking, m.notice, m.err, m.pcur, m.obraFull = true, "", "", 0, false
 	return m, nil
 }
 

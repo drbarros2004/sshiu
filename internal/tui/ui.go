@@ -145,25 +145,30 @@ type model struct {
 	wall            int          // o wallpaper trocado no jardim, que vale para a tarefa...
 	wallFor         time.Time    // ...que começou neste instante
 
-	in       textinput.Model // o campo ativo: apelido, tarefa, nome ou código de sala
-	entering bool            // escrevendo a tarefa
-	choosing bool            // escolhendo o tempo declarado
-	cont     bool            // ...para continuar a tarefa esgotada
-	mins     int             // índice em minuteChoices()
-	sel      int             // evento selecionado (ID)
-	picking  bool            // menu de salas aberto
-	cfg      bool            // menu do dono da sala aberto (tecla c)
-	cpage    cfgPage         // página dentro dele: o menu, passar, remover ou encerrar
-	ccur     int             // linha escolhida no menu
-	mcur     int             // membro escolhido em passar/remover
-	cname    bool            // digitando o nome da sala na própria linha
-	cyes     bool            // "sim" escolhido na confirmação de passar ou de encerrar
-	cwho     string          // quem vai receber a sala, na confirmação de passar
-	size     int             // tamanho escolhido para a sala nova
-	pcur     int             // item selecionado no menu
-	form     form            // formulário de sala em andamento
-	joining  string          // código da sala na prévia, esperando o enter
-	pet      pet.Pet         // perfil, carregado ao abrir a aba
+	in       textinput.Model    // o campo ativo: apelido, tarefa, nome ou código de sala
+	entering bool               // escrevendo a tarefa
+	choosing bool               // escolhendo o tempo declarado
+	cont     bool               // ...para continuar a tarefa esgotada
+	mins     int                // índice em minuteChoices()
+	sel      int                // evento selecionado (ID)
+	picking  bool               // menu de salas aberto
+	cfg      bool               // menu do dono da sala aberto (tecla c)
+	cpage    cfgPage            // página dentro dele: o menu, passar, remover ou encerrar
+	ccur     int                // linha escolhida no menu
+	mcur     int                // membro escolhido em passar/remover
+	cname    bool               // digitando o nome da sala na própria linha
+	cyes     bool               // "sim" escolhido na confirmação de passar ou de encerrar
+	cwho     string             // quem vai receber a sala, na confirmação de passar
+	brow     int                // linha escolhida na página da tabela de foco: quem vê, formato ou período
+	bper     int                // período da tabela de foco que você está vendo (índice em periods)
+	bfor     int                // o período a que bmins se refere...
+	bday     string             // ...lido neste dia
+	bmins    map[string]float64 // minutos do período até ontem, por usuário
+	size     int                // tamanho escolhido para a sala nova
+	pcur     int                // item selecionado no menu
+	form     form               // formulário de sala em andamento
+	joining  string             // código da sala na prévia, esperando o enter
+	pet      pet.Pet            // perfil, carregado ao abrir a aba
 	tasks    []store.TaskRow
 	days     map[string]float64 // minutos focados por dia (uns 40 dias)
 	totals   store.Totals
@@ -312,11 +317,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(doTick(), cmd)
 		}
 		m = m.syncSide()
+		next := doTick()
+		if m.boardStale() { // virou o dia: ontem saiu do retrato e entra pelo banco
+			m.bday = dayKey(m.now) // uma leitura só, até a resposta chegar
+			next = tea.Batch(next, m.loadBoard())
+		}
 		if m.side != nil && !m.side.ticking && m.garden == nil { // põe os 8 fps para andar
 			m.side.ticking = true
-			return m, tea.Batch(doTick(), sideTick(m.side.gen))
+			return m, tea.Batch(next, sideTick(m.side.gen))
 		}
-		return m, doTick()
+		return m, next
 	case gardenTickMsg:
 		if m.garden != nil && msg.gen == m.garden.gen {
 			m.now = msg.t
@@ -369,6 +379,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case profileMsg:
 		m.pet, m.tasks, m.days, m.totals = msg.pet, msg.tasks, msg.days, msg.totals
+	case boardMsg:
+		switch {
+		case msg.err != nil: // sem marcar o dia como lido: o próximo tick tenta de novo
+			m.err, m.bday = msg.err.Error(), ""
+		case msg.period == m.bper: // a resposta de um período que você já deixou não vale
+			m.bmins, m.bfor, m.bday = msg.mins, msg.period, msg.day
+		}
 	case errMsg:
 		m.err = m.lang.errText(msg.error)
 	case tea.PasteMsg: // colar vai para o campo ativo; o texto vem do terminal (bracketed paste)
