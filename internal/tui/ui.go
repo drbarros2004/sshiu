@@ -121,12 +121,16 @@ type model struct {
 	pending         string // código que veio no comando do ssh, a entrar na primeira chance
 	w               rooms.World
 	room            string // código da sala que você está vendo ("" = nenhuma: o menu de salas)
+	left            string // a sala de que você saiu ou que encerrou: um retrato de antes não a traz de volta
+	first           bool   // primeiro acesso: o apelido já foi, falta a cor do pet
 	now             time.Time
 	tab             tab
 	tick, width     int
 	height          int
 	pixel           bool // terminal com 256+ cores: pet em pixel art
 	err, notice     string
+	noticeSeen      string    // o aviso como estava no último tick...
+	noticeAt        time.Time // ...e desde quando: um aviso velho sai da tela sozinho
 	st              styles
 	theme, saved    int          // tema em prévia e tema salvo
 	lang, langSaved lang         // idioma em prévia e idioma salvo (#86)
@@ -177,6 +181,9 @@ type model struct {
 // me: você como a sala te vê (status e tarefa).
 func (m model) me() rooms.Member { return m.w.Users[m.id] }
 
+// noticeTTL: quanto tempo um aviso fica na tela sem nenhuma tecla (docs/regras.md).
+const noticeTTL = 8 * time.Second
+
 // setWorld guarda o retrato e garante que a sala vista é uma das suas.
 func (m *model) setWorld(w rooms.World) {
 	was := ""
@@ -184,7 +191,8 @@ func (m *model) setWorld(w rooms.World) {
 		was = s.Name
 	}
 	m.w = w
-	mine := w.MyRooms(m.id)
+	// a sala de que você saiu não volta: um tick tirado antes da saída ainda a tem
+	mine := slices.DeleteFunc(w.MyRooms(m.id), func(c string) bool { return c == m.left })
 	if !slices.Contains(mine, m.room) {
 		m.room = ""
 		if len(mine) > 0 {
@@ -194,6 +202,15 @@ func (m *model) setWorld(w rooms.World) {
 			m.notice, m.cfg, m.cname = m.tf("você não está mais em %s", was), false, false
 		}
 	}
+	m.pcur = max(0, min(m.pcur, len(m.pickerItems())-1)) // a lista encolhe quando uma sala some
+}
+
+// noticeStyle: verde para o que deu certo; a perda de uma sala sai na cor de alerta.
+func (m model) noticeStyle() lipgloss.Style {
+	if strings.HasPrefix(m.notice, m.tf("você não está mais em %s", "")) { // a perda não é uma boa notícia
+		return m.st.bad
+	}
+	return m.st.ok
 }
 
 func New(id, invite, code string) model {
@@ -307,6 +324,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.tick++
 		m.now = msg.now
 		m.setWorld(msg.w)
+		if m.notice != m.noticeSeen {
+			m.noticeSeen, m.noticeAt = m.notice, m.now
+		} else if m.notice != "" && m.now.Sub(m.noticeAt) >= noticeTTL {
+			m.notice = ""
+		}
 		active := m.active()
 		switch {
 		case m.garden != nil && !m.garden.keep && !active: // o foco acabou ou esgotou: volta para responder
@@ -347,6 +369,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case worldMsg:
 		m.setWorld(rooms.World(msg))
 	case roomMsg:
+		if msg.code == m.left { // entrou de novo na sala de que tinha saído
+			m.left = ""
+		}
 		m.setWorld(msg.w)
 		m.room, m.picking, m.form, m.err = msg.code, false, formNone, ""
 		m.notice = m.tf("você entrou em %s", m.roomName(m.w.Rooms[msg.code]))
@@ -360,14 +385,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case nickMsg:
 		switch {
 		case msg.err != nil && strings.Contains(msg.err.Error(), "UNIQUE"):
-			m.err = m.t("esse apelido já tem dono")
+			m.err = m.t("esse apelido já está em uso")
 		case msg.err != nil:
 			m.err = m.lang.errText(msg.err)
 		default:
 			m.nick, m.err = msg.nick, ""
 			// escolher a cor do pet é o passo seguinte ao apelido: o perfil abre já no modo
 			// personalizar, com o pet grande do lado mudando junto com a escolha
-			m.tab, m.custom = tabProfile, true
+			m.tab, m.custom, m.first = tabProfile, true, true
 			m.previewMood = pet.MoodOf(pet.EnergyStart)
 			cmds := []tea.Cmd{m.loadProfile()}
 			if m.pending != "" { // o código do comando esperava o apelido do primeiro acesso
@@ -466,6 +491,7 @@ func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if msg.String() != "enter" {
 		var cmd tea.Cmd
 		m.in, cmd = m.in.Update(msg)
+		m.err = "" // o erro era do apelido de antes
 		return m, cmd
 	}
 	nick := strings.TrimSpace(m.in.Value())
@@ -489,7 +515,10 @@ const nickMax = 16 // docs/regras.md
 // colunas sozinho: acento combinante, emoji composto e caractere invisível ficam de fora, porque
 // cada terminal conta a largura deles de um jeito e a sala e o jardim desalinhavam (#84, #85).
 func nickProblem(l lang, nick string) string {
-	if nick == "" || strings.ContainsAny(nick, " :") {
+	if nick == "" {
+		return l.t("escreva um apelido")
+	}
+	if strings.ContainsAny(nick, " :") {
 		return l.t("apelido sem espaços, por favor")
 	}
 	if ansi.StringWidth(nick) > nickMax {
@@ -524,7 +553,7 @@ func (m model) View() tea.View {
 		case tabRoom:
 			help = m.roomHelp()
 		case tabProfile:
-			content, help = func(int, int) string { return m.profileView() }, m.profileHelp()
+			content, help = m.profileView, m.profileHelp()
 		case tabVisual:
 			content, help = func(int, int) string { return m.visualView() }, m.t("↑/↓ escolhe · ←/→ muda · j prévia · v editar no jardim · enter salva")
 		}
@@ -535,6 +564,9 @@ func (m model) View() tea.View {
 		if help != "" {
 			nav = help + " · " + nav
 		}
+		// o rodapé quebra entre um atalho e outro, nunca no meio de um ("q" numa linha, "sai" na outra)
+		nbsp := string(rune(0xa0)) // o espaço que não quebra
+		nav = strings.ReplaceAll(strings.ReplaceAll(nav, " ", nbsp), nbsp+"·"+nbsp, nbsp+"· ")
 		// cabeçalho em cima, rodapé preso na última linha e o conteúdo no espaço do meio
 		inner := max(m.width-4, 1)
 		top, foot := m.header(), m.st.muted.Width(inner).Render(nav)

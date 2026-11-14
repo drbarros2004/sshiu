@@ -135,12 +135,14 @@ func init() {
 		wide: true, rows: fitRows}
 }
 
-// fitRows: a fileira que quebra quando não cabe na largura, como os cards já fazem.
+// fitRows: a fileira que quebra quando não cabe na largura, dividindo as peças por igual entre as
+// fileiras: cinco num lugar de quatro viram 3 e 2, não 4 e um vagão solto embaixo.
 func fitRows(n, per int) []int {
 	per = max(1, per)
+	rows := (n + per - 1) / per
 	var out []int
-	for i := 0; i < n; i += per {
-		out = append(out, min(per, n-i))
+	for r := range rows {
+		out = append(out, n/rows+min(1, max(0, n%rows-r))) // as primeiras levam a sobra
 	}
 	return out
 }

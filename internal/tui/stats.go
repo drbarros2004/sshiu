@@ -125,8 +125,12 @@ func (m model) taskNumbers() string {
 	row := func(label, value string) string {
 		return m.st.muted.Render(fmt.Sprintf("%-11s", label)) + value + "\n"
 	}
+	foca := fmt.Sprintf("%d", int(t.Focused.Minutes())/t.Tasks)
+	if t.Focused.Minutes() < float64(t.Tasks) { // a média abaixo de 1 min não é zero
+		foca = "<1"
+	}
 	return strings.TrimRight(row(m.t("focado"), dur(month)+m.st.muted.Render(m.t(" no mês · "))+dur(t.Focused.Minutes())+m.st.muted.Render(m.t(" no total")))+
 		row(m.t("tarefas"), m.tf("%d de %d cumpridas", t.Done, t.Tasks))+
-		row(m.t("por tarefa"), m.tf("declara %d min, foca %d",
-			int(t.Declared.Minutes())/t.Tasks, int(t.Focused.Minutes())/t.Tasks)), "\n")
+		row(m.t("por tarefa"), m.tf("declara %d min, foca %s",
+			int(t.Declared.Minutes())/t.Tasks, foca)), "\n")
 }

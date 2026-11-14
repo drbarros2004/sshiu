@@ -101,8 +101,8 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.mins = max(0, m.mins-1)
 		case "right":
 			m.mins = min(len(choices)-1, m.mins+1)
-		case "esc":
-			m.choosing = false
+		case "esc": // volta um passo: para a tarefa escrita, que continua no campo
+			m.choosing, m.entering = false, !m.cont
 		case "enter":
 			m.choosing = false
 			task, mins := strings.TrimSpace(m.in.Value()), choices[m.mins]
@@ -255,12 +255,18 @@ func (m model) obraHint() string {
 	return ""
 }
 
-// reactHelp: as teclas de evento e reação, que a sala solo não tem.
+// reactHelp: as teclas de evento e reação, que só existem com o feed na tela: a sala solo não
+// tem, e a sala em que você está sem ninguém mostra o convite no lugar dele.
 func (m model) reactHelp() string {
-	if m.solo() {
+	if m.solo() || m.alone() || len(m.events()) == 0 {
 		return ""
 	}
 	return m.t(" · ↑/↓ evento · 1-4 reage")
+}
+
+// alone: você é o único membro de uma sala de mais gente, e o convite toma o lugar do feed.
+func (m model) alone() bool {
+	return len(m.w.Rooms[m.room].Members) == 1 && m.room != rooms.DemoCode
 }
 
 // roomView: a sala em w×h células. Quando falta altura, a lista de eventos encurta e depois os
@@ -286,14 +292,14 @@ func (m model) roomView(w, h int) string {
 		}
 	}
 	if !m.solo() { // quanto a sala comporta, embaixo do nome; a solo é sempre uma pessoa
-		line := m.tf("%d/%d pessoas", len(s.Members), s.Max)
+		line := m.tf("%d/%d membros", len(s.Members), s.Max)
 		if s.Closed {
 			line += m.t(" · fechada")
 		}
 		title += "\n" + m.st.muted.Render(line)
 	}
-	if m.notice != "" {
-		title += "\n" + m.st.ok.Render(m.notice)
+	if m.notice != "" { // no fim da última linha do título: quando o aviso some, nada sobe
+		title += "   " + m.noticeStyle().Render(m.notice)
 	}
 	if m.oScreen() { // a obra sozinha, na tecla o
 		return m.obraView(s, w, h)
@@ -310,6 +316,9 @@ func (m model) roomView(w, h int) string {
 				return out
 			}
 		}
+	}
+	if m.alone() { // sem ninguém, o seu card é o que menos diz: ele sai antes do convite
+		return title + "\n\n" + m.focusPanel(w) + "\n\n" + m.invitePanel(s)
 	}
 	return out
 }
@@ -363,8 +372,7 @@ func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, 
 		panel = lipgloss.JoinHorizontal(lipgloss.Top, lipgloss.NewStyle().Width(left+obraGap).Render(m.focusPanel(left)), bd)
 	}
 	out := title + "\n\n" + panel + "\n\n" + m.cards(s, w, compact)
-	alone := len(s.Members) == 1 && m.room != rooms.DemoCode // sozinho numa sala de mais
-	if alone {                                               // o convite vale mais que o feed vazio, e não encolhe
+	if m.alone() { // o convite vale mais que o feed vazio, e não encolhe
 		if ob != "" {
 			out += "\n\n" + ob
 		}
@@ -372,7 +380,7 @@ func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, 
 	}
 	var log string
 	if n > 0 {
-		log = m.feed(n) + "\n\n" + m.legend()
+		log = m.feed(n, w) + "\n\n" + m.legend()
 	}
 	switch {
 	case ob == "":
@@ -418,7 +426,7 @@ func (m model) soloView() string {
 	who := lipgloss.JoinHorizontal(lipgloss.Center,
 		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel, m.me().Color)),
 		m.soloWho())
-	panel := strings.Join([]string{m.focusPanel(panelCols), "", who, "", m.soloLog()}, "\n")
+	panel := strings.Join([]string{m.focusPanel(panelCols-1), "", who, "", m.soloLog()}, "\n")
 	if soloGardenWidth(max(m.width-4, 40)) == 0 {
 		return panel // terminal estreito: não cabe coluna nenhuma
 	}
@@ -427,10 +435,12 @@ func (m model) soloView() string {
 	if m.side != nil {
 		right = m.side.frame
 	}
+	// o painel quebra numa coluna a menos que a dele, para o texto nunca encostar na barra, e a
+	// altura vem do painel já quebrado: o mini log comprido ganha linhas ao quebrar
+	panel = lipgloss.NewStyle().Width(panelCols - 1).Render(panel)
 	// a barra separa as colunas pela altura da mais alta: o jardim e os números têm alturas diferentes
 	bar := m.st.muted.Render(strings.TrimRight(strings.Repeat("│\n", max(lipgloss.Height(panel), lipgloss.Height(right))), "\n"))
-	return lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().Width(panelCols).Render(panel), bar, " ", right)
+	return lipgloss.JoinHorizontal(lipgloss.Top, panel, " ", bar, " ", right)
 }
 
 // soloWho: as informações ao lado do pet, em colunas, como a saída de um comando: o rótulo
@@ -634,8 +644,9 @@ func (m model) card(x rooms.Member, got int, compact bool, inner int) string {
 		reacts))
 }
 
-// feed: os n eventos mais novos, com as reações numa coluna só, em ordem fixa.
-func (m model) feed(n int) string {
+// feed: os n eventos mais novos em w colunas, com as reações numa coluna só, em ordem fixa. A
+// tarefa comprida é que encolhe: cortada no fim da tela, ela levava as reações junto.
+func (m model) feed(n, w int) string {
 	ev := m.events()
 	ev = ev[:min(max(n, 0), len(ev))]
 	if len(ev) == 0 {
@@ -652,9 +663,19 @@ func (m model) feed(n int) string {
 		}
 		return line
 	}
-	col := 0
+	reactsW := 0 // a largura das reações mais largas, que ficam sempre inteiras
 	for _, e := range ev {
-		col = max(col, lipgloss.Width(text(e)))
+		rw := 0
+		for _, who := range e.Reacts {
+			if len(who) > 0 {
+				rw += 2 + lipgloss.Width(fmt.Sprintf("%s %d", reactionGlyphs[0], len(who)))
+			}
+		}
+		reactsW = max(reactsW, rw)
+	}
+	col, limit := 0, max(w-2-reactsW, 20) // 2: a seta do evento escolhido
+	for _, e := range ev {
+		col = max(col, min(lipgloss.Width(text(e)), limit))
 	}
 	var b strings.Builder
 	sel := m.selIndex()
@@ -663,7 +684,7 @@ func (m model) feed(n int) string {
 		if i == sel {
 			mark = m.st.title.Render("> ")
 		}
-		line := lipgloss.NewStyle().Width(col).Render(text(e))
+		line := lipgloss.NewStyle().Width(col).Render(ansi.Truncate(text(e), col, "…"))
 		for k, who := range e.Reacts { // ordem fixa 1-4: quem tem zero sai e os seguintes andam para a esquerda
 			if len(who) == 0 {
 				continue

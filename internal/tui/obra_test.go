@@ -99,6 +99,9 @@ func TestTremQuebra(t *testing.T) {
 	if got := fitRows(3, 0); !slices.Equal(got, []int{1, 1, 1}) {
 		t.Errorf("janela minúscula: %v", got)
 	}
+	if got := fitRows(5, 4); !slices.Equal(got, []int{3, 2}) { // e não 4 e um vagão solto
+		t.Errorf("dividido por igual: %v", got)
+	}
 }
 
 // Os quatro estágios existem na folha de cada tema, senão a peça pronta sai em branco.

@@ -46,8 +46,8 @@ func TestMoodPreviewIsolation(t *testing.T) {
 	}
 	press(tea.KeyUp)
 	press(tea.KeyRight)
-	if !strings.Contains(m.profileView(), "prévia do pet") ||
-		!strings.Contains(m.profileView(), "não altera humor ou energia") {
+	if !strings.Contains(m.profileView(80, 100), "prévia do pet") ||
+		!strings.Contains(m.profileView(80, 100), "não altera humor ou energia") {
 		t.Fatal("a tela não identifica a simulação")
 	}
 	m.width, m.height = 80, 24
@@ -66,7 +66,7 @@ func TestMoodPreviewIsolation(t *testing.T) {
 		t.Fatalf("a cor não foi salva: %+v, %v", saved, err)
 	}
 	saved.Color = original.Color
-	if saved != original || m.custom || strings.Contains(m.profileView(), "prévia do pet") {
+	if saved != original || m.custom || strings.Contains(m.profileView(80, 100), "prévia do pet") {
 		t.Fatal("salvar a cor alterou os dados de foco ou manteve a simulação")
 	}
 	press('c')
@@ -84,6 +84,43 @@ func TestMoodPreviewIsolation(t *testing.T) {
 	m = next.(model)
 	if m.custom || m.pcolor != m.pcSaved || m.pet != original {
 		t.Fatal("trocar de aba não descartou a prévia")
+	}
+}
+
+// O perfil cabe na altura: as tarefas encurtam, depois o calendário sai, e a seção das tarefas
+// nunca fica só com o título.
+func TestProfileFitsHeight(t *testing.T) {
+	m := model{nick: "ana", now: time.Now(), st: newStyles(themes[0]),
+		pet: pet.Pet{LastActive: time.Now(), Energy: 50}, totals: store.Totals{Tasks: 3, Done: 3}}
+	for range 8 {
+		m.tasks = append(m.tasks, store.TaskRow{Start: m.now, Task: "lista 3", Result: pet.Done})
+	}
+	for _, h := range []int{15, 21, 26, 40} {
+		view := ansi.Strip(m.profileView(76, h))
+		lines := strings.Split(view, "\n")
+		if len(lines) > h || !strings.Contains(view, "por tarefa") {
+			t.Fatalf("altura %d: %d linhas, ou sem os números:\n%s", h, len(lines), view)
+		}
+		if i := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "últimas tarefas") }); i >= 0 &&
+			(i+1 >= len(lines) || !strings.Contains(lines[i+1], "lista 3")) {
+			t.Fatalf("altura %d: o título das tarefas sem nenhuma:\n%s", h, view)
+		}
+	}
+}
+
+// O primeiro acesso diz que a cor é o último passo, e o enter leva para a sala.
+func TestFirstAccessEndsInRoom(t *testing.T) {
+	if err := store.Open(":memory:"); err != nil {
+		t.Fatal(err)
+	}
+	m := model{id: "novo", nick: "ana", tab: tabProfile, custom: true, first: true, now: time.Now(),
+		st: newStyles(themes[0]), pet: pet.Pet{LastActive: time.Now()}}
+	if !strings.Contains(ansi.Strip(m.profileView(76, 40)), "último passo") {
+		t.Fatal("o primeiro acesso não diz que a cor é um passo")
+	}
+	next, _ := m.profileKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if m = next.(model); m.tab != tabRoom || m.first {
+		t.Fatalf("o enter não levou para a sala: aba %v", m.tab)
 	}
 }
 
@@ -113,7 +150,7 @@ func TestEnergyBarThreshold(t *testing.T) {
 		{100, -1, "humor máximo"},
 	} {
 		m := model{nick: "ana", st: newStyles(themes[0]), now: now, pet: pet.Pet{Energy: tc.energy, LastActive: now}}
-		view := ansi.Strip(m.profileView())
+		view := ansi.Strip(m.profileView(80, 100))
 		_, after, ok := strings.Cut(view, "energia  ")
 		if !ok {
 			t.Fatalf("energia %v: barra ausente", tc.energy)

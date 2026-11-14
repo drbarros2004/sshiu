@@ -27,18 +27,22 @@ const (
 	cfgEnd
 )
 
-// cfgList: as linhas que aparecem nesta sala. A sala solo não tem obra (ADR 0008) nem tabela de foco
-// (ADR 0010), e a meta só existe depois de haver um tema: configuração que não faz nada não ocupa linha.
+// cfgList: as linhas que aparecem nesta sala. A sala solo não tem novas entradas, obra nem tabela
+// de foco (ADR 0006, 0008 e 0010), a meta só existe depois de haver um tema, e passar ou remover
+// só quando há mais alguém na sala: configuração que não faz nada não ocupa linha.
 func cfgList(s rooms.Snapshot) []int {
-	rows := []int{cfgName, cfgSize, cfgEntries}
+	rows := []int{cfgName, cfgSize}
 	if s.Max > rooms.MinMembers {
-		rows = append(rows, cfgObra)
+		rows = append(rows, cfgEntries, cfgObra)
 		if s.Obra != "" {
 			rows = append(rows, cfgMeta)
 		}
 		rows = append(rows, cfgBoard)
 	}
-	return append(rows, cfgGive, cfgKick, cfgEnd)
+	if len(s.Members) > 1 {
+		rows = append(rows, cfgGive, cfgKick)
+	}
+	return append(rows, cfgEnd)
 }
 
 // obraName: o tema como ele aparece no menu.
@@ -58,6 +62,7 @@ const (
 	pageEnd
 	pageGiveYes // a confirmação de passar a sala para cwho
 	pageBoard   // a tabela de foco, onde o dono troca a tabela pelo ranking
+	pageKickYes // a confirmação de remover cwho
 )
 
 // owns: a sala que você está vendo é sua (ADR 0007). A demo não tem dono.
@@ -149,24 +154,32 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			who := others[min(m.mcur, len(others)-1)]
+			yes := pageGiveYes
 			if m.cpage == pageKick {
-				m.cpage = pageMenu
-				return m, do(func() error { return rooms.Kick(id, code, who.ID) })
+				yes = pageKickYes
 			}
-			m.cpage, m.cwho, m.cyes = pageGiveYes, who.ID, false
+			m.cpage, m.cwho, m.cyes = yes, who.ID, false
 		}
 		return m, nil
-	case pageGiveYes:
+	case pageGiveYes, pageKickYes:
 		who, ok := m.member(m.cwho)
+		back := pageGive
+		if m.cpage == pageKickYes {
+			back = pageKick
+		}
 		switch k {
 		case "left", "right":
 			m.cyes = !m.cyes
 		case "esc":
-			m.cpage, m.cyes = pageGive, false
+			m.cpage, m.cyes = back, false
 		case "enter":
 			if !m.cyes || !ok { // "não", ou a pessoa saiu da sala enquanto a pergunta estava na tela
-				m.cpage, m.cyes = pageGive, false
+				m.cpage, m.cyes = back, false
 				return m, nil
+			}
+			if m.cpage == pageKickYes { // de volta ao menu, com o aviso de que deu certo
+				m.cpage, m.cyes, m.notice = pageMenu, false, m.tf("%s saiu da sala e a vaga abriu", who.Nick)
+				return m, do(func() error { return rooms.Kick(id, code, who.ID) })
 			}
 			// passar a sala tira os seus poderes: o menu fecha junto
 			m.cfg, m.cpage, m.cyes, m.notice = false, pageMenu, false, m.tf("a sala agora é de %s", who.Nick)
@@ -184,7 +197,7 @@ func (m model) cfgKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.cpage = pageMenu
 				return m, nil
 			}
-			m.cfg, m.cpage, m.room, m.picking = false, pageMenu, "", true
+			m.cfg, m.cpage, m.room, m.picking, m.left = false, pageMenu, "", true, code
 			return m, do(func() error { return rooms.Dissolve(id, code) })
 		}
 		return m, nil
@@ -263,7 +276,7 @@ func (m model) cfgHelp() string {
 		return m.t("↑/↓ escolhe · enter passa a sala · esc volta")
 	case m.cpage == pageBoard:
 		return m.t("↑/↓ escolhe · ←/→ muda · esc volta")
-	case m.cpage == pageEnd, m.cpage == pageGiveYes:
+	case m.cpage == pageEnd, m.cpage == pageGiveYes, m.cpage == pageKickYes:
 		return m.t("←/→ escolhe · enter confirma · esc volta")
 	}
 	return m.t("↑/↓ escolhe · ←/→ muda · enter abre · esc volta")
@@ -293,6 +306,11 @@ func (m model) cfgView(h int) string {
 		who, _ := m.member(m.cwho)
 		aviso := m.tf("o menu de configurar passa a ser de %s. você continua na sala, como os outros.", who.Nick)
 		return bold.Render(m.tf("passar %s para %s?", s.Name, who.Nick)) + "\n\n" + m.st.muted.Render(aviso) +
+			"\n\n" + m.yesNo()
+	case pageKickYes:
+		who, _ := m.member(m.cwho)
+		aviso := m.t("a vaga abre. não é bloqueio: com o código, dá para entrar de novo.")
+		return bold.Render(m.tf("remover %s de %s?", who.Nick, s.Name)) + "\n\n" + m.st.muted.Render(aviso) +
 			"\n\n" + m.yesNo()
 	case pageEnd:
 		aviso := m.t("a sala some. o que você focou nela fica no seu histórico.")
@@ -329,14 +347,19 @@ func (m model) cfgView(h int) string {
 	for _, r := range list {
 		rows = append(rows, cfgRow(m, r == cur, label[r], value[r]))
 	}
-	return bold.Render(m.t("configurar")) + m.st.muted.Render(" · "+s.Name) + "\n\n" + strings.Join(rows, "\n")
+	out := bold.Render(m.t("configurar")) + m.st.muted.Render(" · "+s.Name) + "\n\n" + strings.Join(rows, "\n")
+	if m.notice != "" {
+		out += "\n\n" + m.noticeStyle().Render(m.notice)
+	}
+	return out
 }
 
-// yesNo: o "‹ não · sim ›" das confirmações, com a escolha em negrito. Começa no "não".
+// yesNo: o "‹ não · sim ›" das confirmações, com a escolha na cor de destaque e a outra apagada.
+// Começa no "não".
 func (m model) yesNo() string {
-	sim, nao := m.t("sim"), bold.Render(m.t("não"))
+	sim, nao := m.st.muted.Render(m.t("sim")), m.st.sel.Render(m.t("não"))
 	if m.cyes {
-		sim, nao = bold.Render(m.t("sim")), m.t("não")
+		sim, nao = m.st.sel.Render(m.t("sim")), m.st.muted.Render(m.t("não"))
 	}
 	return m.st.muted.Render("‹ ") + nao + m.st.muted.Render(" · ") + sim + m.st.muted.Render(" ›")
 }

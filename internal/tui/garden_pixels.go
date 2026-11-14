@@ -454,19 +454,24 @@ type road struct {
 // antigos: o relógio e a tarefa numa tela no meio, os mostradores dos lados. O nome do wallpaper
 // cai na linha de baixo da tela.
 func (s *road) spot(w, h, tw, th int) (int, int, [3]string) {
+	if h-th-8 < roadMinScene { // terminal baixo: o painel cortaria o carro, então o texto vai para o céu
+		s.dash = 0
+		return (w - tw) / 2, 1, [3]string{"252", "215", "223"}
+	}
 	// de cima para baixo: a borda, uma linha, a moldura e a folga da tela, o texto, a folga e a
 	// moldura, o nome do wallpaper e a última linha
 	s.dash, s.tw = th+8, tw
 	return (w - tw) / 2, h - th - 4, [3]string{"137", "215", "223"}
 }
 
+// roadMinScene: as linhas de cena que o carro pede acima do painel; com menos, o painel sai.
+const roadMinScene = 12
+
 const roadCity, roadLamps, roadLane = 0.25, 10.0, 26.0
 
 func (s *road) draw(c *canvas, t, dt float64) {
 	dash, tw := s.dash, s.tw
-	s.dash = 0 // vale para este quadro: sem texto no próximo, sem painel
-	// ponytail: o painel come a altura da cena; num terminal baixo o carro encosta na mureta.
-	// Painel mais baixo (o relógio de uma linha) se isso incomodar.
+	s.dash = 0                // vale para este quadro: sem texto no próximo, sem painel
 	W, H := c.w, (c.h-dash)*2 // a cena fica acima do painel
 	p := newPix(W, c.h*2)
 	fw, fh := float64(W), float64(H)
