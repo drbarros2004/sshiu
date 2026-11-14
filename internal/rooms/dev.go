@@ -51,11 +51,11 @@ func DevCreate(nick string) (string, error) {
 	}
 	id := "dev:" + nick
 	if _, _, ok, _ := store.GetUser(id); ok { // o PutUser só redefiniria a energia
-		return "", errors.New("esse apelido já tem dono")
+		return "", errors.New("esse apelido já está em uso")
 	}
 	if err := store.PutUser(id, nick, pet.EnergyStart); err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") { // o apelido é de outro id, como um bot da demo
-			return "", errors.New("esse apelido já tem dono")
+			return "", errors.New("esse apelido já está em uso")
 		}
 		return "", err
 	}

@@ -139,7 +139,7 @@ func (m model) devKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		d.col = min(len(devCols)-1, d.col+1)
 	case "space":
 		if m.room == "" {
-			m.err = "abra uma sala na aba sala para pôr gente nela"
+			m.err = m.t("abra uma sala na aba sala para pôr gente nela")
 			return m, nil
 		}
 		id, code := d.rows[d.row].ID, m.room
@@ -152,10 +152,10 @@ func (m model) devKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}), act(func() {}))
 	case "n":
 		d.input = "nova"
-		m.in = newInput("apelido da pessoa nova", 16)
+		m.in = newInput(m.t("apelido da pessoa nova"), 16)
 	case "t":
 		d.input = "tarefa"
-		m.in = newInput("ex.: fazer o exercício 1 da lista 3", 80)
+		m.in = newInput(m.t("ex.: fazer o exercício 1 da lista 3"), 80)
 		if x := m.w.Users[d.rows[d.row].ID]; x.Focus.Task != "" {
 			m.in.SetValue(x.Focus.Task)
 		}
@@ -165,7 +165,7 @@ func (m model) devKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "o":
 		s, ok := m.w.Rooms[m.room]
 		if !ok {
-			m.err = "abra uma sala na aba sala para passá-la a alguém"
+			m.err = m.t("abra uma sala na aba sala para passá-la a alguém")
 			return m, nil
 		}
 		id, code, owner := d.rows[d.row].ID, s.Code, s.Owner
@@ -195,9 +195,9 @@ func (d *devPanel) setRows(rows []store.DevRow, at time.Time, sel string) bool {
 
 func (m model) devHelp() string {
 	if m.dev.input != "" {
-		return "enter confirma · esc desiste"
+		return m.t("enter confirma · esc desiste")
 	}
-	return "setas escolhem · +/- muda · espaço põe ou tira da sala · o passa a sala · t tarefa · x cumpre · n pessoa nova"
+	return m.t("setas escolhem · +/- muda · espaço põe ou tira da sala · o passa a sala · t tarefa · x cumpre · n pessoa nova")
 }
 
 // devView cabe em 80 colunas (os números em 6, o apelido em 10) e rola as pessoas na altura h.
@@ -205,9 +205,9 @@ func (m model) devView(h int) string {
 	d := m.dev
 	var b strings.Builder
 	if s, ok := m.w.Rooms[m.room]; ok {
-		b.WriteString("espaço põe ou tira de " + m.st.sel.Render(s.Name) + m.st.muted.Render(" ("+s.Code+") · * a sala é da pessoa"))
+		b.WriteString(m.t("espaço põe ou tira de ") + m.st.sel.Render(s.Name) + m.st.muted.Render(" ("+s.Code+")"+m.t(" · * a sala é da pessoa")))
 	} else {
-		b.WriteString(m.st.muted.Render("abra uma sala na aba sala para pôr gente nela"))
+		b.WriteString(m.st.muted.Render(m.t("abra uma sala na aba sala para pôr gente nela")))
 	}
 	// as linhas fixas: título, linha vazia, cabeçalho, linha vazia e as 4 da legenda (+2 do campo)
 	fixed := 8
@@ -218,14 +218,14 @@ func (m model) devView(h int) string {
 	first := max(0, min(d.row-n+1, len(d.rows)-n)) // o cursor fica sempre à vista
 	last := min(len(d.rows), first+n)
 	if len(d.rows) > n {
-		b.WriteString(m.st.muted.Render(fmt.Sprintf(" · %d a %d de %d", first+1, last, len(d.rows))))
+		b.WriteString(m.st.muted.Render(m.tf(" · %d a %d de %d", first+1, last, len(d.rows))))
 	}
 	b.WriteString("\n\n")
-	head := fmt.Sprintf("  %-10s", "apelido")
+	head := fmt.Sprintf("  %-10s", m.t("apelido"))
 	for _, c := range devCols {
-		head += fmt.Sprintf(" %6s", c.name)
+		head += fmt.Sprintf(" %6s", m.t(c.name))
 	}
-	b.WriteString(m.st.muted.Render(head+"  salas") + "\n")
+	b.WriteString(m.st.muted.Render(head+"  "+m.t("salas")) + "\n")
 	today := m.now.Format(time.DateOnly)
 	for i := first; i < last; i++ {
 		r := d.rows[i]
@@ -238,9 +238,9 @@ func (m model) devView(h int) string {
 		if loaded {
 			todayMin = x.TodayMin
 		}
-		online, task := "não", "—"
+		online, task := m.t("não"), "—"
 		if x.Status != rooms.Offline {
-			online = "sim"
+			online = m.t("sim")
 		}
 		if x.Focus.Task != "" { // offline também pode ter tarefa, durante a tolerância; esgotada, 00:00
 			task = mmss(x.Focus.Ends.Sub(m.now))
@@ -255,7 +255,7 @@ func (m model) devView(h int) string {
 		}
 		nick := r.Nick
 		if r.ID == m.id {
-			nick += " (você)"
+			nick += m.t(" (você)")
 		}
 		line := cur + fmt.Sprintf("%-10s", ansi.Truncate(nick, 10, "…"))
 		for j, v := range vals {
@@ -280,17 +280,17 @@ func (m model) devView(h int) string {
 	}
 	switch d.input {
 	case "nova":
-		b.WriteString("\npessoa nova: " + m.in.View() + "\n")
+		b.WriteString("\n" + m.t("pessoa nova: ") + m.in.View() + "\n")
 	case "tarefa":
-		b.WriteString("\ntarefa de " + d.rows[d.row].Nick + ": " + m.in.View() + "\n")
+		b.WriteString("\n" + m.tf("tarefa de %s: ", d.rows[d.row].Nick) + m.in.View() + "\n")
 	}
 	// cada linha da legenda cabe em 76 colunas, o miolo de um terminal de 80
-	b.WriteString("\n" + m.st.muted.Render(fmt.Sprintf("hoje: tarefas de %d min · antes: tarefas de %d min, uma por dia para trás",
+	b.WriteString("\n" + m.st.muted.Render(m.tf("hoje: tarefas de %d min · antes: tarefas de %d min, uma por dia para trás",
 		rooms.DevTodayStep, rooms.DevBeforeStep)))
-	b.WriteString("\n" + m.st.muted.Render(fmt.Sprintf("energ.: de %d em %d · parado: dias sem focar · online: sessão de mentira",
+	b.WriteString("\n" + m.st.muted.Render(m.tf("energ.: de %d em %d · parado: dias sem focar · online: sessão de mentira",
 		rooms.DevEnergyStep, rooms.DevEnergyStep)))
-	b.WriteString("\n" + m.st.muted.Render(fmt.Sprintf("tarefa: + começa uma de %d min ou dá mais %d, - passa %d min",
+	b.WriteString("\n" + m.st.muted.Render(m.tf("tarefa: + começa uma de %d min ou dá mais %d, - passa %d min",
 		rooms.DevFocusMin, rooms.DevFocusStep, rooms.DevFocusStep)))
-	b.WriteString("\n" + m.st.muted.Render("outra pessoa: ssh -p <porta> <apelido>@localhost"))
+	b.WriteString("\n" + m.st.muted.Render(m.t("outra pessoa: ssh -p <porta> <apelido>@localhost")))
 	return b.String()
 }
