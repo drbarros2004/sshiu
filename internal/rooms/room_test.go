@@ -355,3 +355,39 @@ func TestRestart(t *testing.T) {
 		t.Fatalf("abertas: %+v", open)
 	}
 }
+
+// Voltar e cair de novo dá a tolerância inteira à queda nova: o timer da primeira queda não
+// interrompe a tarefa no meio da segunda.
+func TestGraceRestartsOnEachDrop(t *testing.T) {
+	if err := store.Open(":memory:"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutUser("gi", "gi", pet.EnergyStart); err != nil {
+		t.Fatal(err)
+	}
+	defer func(g time.Duration) { reconnectGrace = g }(reconnectGrace)
+	reconnectGrace = 300 * time.Millisecond
+	defer delete(users, "gi")
+
+	Connect("gi")
+	Start("gi", "", "lista 3", 25)
+	Disconnect("gi")
+	time.Sleep(50 * time.Millisecond)
+	Connect("gi") // voltou a tempo
+	time.Sleep(150 * time.Millisecond)
+	Disconnect("gi") // caiu de novo: o timer da primeira queda dispara daqui a 100 ms
+	time.Sleep(200 * time.Millisecond)
+	mu.Lock()
+	f := users["gi"].focus
+	mu.Unlock()
+	if f == nil {
+		t.Fatal("a primeira queda interrompeu a tarefa da segunda")
+	}
+	time.Sleep(300 * time.Millisecond) // a tolerância da segunda queda acabou
+	mu.Lock()
+	f = users["gi"].focus
+	mu.Unlock()
+	if f != nil {
+		t.Fatal("a segunda queda não interrompeu a tarefa")
+	}
+}

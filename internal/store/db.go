@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sshiu/internal/pet"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -22,8 +23,11 @@ const DefaultObraMeta = 60
 var schema string
 
 // Open abre o banco (criando as tabelas se preciso) e o guarda para o resto do pacote.
+// O WAL faz o commit custar menos de 1 ms: no journal padrão, cada tarefa encerrada levava de meio
+// segundo a dois no Windows, com o lock das salas travado e a tela de todo mundo parada. O NORMAL
+// não corrompe o banco; uma queda de energia pode perder só os últimos commits.
 func Open(path string) error {
-	d, err := sql.Open("sqlite", path)
+	d, err := sql.Open("sqlite", dsn(path))
 	if err != nil {
 		return err
 	}
@@ -56,6 +60,15 @@ func Open(path string) error {
 	d.Exec(`ALTER TABLE users ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'`)
 	db = d
 	return nil
+}
+
+// dsn: o caminho com o WAL e o NORMAL. Quem já passa um endereço com parâmetros (o -dev passa
+// "file:...?_pragma=...") escolhe os próprios: um segundo "?" quebrava o endereço.
+func dsn(path string) string {
+	if strings.Contains(path, "?") {
+		return path
+	}
+	return path + "?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
 }
 
 // Garden: o que o usuário escolheu para o modo jardim na aba visual.
@@ -213,10 +226,11 @@ func OpenTasks() ([]OpenTask, error) {
 	return out, rows.Err()
 }
 
-// Tasks: as últimas tarefas do usuário, da mais nova para a mais velha.
+// Tasks: as últimas tarefas do usuário, da que começou por último para a mais velha. A ordem é a
+// da data que a tela mostra: o id só a segue enquanto ninguém grava uma tarefa fora de ordem.
 func Tasks(id string) ([]TaskRow, error) {
 	rows, err := db.Query(`SELECT started_at, ended_at, task, declared_min, focused_sec, result, room_code FROM tasks
-		WHERE user_id = ? ORDER BY id DESC LIMIT 8`, id)
+		WHERE user_id = ? ORDER BY started_at DESC, id DESC LIMIT 8`, id)
 	if err != nil {
 		return nil, err
 	}

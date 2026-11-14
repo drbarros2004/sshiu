@@ -120,7 +120,7 @@ func (m model) pickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		switch it := items[min(m.pcur, len(items)-1)]; it.code {
 		case "+":
-			m.form, m.in, m.size = formNew, newInput(m.t("ex.: Turma de Cálculo"), 30), rooms.MaxMembers
+			m.form, m.in, m.size = formNew, newInput(m.t("ex.: turma de cálculo"), 30), rooms.MaxMembers
 			// a obra já vem escolhida: a sala nasce construindo em vez de nascer vazia
 			m.ncur, m.nobra = newName, max(slices.Index(rooms.Obras, "cidade"), 0)
 		case "#":
@@ -168,6 +168,7 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 		if size > rooms.MinMembers {
 			obra = rooms.Obras[m.nobra]
 		}
+		m.form = formNone // um enter a mais enquanto a sala nasce criava outra sala igual
 		return m, func() tea.Msg {
 			code, err := rooms.Create(id, v, size)
 			if err != nil {
@@ -183,7 +184,7 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 	case formCode:
 		code := roomCode(v)
 		if code == "" {
-			m.err = m.t("digite o código que o colega te passou")
+			m.err = m.t("digite o código da sala")
 			return m, nil
 		}
 		if _, ok := m.w.Rooms[code]; !ok {
@@ -193,10 +194,13 @@ func (m model) submitForm() (tea.Model, tea.Cmd) {
 		m.form, m.joining, m.err = formJoin, code, ""
 		return m, nil
 	case formJoin:
+		if m.joinBlocked(m.w.Rooms[m.joining]) != "" { // a prévia já diz por quê: o enter não repete
+			return m, nil
+		}
 		return m, m.join(m.joining)
 	case formLeave:
 		code := m.room
-		m.form, m.picking, m.room = formNone, false, ""
+		m.form, m.picking, m.room, m.left = formNone, false, "", code
 		return m, func() tea.Msg {
 			if err := rooms.Leave(id, code); err != nil {
 				return errMsg{err}
@@ -216,9 +220,9 @@ func (m model) pickerView() string {
 		if cur != newName { // fora da linha do nome, o campo vira só o texto, sem cursor
 			name = m.st.muted.Render(strings.TrimSpace(m.in.Value()))
 		}
-		hint := m.t("o tamanho é fixo depois de a sala nascer; o resto o dono muda em c")
-		if m.size == rooms.MinMembers { // ADR 0006
-			hint = m.t("sala solo: para focar sozinho, com o seu pet e o modo jardim")
+		hint := m.t("depois, o dono muda tudo isso em c") // o tamanho também (ADR 0007)
+		if m.size == rooms.MinMembers {                   // ADR 0006
+			hint = m.t("sala solo: para focar sem companhia, com o seu pet e o modo jardim")
 		}
 		value := map[int]string{
 			newName: name,
@@ -227,7 +231,7 @@ func (m model) pickerView() string {
 			newObra: m.arrows(cur == newObra, obraName(m.lang, rooms.Obras[m.nobra]),
 				m.nobra > 0, m.nobra < len(rooms.Obras)-1),
 		}
-		label := map[int]string{newName: m.t("nome"), newSize: m.t("quantas pessoas"), newObra: m.t("obra")}
+		label := map[int]string{newName: m.t("nome"), newSize: m.t("quantos membros"), newObra: m.t("obra")}
 		var rows []string
 		for _, r := range list {
 			rows = append(rows, cfgRow(m, r == cur, label[r], value[r]))
@@ -239,18 +243,27 @@ func (m model) pickerView() string {
 			m.st.muted.Render(m.t("cole com ctrl+v (cmd+v no mac): o código ou o comando ssh inteiro"))
 	case formJoin: // a sala tem nome e tamanho: dá para ver onde você está entrando
 		s := m.w.Rooms[m.joining]
-		return bold.Render(m.tf("entrar em %s?", m.roomName(s))) + "\n\n" +
+		out := bold.Render(m.tf("entrar em %s?", m.roomName(s))) + "\n\n" +
 			m.st.muted.Render(m.tf("código %s", m.joining)+" · "+m.roomSummary(s))
+		if slices.ContainsFunc(s.Members, func(x rooms.Member) bool { return x.ID == m.id }) {
+			out += "\n\n" + m.st.muted.Render(m.t("você já está nesta sala."))
+		}
+		if why := m.joinBlocked(s); why != "" {
+			out += "\n\n" + m.st.bad.Render(why)
+		}
+		return out
 	case formLeave:
-		return bold.Render(m.tf("sair de %s?", m.w.Rooms[m.room].Name)) + "\n\n" +
-			m.st.muted.Render(m.t("para voltar, você vai precisar do código de novo. se não sobrar ninguém, a sala some."))
+		s := m.w.Rooms[m.room]
+		aviso := m.t("para voltar, você vai precisar do código de novo. se não sobrar ninguém, a sala some.")
+		// a sucessão do ADR 0007: a sala vai para quem entrou primeiro, que é a ordem dos membros
+		if heir := slices.IndexFunc(s.Members, func(x rooms.Member) bool { return x.ID != m.id }); s.Owner == m.id && heir >= 0 {
+			aviso += " " + m.tf("a sala passa para %s, que está nela há mais tempo.", s.Members[heir].Nick)
+		}
+		return bold.Render(m.tf("sair de %s?", s.Name)) + "\n\n" + m.st.muted.Width(max(m.width-4, 20)).Render(aviso)
 	}
 	var b strings.Builder
 	if m.room == "" {
 		b.WriteString(lipgloss.NewStyle().Width(max(m.width-4, 20)).Render(m.t("você ainda não está em nenhuma sala. crie uma e passe o código para quem vai focar com você, ou entre com o código de alguém.")) + "\n\n")
-	}
-	if m.notice != "" { // quem perdeu a vaga ou estava numa sala encerrada cai aqui sem entender
-		b.WriteString(m.st.ok.Render(m.notice) + "\n\n")
 	}
 	b.WriteString(bold.Render(m.t("salas")) + "\n\n")
 	items := m.pickerItems()
@@ -279,16 +292,37 @@ func (m model) pickerView() string {
 		}
 		b.WriteString(line + "\n")
 	}
+	if m.notice != "" { // quem perdeu a vaga ou estava numa sala encerrada cai aqui sem entender
+		b.WriteString("\n" + m.noticeStyle().Render(m.notice)) // embaixo: quando ele some, a lista não pula
+	}
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// roomSummary resume uma sala numa linha: quantos estão focando agora.
+// joinBlocked: por que o Join recusaria a sala, dito na prévia antes do enter ("" = dá para entrar).
+func (m model) joinBlocked(s rooms.Snapshot) string {
+	switch {
+	case len(s.Members) >= s.Max:
+		return m.t("a sala está cheia.")
+	case s.Closed:
+		return m.t("a sala não está aceitando ninguém agora.")
+	}
+	return ""
+}
+
+// roomSummary resume uma sala numa linha: quantos estão focando agora. A sala solo é de uma
+// pessoa, então "1/1 membros" não diz nada: ela diz só se você está focando.
 func (m model) roomSummary(s rooms.Snapshot) string {
 	n := 0
 	for _, x := range s.Members {
 		if x.Status == rooms.Focusing {
 			n++
 		}
+	}
+	if s.Max == rooms.MinMembers {
+		if n > 0 {
+			return m.t("sala solo · focando")
+		}
+		return m.t("sala solo")
 	}
 	return m.tf("%d/%d membros · %d focando", len(s.Members), s.Max, n)
 }

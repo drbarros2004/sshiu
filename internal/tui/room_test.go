@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestRoomCode(t *testing.T) {
@@ -100,6 +101,60 @@ func TestOrderedMembers(t *testing.T) {
 	}
 }
 
+// Quem sai por vontade própria não vê o aviso de quem foi removida, e um tick tirado antes da
+// saída não traz a sala de volta. Quem perde a vaga vê o aviso, fora da cor de sucesso.
+func TestLeaveDoesNotFlashBack(t *testing.T) {
+	member := func(ids ...string) []rooms.Member {
+		var ms []rooms.Member
+		for _, id := range ids {
+			ms = append(ms, rooms.Member{ID: id})
+		}
+		return ms
+	}
+	before := rooms.World{Rooms: map[string]rooms.Snapshot{
+		"a": {Code: "a", Name: "antes", Members: member("eu", "bia")},
+		"b": {Code: "b", Name: "depois", Members: member("eu")}}}
+	after := rooms.World{Rooms: map[string]rooms.Snapshot{
+		"a": {Code: "a", Name: "antes", Members: member("bia")},
+		"b": {Code: "b", Name: "depois", Members: member("eu")}}}
+	m := model{id: "eu", room: "", left: "a", w: before, st: newStyles(themes[0])} // logo depois do enter em "sair"
+	m.setWorld(before)                                                             // o tick de antes da saída
+	if m.room != "b" || m.notice != "" {
+		t.Fatalf("o tick velho trouxe a sala de volta: room %q, aviso %q", m.room, m.notice)
+	}
+	m.setWorld(after)
+	if m.room != "b" || m.notice != "" {
+		t.Fatalf("a saída virou remoção: room %q, aviso %q", m.room, m.notice)
+	}
+
+	m = model{id: "eu", room: "a", w: before, st: newStyles(themes[0])}
+	m.setWorld(after) // removida pelo dono
+	if m.notice != "você não está mais em antes" || m.noticeStyle().GetForeground() != m.st.bad.GetForeground() {
+		t.Fatalf("a remoção não avisou, ou avisou em verde: %q", m.notice)
+	}
+}
+
+// O cursor do menu de salas acompanha a lista quando ela encolhe.
+func TestPickerCursorFollowsList(t *testing.T) {
+	m := model{id: "eu", pcur: 5, w: rooms.World{Rooms: map[string]rooms.Snapshot{}}}
+	m.setWorld(rooms.World{Rooms: map[string]rooms.Snapshot{}})
+	if n := len(m.pickerItems()); m.pcur != n-1 {
+		t.Fatalf("cursor %d numa lista de %d", m.pcur, n)
+	}
+}
+
+// A tarefa comprida encolhe no feed e as reações continuam inteiras na tela.
+func TestFeedKeepsReactions(t *testing.T) {
+	m := model{id: "eu", room: "s", st: newStyles(themes[0]), w: rooms.World{Rooms: map[string]rooms.Snapshot{
+		"s": {Max: 4, Members: []rooms.Member{{ID: "eu"}, {ID: "bia"}}, Events: []rooms.Event{{ID: 1, Who: "bia", Nick: "bia",
+			Verb: "começou", Task: strings.Repeat("revisar derivadas ", 8), Reacts: [rooms.Reactions][]string{0: {"eu"}, 1: {"eu"}}}}}}}}
+	for _, l := range strings.Split(m.feed(6, 96), "\n") {
+		if w := lipgloss.Width(l); w > 96 || !strings.Contains(l, "🔥 1") {
+			t.Fatalf("largura %d, linha %q", w, ansi.Strip(l))
+		}
+	}
+}
+
 // Sem tarefa a coluna da direita são os números, e o jardim (m.side) é nil: a tela não pode
 // depender dele para se desenhar.
 func TestSoloViewWithoutGarden(t *testing.T) {
@@ -142,5 +197,19 @@ func TestCardsAlinhados(t *testing.T) {
 	}
 	if got := m.cardInner(s.Members[:1]); got != cardMin {
 		t.Errorf("sala de apelidos curtos: miolo %d, queria %d", got, cardMin)
+	}
+}
+
+// A prévia de entrar e o menu de salas dizem o que a sala aceita antes do enter.
+func TestJoinBlockedAndSummary(t *testing.T) {
+	m := model{}
+	full := rooms.Snapshot{Max: 2, Members: []rooms.Member{{ID: "a"}, {ID: "b"}}}
+	closed := rooms.Snapshot{Max: 4, Closed: true, Members: []rooms.Member{{ID: "a"}}}
+	if m.joinBlocked(full) == "" || m.joinBlocked(closed) == "" || m.joinBlocked(rooms.Snapshot{Max: 4}) != "" {
+		t.Fatal("joinBlocked errou a sala cheia, a fechada ou a aberta")
+	}
+	solo := rooms.Snapshot{Max: rooms.MinMembers, Members: []rooms.Member{{ID: "a", Status: rooms.Focusing}}}
+	if got := m.roomSummary(solo); got != "sala solo · focando" {
+		t.Fatalf("resumo da sala solo: %q", got)
 	}
 }

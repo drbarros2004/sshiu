@@ -1,6 +1,7 @@
 package store
 
 import (
+	"path/filepath"
 	"slices"
 	"sshiu/internal/pet"
 	"testing"
@@ -102,6 +103,7 @@ func TestLang(t *testing.T) {
 	if err := Open(path); err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { db.Close() }) // no Windows, o TempDir não apaga um banco aberto
 	if got := Lang("ninguem"); got != "en" {
 		t.Fatalf("sem usuário: %q", got)
 	}
@@ -114,10 +116,44 @@ func TestLang(t *testing.T) {
 	if err := SetLang("u", "pt"); err != nil {
 		t.Fatal(err)
 	}
+	db.Close()
 	if err := Open(path); err != nil { // reabrir roda o ALTER TABLE de novo, sem mexer na escolha
 		t.Fatal(err)
 	}
 	if got := Lang("u"); got != "pt" {
 		t.Fatalf("depois de escolher: %q", got)
 	}
+}
+
+// As últimas tarefas saem pela data que a tela mostra, mesmo gravadas fora de ordem.
+func TestTasksByDate(t *testing.T) {
+	if err := Open(":memory:"); err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	PutUser("u", "ana", pet.EnergyStart)
+	now := time.Now()
+	for _, start := range []time.Time{now, now.Add(-time.Hour)} { // a mais velha gravada depois
+		if _, err := RecordTask("u", TaskRow{Start: start, End: start, Task: start.Format("15:04")}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if ts, err := Tasks("u"); err != nil || len(ts) != 2 || !ts[0].Start.After(ts[1].Start) {
+		t.Fatalf("ordem %+v %v", ts, err)
+	}
+}
+
+// O endereço ganha o WAL só quando ainda não tem parâmetros: dois "?" não abrem o banco.
+func TestDSN(t *testing.T) {
+	if got := dsn("sshiu.db"); got != "sshiu.db?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)" {
+		t.Fatalf("sem parâmetros: %q", got)
+	}
+	dev := "file:sshiu-dev.db?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"
+	if got := dsn(dev); got != dev {
+		t.Fatalf("com parâmetros: %q", got)
+	}
+	if err := Open(filepath.Join(t.TempDir(), "x.db") + "?_pragma=busy_timeout(1000)"); err != nil {
+		t.Fatalf("o endereço com parâmetros não abriu: %v", err)
+	}
+	db.Close()
 }

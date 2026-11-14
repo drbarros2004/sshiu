@@ -17,22 +17,28 @@ import (
 
 var resultLabel = map[pet.Result]string{pet.Done: "✓ cumprida", pet.NotDone: "não cumprida", pet.Interrupted: "interrompida"}
 
-func (m model) profileView() string {
+// profileView: o pet à esquerda e as informações à direita, em h linhas. Quando a altura não dá
+// para tudo, as últimas tarefas encurtam; se nem uma cabe, o calendário sai (ele também está na
+// sala solo) para os números e as tarefas ficarem. Seção sem nenhuma linha não aparece.
+func (m model) profileView(_, h int) string {
 	if m.pet.LastActive.IsZero() {
 		return m.st.muted.Render(m.t("carregando…"))
 	}
 	e := m.pet.EnergyAt(m.now)
 	mood := pet.MoodOf(e)
 	moodSt := lipgloss.NewStyle().Foreground(energyColors.barColor(mood))
-	info := bold.Render(m.nick) + "\n\n" +
-		fmt.Sprintf("%-9s", m.t("humor")) + moodSt.Render(m.t(pet.MoodName[mood])) + "\n" +
+	head := bold.Render(m.nick) + "\n\n"
+	if m.first { // o primeiro acesso: o apelido foi o primeiro passo, este é o último
+		head = bold.Render(m.nick) + "\n" + m.st.title.Render(m.t("último passo: a cor do pet")) + "\n" +
+			m.st.muted.Render(m.t("enter salva e abre a aba sala")) + "\n\n"
+	}
+	head += fmt.Sprintf("%-9s", m.t("humor")) + moodSt.Render(m.t(pet.MoodName[mood])) + "\n" +
 		m.energyBar(e, mood, moodSt) + "\n" +
 		fmt.Sprintf("%-9s%d %s", m.t("streak"), m.pet.StreakAt(m.now), plural(m.pet.StreakAt(m.now), m.t("dia seguido"), m.t("dias seguidos"))) + "\n" +
-		m.colorRow() + "\n\n" +
-		m.statsBlock(false) + "\n\n" +
-		bold.Render(m.t("últimas tarefas")) + "\n"
-	if len(m.tasks) == 0 {
-		info += m.st.muted.Render(m.t("nenhuma ainda"))
+		m.colorRow()
+	tasks := []string{m.st.muted.Render(m.t("nenhuma ainda"))}
+	if len(m.tasks) > 0 {
+		tasks = nil
 	}
 	for _, t := range m.tasks {
 		label := fmt.Sprintf("%-13s", m.t(resultLabel[t.Result]))
@@ -41,11 +47,33 @@ func (m model) profileView() string {
 		} else {
 			label = m.st.muted.Render(label)
 		}
-		info += fmt.Sprintf("%s  %s %3d min  %s", t.Start.Format("02/01 15:04"), label, int(t.Focused.Minutes()), t.Task)
+		line := fmt.Sprintf("%s  %s %3d min  %s", t.Start.Format("02/01 15:04"), label, int(t.Focused.Minutes()), t.Task)
 		if r, ok := m.w.Rooms[t.Room]; ok { // a sala pode ter sumido desde então: aí não há nome a mostrar
-			info += m.st.muted.Render(" · " + m.roomName(r))
+			line += m.st.muted.Render(" · " + m.roomName(r))
 		}
-		info += "\n"
+		tasks = append(tasks, line)
+	}
+	build := func(cal bool, k int) string {
+		parts := []string{head}
+		if cal {
+			parts = append(parts, m.calendar())
+		}
+		parts = append(parts, m.taskNumbers())
+		if k > 0 {
+			parts = append(parts, bold.Render(m.t("últimas tarefas"))+"\n"+strings.Join(tasks[:k], "\n"))
+		}
+		return strings.Join(parts, "\n\n")
+	}
+	info := build(true, len(tasks))
+	for _, cal := range []bool{true, false} {
+		for k := len(tasks); k >= 1 && lipgloss.Height(info) > h; k-- {
+			info = build(cal, k)
+		}
+	}
+	if lipgloss.Height(info) > h { // nem uma tarefa cabe: os números ficam, com o calendário se der
+		if info = build(true, 0); lipgloss.Height(info) > h {
+			info = build(false, 0)
+		}
 	}
 	drawing := pet.RenderBig(mood, m.tick, m.pixel, m.myColor())
 	if m.custom {
@@ -58,8 +86,7 @@ func (m model) profileView() string {
 			m.st.muted.Render("↑/↓ ") + m.t(pet.MoodName[m.previewMood]) + "\n" +
 			m.st.muted.Render(m.t("apenas para visualização")+"\n"+m.t("(não altera humor ou energia)"))
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, drawing, "    ",
-		strings.TrimRight(info, "\n"))
+	return lipgloss.JoinHorizontal(lipgloss.Top, drawing, "    ", info)
 }
 
 // myColor: a cor do pet em prévia — a salva, fora do modo personalizar.
@@ -71,12 +98,19 @@ func (m model) colorRow() string {
 	c := pet.Colors[m.pcolor]
 	name := m.t(c.Name) + " " + lipgloss.NewStyle().Foreground(c.Body).Render("██")
 	if !m.custom {
-		return fmt.Sprintf("%-9s", m.t("cor")) + m.st.muted.Render(name)
+		row := fmt.Sprintf("%-9s", m.t("cor")) + m.st.muted.Render(name)
+		if m.notice != "" { // o "salvo" da cor, na própria linha: quando ele some, nada sobe
+			row += "  " + m.noticeStyle().Render(m.notice)
+		}
+		return row
 	}
 	return m.st.sel.Render(fmt.Sprintf("%-9s", m.t("cor"))) + m.st.muted.Render("‹ ") + name + m.st.muted.Render(" ›")
 }
 
 func (m model) profileHelp() string {
+	if m.custom && m.first {
+		return m.t("←/→ cor · ↑/↓ prévia do humor · enter salva e abre a sala")
+	}
 	if m.custom {
 		return m.t("←/→ cor · ↑/↓ prévia do humor · enter salva a cor · esc volta")
 	}
@@ -104,16 +138,26 @@ func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.pcolor = (m.pcolor + 1) % len(pet.Colors)
 	case "esc", "c":
 		m.pcolor, m.custom = m.pcSaved, false
+		if m.first { // o primeiro acesso termina na sala, com a cor que veio
+			m.first = false
+			return m.switchTab(tabRoom)
+		}
 	case "enter":
 		id, paletteID := m.id, m.myColor()
 		m.pcSaved, m.custom, m.notice = m.pcolor, false, m.t("salvo")
-		return m, act(func() {
+		save := act(func() {
 			if err := store.SetPetColor(id, paletteID); err != nil {
 				log.Error("setPetColor", "err", err)
 				return
 			}
 			rooms.SetColor(id, paletteID)
 		})
+		if m.first {
+			m.first = false
+			next, cmd := m.switchTab(tabRoom)
+			return next, tea.Batch(save, cmd)
+		}
+		return m, save
 	}
 	return m, nil
 }
