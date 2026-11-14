@@ -125,6 +125,8 @@ type room struct {
 	closed     bool   // fechada para novas entradas, mesmo com vaga
 	obra       string // tema da obra ("" = sem obra, ADR 0008)
 	meta       int    // minutos focados que completam uma peça
+	boardOpen  bool   // a sala toda vê a tabela de foco; fechado, só o dono (ADR 0010)
+	boardRank  bool   // a tabela de foco em ranking, em vez da tabela
 	members    []string
 	events     []*Event // mais novo primeiro
 }
@@ -143,7 +145,7 @@ func Load() error {
 			return err
 		}
 		rooms[r.Code] = &room{code: r.Code, name: r.Name, owner: r.Owner, max: ClampSize(r.Max),
-			closed: r.Closed, obra: r.Obra, meta: r.ObraMeta, members: ids}
+			closed: r.Closed, obra: r.Obra, meta: r.ObraMeta, boardOpen: r.BoardOpen, boardRank: r.BoardRank, members: ids}
 		for _, id := range ids {
 			load(id)
 		}
@@ -366,7 +368,8 @@ func saveRoom(r *room) {
 		return
 	}
 	if err := store.SetRoom(store.RoomRow{Code: r.code, Name: r.name, Owner: r.owner,
-		Max: r.max, Closed: r.closed, Obra: r.obra, ObraMeta: r.meta}); err != nil {
+		Max: r.max, Closed: r.closed, Obra: r.obra, ObraMeta: r.meta, BoardOpen: r.boardOpen,
+		BoardRank: r.boardRank}); err != nil {
 		log.Error("setRoom", "err", err)
 	}
 }
@@ -487,6 +490,19 @@ func SetMeta(id, code string, minutes int) error {
 		return fmt.Errorf("meta fora da lista: %d min", minutes)
 	}
 	r.meta = minutes
+	saveRoom(r)
+	return nil
+}
+
+// SetBoard escolhe quem vê a tabela de foco (o dono sempre vê) e se ela aparece como ranking.
+func SetBoard(id, code string, open, rank bool) error {
+	mu.Lock()
+	defer mu.Unlock()
+	r, err := owned(id, code)
+	if err != nil {
+		return err
+	}
+	r.boardOpen, r.boardRank = open, rank
 	saveRoom(r)
 	return nil
 }
@@ -612,6 +628,8 @@ type Snapshot struct {
 	Closed     bool   // não aceita mais ninguém
 	Obra       string // tema da obra ("" = sem obra, ADR 0008)
 	Meta       int    // minutos focados que completam uma peça
+	BoardOpen  bool   // a sala toda vê a tabela de foco, não só o dono (ADR 0010)
+	BoardRank  bool   // a tabela de foco em ranking
 	Members    []Member
 	Events     []Event // cópias: seguras para ler fora do lock
 }
@@ -640,7 +658,7 @@ func SnapshotWorld() World {
 	}
 	for code, r := range rooms {
 		s := Snapshot{Code: code, Name: r.name, Owner: r.owner, Max: r.max, Closed: r.closed,
-			Obra: r.obra, Meta: r.meta}
+			Obra: r.obra, Meta: r.meta, BoardOpen: r.boardOpen, BoardRank: r.boardRank}
 		for _, id := range r.members {
 			s.Members = append(s.Members, w.Users[id])
 		}
