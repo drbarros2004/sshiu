@@ -66,6 +66,8 @@ you need go 1.27 or newer and an ssh client.
 
 to use another port, pass `-port`. to run the tests, use `go test ./...`.
 
+**dev mode**, to test with many people: `go run . -dev -port 23235`. it uses its own `sshiu-dev.db`, listens only on localhost, and who you are comes from the ssh user name instead of the key (`ssh -p 23235 ana@localhost`, `ssh -p 23235 bia@localhost`). the extra dev tab lists everyone and changes energy, idle days, focused minutes, streak, pet color, who's online and the task in progress, and puts people in the room you're looking at.
+
 ## open it to your group
 
 by default the server only accepts connections from the same machine. to let other people in:

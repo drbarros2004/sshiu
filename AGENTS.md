@@ -23,7 +23,10 @@ O Go fica em `C:\Program Files\Go\bin`, que pode não estar no PATH do shell.
 ```
 go vet ./... && go test ./...
 go run . -demo -port 23235
+go run . -dev -port 23235
 ```
+
+Com `-dev` ([ADR 0011](docs/adr/0011-modo-dev.md)), o banco é o `sshiu-dev.db`, a pessoa é o nome do SSH (`ssh -p 23235 ana@localhost`, sem chave) e a aba dev cria pessoas, põe gente na sala, liga e desliga quem está online, põe tarefas em andamento e muda os números com o servidor rodando.
 
 Toda mudança termina com `go vet ./...` e `go test ./...` passando, e toda feature precisa ser validada visualmente rodando como o app de verdade: interface nova nasce como um protótipo que roda no terminal, que o usuário vê antes de ela entrar no app.
 
@@ -31,7 +34,7 @@ Toda mudança termina com `go vet ./...` e `go test ./...` passando, e toda feat
 
 O usuário costuma deixar o próprio servidor rodando na porta 23234, com um binário também chamado `sshiu.exe` (antes, `plantao.exe`).
 
-- Suba o seu servidor na **porta 23235**, a partir de uma pasta de rascunho: `sshiu.db` e `.ssh/` são lidos do diretório atual, então rodar na raiz mexe no banco do usuário. Ex.: `go build -o <rascunho>/sshiu-teste.exe .` e rode dentro de `<rascunho>`.
+- Suba o seu servidor na **porta 23235** (confira antes se ela está livre: o usuário também testa o modo dev por ali, e um roteiro rodando no servidor dele mexe no banco dele), a partir de uma pasta de rascunho: `sshiu.db` e `.ssh/` são lidos do diretório atual, então rodar na raiz mexe no banco do usuário. Ex.: `go build -o <rascunho>/sshiu-teste.exe .` e rode dentro de `<rascunho>`.
 - Pare o seu servidor **pelo PID ou pelo caminho do executável**. Matar pelo nome do binário (`sshiu.exe`, ou o antigo `plantao.exe`) já derrubou o servidor do usuário.
 - O painel de terminal não dirige a TUI. Use um harness em Go na pasta de rascunho: cliente `golang.org/x/crypto/ssh` alimentando um emulador `github.com/charmbracelet/x/vt`, com passos como digitar, enter e esperar um texto.
 - Confira a tela **sem forçar redesenho** (`WindowChange`): o redesenho esconde bugs do renderer incremental. Para ver cores e pixel art, rasterize a tela num PNG.

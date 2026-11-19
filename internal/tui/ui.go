@@ -78,9 +78,10 @@ const (
 	tabProfile
 	tabVisual
 	tabAbout
+	tabDev // só com a flag -dev (dev.go)
 )
 
-var tabNames = [...]string{"sala", "perfil", "visual", "sobre"}
+var tabNames = [...]string{"sala", "perfil", "visual", "sobre", "dev"}
 
 // Mensagens: o único jeito de o mundo de fora mudar o modelo.
 type (
@@ -151,6 +152,7 @@ type model struct {
 	ncur, nobra     int          // linha e obra escolhidas na tela de criar sala
 	obraFull        bool         // a obra sozinha na tela (tecla o)
 	garden          *garden      // modo jardim em tela cheia (nil = desligado)
+	dev             devPanel     // a aba dev (só com -dev)
 	gardenGen       int          // distingue os ticks de cada abertura
 	side            *garden      // o jardim da coluna da sala solo (nil = não tem)
 	lastKey         time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim, se a aba visual deixar
@@ -372,6 +374,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.side.ticking = true
 			return m, tea.Batch(next, sideTick(m.side.gen))
 		}
+		if m.tab == tabDev { // os números mudam também por quem foca: a tabela acompanha o tick
+			return m, tea.Batch(next, devDo(nil))
+		}
 		return m, next
 	case gardenTickMsg:
 		if m.garden != nil && msg.gen == m.garden.gen {
@@ -426,6 +431,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tea.Batch(cmds...)
 		}
+	case devMsg:
+		if m.dev.setRows(msg.rows, msg.at, msg.sel) {
+			m.setWorld(msg.w)
+		}
+		if msg.err != nil {
+			m.err = msg.err.Error()
+		}
 	case profileMsg:
 		m.pet, m.tasks, m.days, m.hours, m.totals = msg.pet, msg.tasks, msg.days, msg.hours, msg.totals
 		m.rec, m.recAt = msg.rec, msg.recAt
@@ -473,7 +485,7 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.garden = nil
 		return m, nil
 	}
-	n := tab(len(tabNames))
+	n := tabs()
 	switch {
 	case k == "ctrl+c":
 		return m, tea.Quit
@@ -495,6 +507,8 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.visualKey(msg)
 	case tabAbout:
 		return m.aboutKey(msg)
+	case tabDev:
+		return m.devKey(msg)
 	}
 	return m, nil
 }
@@ -512,6 +526,10 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 		m.smonth = time.Time{} // o perfil abre no mês de agora
 		return m, m.loadProfile()
 	}
+	if t == tabDev {
+		m.dev.input = ""
+		return m, devDo(nil)
+	}
 	return m, nil
 }
 
@@ -519,7 +537,7 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 // Os formulários sem campo (o tamanho da sala, a confirmação de saída) não entram: neles as
 // teclas de sempre valem, inclusive o q.
 func (m model) typing() bool {
-	return m.entering || m.other || m.cname || m.form == formNew || m.form == formCode
+	return m.entering || m.other || m.cname || m.form == formNew || m.form == formCode || m.tab == tabDev && m.dev.input != ""
 }
 
 func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -580,7 +598,7 @@ func (m model) View() tea.View {
 	if m.nick == "" {
 		body = m.st.title.Render("sshiu") + "\n" + m.st.muted.Render(m.t("um lugar quieto para focar junto")) +
 			"\n\n" + m.t("primeira vez por aqui. qual vai ser o seu apelido?") + "\n\n" + m.in.View() +
-			m.errLine() + "\n\n" + m.st.muted.Render(m.t("enter confirma · sua chave SSH é o seu login"))
+			m.errLine() + "\n\n" + m.st.muted.Render(m.loginHint())
 	} else {
 		var help string
 		content := m.roomView // o conteúdo recebe o espaço que sobra (largura, altura)
@@ -593,6 +611,8 @@ func (m model) View() tea.View {
 			content, help = func(int, int) string { return m.visualView() }, m.t("↑/↓ escolhe · ←/→ muda · j prévia · v editar no jardim · enter salva")
 		case tabAbout:
 			content, help = m.aboutView, m.t("↑/↓ escolhe a pergunta")
+		case tabDev:
+			content, help = func(_, h int) string { return m.devView(h) }, m.devHelp()
 		}
 		inner := max(m.width-4, 1)
 		footer := func(help string) string {
@@ -671,7 +691,7 @@ func (m model) errLine() string {
 // header: abas à esquerda, o seu status à direita, sempre visível.
 func (m model) header() string {
 	parts := []string{m.st.title.Render("sshiu") + " "}
-	for i, name := range tabNames {
+	for i, name := range tabNames[:tabs()] {
 		if tab(i) == m.tab {
 			parts = append(parts, m.st.tabOn.Render(m.t(name)))
 		} else {
