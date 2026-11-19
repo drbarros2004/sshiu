@@ -1,0 +1,20 @@
+{
+  "frameWidth": 16,
+  "frameHeight": 16,
+  "moodOrder": [
+    "wilted",
+    "tired",
+    "normal",
+    "good",
+    "radiant",
+    "sleeping"
+  ],
+  "frameCounts": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    4
+  ]
+}

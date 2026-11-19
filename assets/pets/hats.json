@@ -1,0 +1,90 @@
+{
+  "width": 16,
+  "height": 6,
+  "hats": [
+    {
+      "id": "top_hat",
+      "displayName": {
+        "pt": "cartola",
+        "en": "top hat"
+      },
+      "order": 0,
+      "variants": [
+        {
+          "id": "normal",
+          "displayName": {
+            "pt": "normal",
+            "en": "normal"
+          },
+          "image": "hats/top_hat/top_hat_normal.png",
+          "order": 0
+        },
+        {
+          "id": "normal_detailed",
+          "displayName": {
+            "pt": "normal detalhado",
+            "en": "normal detailed"
+          },
+          "image": "hats/top_hat/top_hat_normal_detailed.png",
+          "order": 1
+        },
+        {
+          "id": "black",
+          "displayName": {
+            "pt": "preta",
+            "en": "black"
+          },
+          "image": "hats/top_hat/top_hat_black.png",
+          "order": 2
+        }
+      ]
+    },
+    {
+      "id": "cowboy",
+      "displayName": {
+        "pt": "chapéu de cowboy",
+        "en": "cowboy"
+      },
+      "order": 1,
+      "variants": [
+        {
+          "id": "normal",
+          "displayName": {
+            "pt": "normal",
+            "en": "normal"
+          },
+          "image": "hats/cowboy/cowboy_normal.png",
+          "order": 0
+        },
+        {
+          "id": "normal_detailed",
+          "displayName": {
+            "pt": "normal detalhado",
+            "en": "normal detailed"
+          },
+          "image": "hats/cowboy/cowboy_normal_detailed.png",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "id": "xmas_hat",
+      "displayName": {
+        "pt": "gorro de natal",
+        "en": "xmas hat"
+      },
+      "order": 2,
+      "variants": [
+        {
+          "id": "normal",
+          "displayName": {
+            "pt": "normal",
+            "en": "normal"
+          },
+          "image": "hats/xmas_hat/xmas_hat_normal.png",
+          "order": 0
+        }
+      ]
+    }
+  ]
+}

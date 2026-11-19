@@ -1,0 +1,328 @@
+{
+  "spriteLayout": "sprite-layout.json",
+  "mainAssets": "main-assets.json",
+  "characters": [
+    {
+      "id": "fruit",
+      "displayName": {
+        "pt": "fruta",
+        "en": "fruit"
+      },
+      "order": 0,
+      "spriteLayout": "characters/00_fruit/sprite-layout.json",
+      "variants": [
+        {
+          "id": "blue",
+          "displayName": {
+            "pt": "azul",
+            "en": "blue"
+          },
+          "spriteSheet": "characters/00_fruit/body/fruit_blue.png",
+          "otherAssets": {
+            "plant": "characters/00_fruit/other_assets/plant/fruit_plant_blue.png",
+            "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_blue.png"
+          },
+          "order": 0
+        },
+        {
+          "id": "green",
+          "displayName": {
+            "pt": "verde",
+            "en": "green"
+          },
+          "spriteSheet": "characters/00_fruit/body/fruit_green.png",
+          "otherAssets": {
+            "plant": "characters/00_fruit/other_assets/plant/fruit_plant_green.png",
+            "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_green.png"
+          },
+          "order": 1
+        },
+        {
+          "id": "yellow",
+          "displayName": {
+            "pt": "amarelo",
+            "en": "yellow"
+          },
+          "spriteSheet": "characters/00_fruit/body/fruit_yellow.png",
+          "otherAssets": {
+            "plant": "characters/00_fruit/other_assets/plant/fruit_plant_yellow.png",
+            "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_yellow.png"
+          },
+          "order": 2
+        },
+        {
+          "id": "coral",
+          "displayName": {
+            "pt": "coral",
+            "en": "coral"
+          },
+          "spriteSheet": "characters/00_fruit/body/fruit_coral.png",
+          "otherAssets": {
+            "plant": "characters/00_fruit/other_assets/plant/fruit_plant_coral.png",
+            "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_coral.png"
+          },
+          "order": 3
+        },
+        {
+          "id": "purple",
+          "displayName": {
+            "pt": "roxo",
+            "en": "purple"
+          },
+          "spriteSheet": "characters/00_fruit/body/fruit_purple.png",
+          "otherAssets": {
+            "plant": "characters/00_fruit/other_assets/plant/fruit_plant_purple.png",
+            "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_purple.png"
+          },
+          "order": 4
+        },
+        {
+          "id": "turquoise",
+          "displayName": {
+            "pt": "turquesa",
+            "en": "turquoise"
+          },
+          "spriteSheet": "characters/00_fruit/body/fruit_turquoise.png",
+          "otherAssets": {
+            "plant": "characters/00_fruit/other_assets/plant/fruit_plant_turquoise.png",
+            "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_turquoise.png"
+          },
+          "order": 5
+        },
+        {
+          "id": "orange",
+          "displayName": {
+            "pt": "laranja",
+            "en": "orange"
+          },
+          "spriteSheet": "characters/00_fruit/body/fruit_orange.png",
+          "otherAssets": {
+            "plant": "characters/00_fruit/other_assets/plant/fruit_plant_orange.png",
+            "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_orange.png"
+          },
+          "order": 6
+        },
+        {
+          "id": "pink",
+          "displayName": {
+            "pt": "rosa",
+            "en": "pink"
+          },
+          "spriteSheet": "characters/00_fruit/body/fruit_pink.png",
+          "otherAssets": {
+            "plant": "characters/00_fruit/other_assets/plant/fruit_plant_pink.png",
+            "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_pink.png"
+          },
+          "order": 7
+        }
+      ],
+      "composition": {
+        "withoutHat": [
+          "body",
+          "plant",
+          "sparkles",
+          "tired_particles",
+          "sleep_particles"
+        ],
+        "withHat": [
+          "body",
+          "hat",
+          "sleep_particles"
+        ]
+      },
+      "moods": "characters/00_fruit/moods.json"
+    },
+    {
+      "id": "bunny",
+      "displayName": {
+        "pt": "coelho",
+        "en": "bunny"
+      },
+      "order": 1,
+      "spriteLayout": "characters/01_bunny/sprite-layout.json",
+      "variants": [
+        {
+          "id": "blue",
+          "displayName": {
+            "pt": "azul",
+            "en": "blue"
+          },
+          "spriteSheet": "characters/01_bunny/body/bunny_blue.png",
+          "order": 0
+        },
+        {
+          "id": "green",
+          "displayName": {
+            "pt": "verde",
+            "en": "green"
+          },
+          "spriteSheet": "characters/01_bunny/body/bunny_green.png",
+          "order": 1
+        },
+        {
+          "id": "yellow",
+          "displayName": {
+            "pt": "amarelo",
+            "en": "yellow"
+          },
+          "spriteSheet": "characters/01_bunny/body/bunny_yellow.png",
+          "order": 2
+        },
+        {
+          "id": "coral",
+          "displayName": {
+            "pt": "coral",
+            "en": "coral"
+          },
+          "spriteSheet": "characters/01_bunny/body/bunny_coral.png",
+          "order": 3
+        },
+        {
+          "id": "purple",
+          "displayName": {
+            "pt": "roxo",
+            "en": "purple"
+          },
+          "spriteSheet": "characters/01_bunny/body/bunny_purple.png",
+          "order": 4
+        },
+        {
+          "id": "turquoise",
+          "displayName": {
+            "pt": "turquesa",
+            "en": "turquoise"
+          },
+          "spriteSheet": "characters/01_bunny/body/bunny_turquoise.png",
+          "order": 5
+        },
+        {
+          "id": "orange",
+          "displayName": {
+            "pt": "laranja",
+            "en": "orange"
+          },
+          "spriteSheet": "characters/01_bunny/body/bunny_orange.png",
+          "order": 6
+        },
+        {
+          "id": "pink",
+          "displayName": {
+            "pt": "rosa",
+            "en": "pink"
+          },
+          "spriteSheet": "characters/01_bunny/body/bunny_pink.png",
+          "order": 7
+        }
+      ],
+      "composition": {
+        "withoutHat": [
+          "body",
+          "sleep_particles"
+        ],
+        "withHat": [
+          "body",
+          "hat",
+          "sleep_particles"
+        ]
+      },
+      "moods": "characters/01_bunny/moods.json"
+    },
+    {
+      "id": "claude",
+      "displayName": {
+        "pt": "claude",
+        "en": "claude"
+      },
+      "order": 2,
+      "spriteLayout": "characters/02_claude/sprite-layout.json",
+      "variants": [
+        {
+          "id": "normal",
+          "displayName": {
+            "pt": "normal",
+            "en": "normal"
+          },
+          "spriteSheet": "characters/02_claude/body/claude_normal.png",
+          "order": 0
+        },
+        {
+          "id": "blue",
+          "displayName": {
+            "pt": "azul",
+            "en": "blue"
+          },
+          "spriteSheet": "characters/02_claude/body/claude_blue.png",
+          "order": 1
+        },
+        {
+          "id": "green",
+          "displayName": {
+            "pt": "verde",
+            "en": "green"
+          },
+          "spriteSheet": "characters/02_claude/body/claude_green.png",
+          "order": 2
+        },
+        {
+          "id": "yellow",
+          "displayName": {
+            "pt": "amarelo",
+            "en": "yellow"
+          },
+          "spriteSheet": "characters/02_claude/body/claude_yellow.png",
+          "order": 3
+        },
+        {
+          "id": "purple",
+          "displayName": {
+            "pt": "roxo",
+            "en": "purple"
+          },
+          "spriteSheet": "characters/02_claude/body/claude_purple.png",
+          "order": 4
+        },
+        {
+          "id": "turquoise",
+          "displayName": {
+            "pt": "turquesa",
+            "en": "turquoise"
+          },
+          "spriteSheet": "characters/02_claude/body/claude_turquoise.png",
+          "order": 5
+        },
+        {
+          "id": "orange",
+          "displayName": {
+            "pt": "laranja",
+            "en": "orange"
+          },
+          "spriteSheet": "characters/02_claude/body/claude_orange.png",
+          "order": 6
+        },
+        {
+          "id": "pink",
+          "displayName": {
+            "pt": "rosa",
+            "en": "pink"
+          },
+          "spriteSheet": "characters/02_claude/body/claude_pink.png",
+          "order": 7
+        }
+      ],
+      "composition": {
+        "withoutHat": [
+          "body",
+          "tired_particles",
+          "sleep_particles"
+        ],
+        "withHat": [
+          "body",
+          "hat",
+          "sleep_particles"
+        ]
+      },
+      "moods": "characters/02_claude/moods.json"
+    }
+  ],
+  "moods": "moods.json"
+}
