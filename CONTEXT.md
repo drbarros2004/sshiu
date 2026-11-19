@@ -43,6 +43,10 @@ _Evite_: sala privada, modo solo
 **Sala demo**:
 A sala com bots que existe só no modo de demonstração, para mostrar o app cheio.
 
+**Modo dev**:
+O servidor subido com `-dev` para testar: banco próprio, só localhost, a pessoa é o nome do SSH (`ssh ana@localhost`) e a aba dev muda os números, a presença e a tarefa de qualquer uma ([ADR 0011](docs/adr/0011-modo-dev.md)).
+_Evite_: modo admin, modo debug
+
 ### Foco
 
 **Tarefa**:

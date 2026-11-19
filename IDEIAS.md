@@ -136,6 +136,10 @@ O nome pede silêncio, e a ideia aparece no app sem forçar. Do brainstorming de
 - **Modo biblioteca:** durante o foco, as reações recebidas ficam guardadas e só aparecem quando a tarefa acaba.
 - **Cuidado:** o "shhh" é sutil. Uma ou duas dessas por vez, e só as que já são verdade no app.
 
+### Modo dev: o que ficou de fora
+- **O quê:** o modo dev ([ADR 0011](docs/adr/0011-modo-dev.md)) cobre pessoas, salas e números. Ficaram de fora: um seed que já sobe uma sala cheia, as outras configurações da sala (tamanho, obra, meta) pelo painel, parar uma tarefa sem cumprir e um convite com `<apelido>@` no lugar do endereço puro.
+- **Por quê:** só entram quando um teste pedir; hoje dá para fazer tudo isso entrando com outro nome.
+
 ## Mais adiante
 
 ### Passada de performance
