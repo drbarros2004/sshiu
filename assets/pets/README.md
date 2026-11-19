@@ -84,11 +84,24 @@ Os traços dos TXT foram removidos do JSON, porque representam quadros inativos.
 ## Composição
 
 composition.withoutHat e composition.withHat listam as camadas de baixo para cima.
-body vem de spriteSheet da variante escolhida. hat vem da variante escolhida em hats.json.
-plant e sparkles vêm de otherAssets da mesma variante de cor da fruta.
-tired_particles e sleep_particles vêm de main-assets.json.
+As entradas são referências de camadas. Elas seguem os nomes das pastas e são resolvidas pelos catálogos.
+
+| Referência | Arquivo escolhido |
+| --- | --- |
+| characters/body | spriteSheet da variante de cor do personagem escolhido |
+| characters/other_assets/plant | otherAssets.plant da mesma variante |
+| characters/other_assets/sparkles | otherAssets.sparkles da mesma variante |
+| hats/selected | image da variante do chapéu escolhido em hats.json |
+| main_assets/tired_particles | spriteSheet do ID tired_particles em main-assets.json |
+| main_assets/sleep_particles | spriteSheet do ID sleep_particles em main-assets.json |
+
+characters representa o personagem selecionado e sua variante, sem fixar sua pasta numérica ou sua cor.
+selected representa a escolha atual de chapéu e variante. Não há uma pasta chamada selected.
+body, plant e sparkles são pastas que agrupam as versões coloridas das camadas.
+As partículas são IDs com caminhos de PNG explícitos em main-assets.json.
+Cada referência resulta em uma imagem. A composição mantém a ordem definida mesmo ao trocar a variante.
 Para acrescentar uma camada específica do personagem, cadastre seu caminho em otherAssets de suas variantes
-e seu ID nas listas de composição em que ela deve aparecer.
+e use characters/other_assets/ seguido de seu ID nas listas de composição em que ela deve aparecer.
 
 - fruit sem chapéu usa body, plant, sparkles, tired_particles e sleep_particles.
 - bunny sem chapéu usa body e sleep_particles.

@@ -10,6 +10,21 @@
       },
       "order": 0,
       "spriteLayout": "characters/00_fruit/sprite-layout.json",
+      "moods": "characters/00_fruit/moods.json",
+      "composition": {
+        "withoutHat": [
+          "characters/body",
+          "characters/other_assets/plant",
+          "characters/other_assets/sparkles",
+          "main_assets/tired_particles",
+          "main_assets/sleep_particles"
+        ],
+        "withHat": [
+          "characters/body",
+          "hats/selected",
+          "main_assets/sleep_particles"
+        ]
+      },
       "variants": [
         {
           "id": "blue",
@@ -115,22 +130,7 @@
           },
           "order": 7
         }
-      ],
-      "composition": {
-        "withoutHat": [
-          "body",
-          "plant",
-          "sparkles",
-          "tired_particles",
-          "sleep_particles"
-        ],
-        "withHat": [
-          "body",
-          "hat",
-          "sleep_particles"
-        ]
-      },
-      "moods": "characters/00_fruit/moods.json"
+      ]
     },
     {
       "id": "bunny",
@@ -140,6 +140,18 @@
       },
       "order": 1,
       "spriteLayout": "characters/01_bunny/sprite-layout.json",
+      "moods": "characters/01_bunny/moods.json",
+      "composition": {
+        "withoutHat": [
+          "characters/body",
+          "main_assets/sleep_particles"
+        ],
+        "withHat": [
+          "characters/body",
+          "hats/selected",
+          "main_assets/sleep_particles"
+        ]
+      },
       "variants": [
         {
           "id": "blue",
@@ -213,19 +225,7 @@
           "spriteSheet": "characters/01_bunny/body/bunny_pink.png",
           "order": 7
         }
-      ],
-      "composition": {
-        "withoutHat": [
-          "body",
-          "sleep_particles"
-        ],
-        "withHat": [
-          "body",
-          "hat",
-          "sleep_particles"
-        ]
-      },
-      "moods": "characters/01_bunny/moods.json"
+      ]
     },
     {
       "id": "claude",
@@ -235,6 +235,19 @@
       },
       "order": 2,
       "spriteLayout": "characters/02_claude/sprite-layout.json",
+      "moods": "characters/02_claude/moods.json",
+      "composition": {
+        "withoutHat": [
+          "characters/body",
+          "main_assets/tired_particles",
+          "main_assets/sleep_particles"
+        ],
+        "withHat": [
+          "characters/body",
+          "hats/selected",
+          "main_assets/sleep_particles"
+        ]
+      },
       "variants": [
         {
           "id": "normal",
@@ -308,20 +321,7 @@
           "spriteSheet": "characters/02_claude/body/claude_pink.png",
           "order": 7
         }
-      ],
-      "composition": {
-        "withoutHat": [
-          "body",
-          "tired_particles",
-          "sleep_particles"
-        ],
-        "withHat": [
-          "body",
-          "hat",
-          "sleep_particles"
-        ]
-      },
-      "moods": "characters/02_claude/moods.json"
+      ]
     }
   ],
   "moods": "moods.json"
