@@ -1,3 +1,4 @@
 sshiu.db*
 .ssh/
 *.exe
+sshiu-dev.db*

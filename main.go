@@ -26,9 +26,14 @@ func main() {
 	port := flag.String("port", "23234", "porta SSH")
 	// o padrão só aceita quem está na própria máquina: abrir para a rede é uma decisão de quem sobe
 	host := flag.String("host", "localhost", "endereço de escuta (vazio = todas as interfaces)")
+	flag.BoolVar(&tui.Dev, "dev", false, "modo dev: banco sshiu-dev.db, só localhost, entra quem disser o nome (ssh ana@localhost) e a aba dev")
 	flag.Parse()
 
-	if err := store.Open("sshiu.db"); err != nil {
+	db := "sshiu.db"
+	if tui.Dev { // o modo dev nunca encosta nos dados de verdade, e ninguém de fora entra sem chave
+		db, *host = "sshiu-dev.db", "localhost" // só o caminho: o store.Open acrescenta o WAL
+	}
+	if err := store.Open(db); err != nil {
 		log.Fatal("sqlite", "err", err)
 	}
 	if err := rooms.Load(); err != nil {
@@ -59,14 +64,14 @@ func main() {
 		log.Fatal("porta ocupada? talvez o sshiu já esteja rodando", "err", err)
 	}
 	for _, h := range hosts(*host) {
-		log.Info("sshiu no ar: "+sshTo(h, *port), "demo", rooms.Demo)
+		log.Info("sshiu no ar: "+sshTo(h, *port), "demo", rooms.Demo, "dev", tui.Dev)
 	}
 	log.Fatal(s.Serve(ln))
 }
 
 func requireKey(next ssh.Handler) ssh.Handler {
 	return func(s ssh.Session) {
-		if s.PublicKey() == nil {
+		if s.PublicKey() == nil && !tui.Dev { // no modo dev, quem diz o nome é o nome
 			host, port, _ := net.SplitHostPort(s.LocalAddr().String()) // por onde esta sessão chegou
 			// sem chave não há conta, nem idioma escolhido: o inglês (o padrão, #86) e o português juntos
 			wish.Fatalln(s, "\nsshiu uses your SSH key as your login, and you don't have one yet.\n"+
@@ -118,7 +123,12 @@ func hosts(listen string) []string {
 }
 
 func programHandler(s ssh.Session) *tea.Program {
-	id := gossh.FingerprintSHA256(s.PublicKey())
+	var id string
+	if tui.Dev {
+		id = rooms.DevUser(s.User())
+	} else {
+		id = gossh.FingerprintSHA256(s.PublicKey())
+	}
 	rooms.Connect(id)
 	go func() { <-s.Context().Done(); rooms.Disconnect(id) }()
 
