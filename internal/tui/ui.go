@@ -124,6 +124,7 @@ func act(f func()) tea.Cmd {
 type model struct {
 	original            string // identidade SSH original, preservada ao assumir alguém no dev
 	roomDev, profileDev *inlineDev
+	hideDev             bool // só desta conexão: interface normal para capturas, cenário dev preservado
 	quitArmed           bool
 	id, nick            string // nick vazio = primeiro acesso
 	invite              string // o "ssh ..." com que um colega chega a este servidor
@@ -516,6 +517,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
 	m.lastKey = time.Now()
+	if Dev && m.hideDev && k == "x" && !m.typing() {
+		m.hideDev = false
+		return m, nil // restaurar controles não abre o editor no mesmo toque
+	}
 	if m.garden != nil && k != "ctrl+c" { // ←/→ trocam o wallpaper; qualquer outra tecla sai, sem executar nada
 		if m.garden.mode >= gardenEditor {
 			return m.gardenEditorKey(msg)
@@ -542,7 +547,14 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if k != "ctrl+c" && k != "q" {
 		m.quitArmed = false
 	}
-	if Dev && m.nick != "" && (m.tab == tabProfile || m.tab == tabRoom) {
+	if k == "h" && m.canHideDev() {
+		m.hideDev = true
+		if m.tab == tabDev {
+			return m.switchTab(tabRoom)
+		}
+		return m, nil
+	}
+	if Dev && !m.hideDev && m.nick != "" && (m.tab == tabProfile || m.tab == tabRoom) {
 		if d := m.inline(); d != nil {
 			if d.field != "" || k != "tab" && k != "shift+tab" && !(k == "a" || k == "d") {
 				return m.inlineKey(msg)
@@ -558,7 +570,7 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, m.readInline()
 		}
 	}
-	n := tabs()
+	n := m.tabs()
 	switch {
 	case k == "ctrl+c":
 		return m, tea.Quit
@@ -685,8 +697,11 @@ func (m model) View() tea.View {
 					return panel + "\n" + m.profileView(w, max(1, h-lipgloss.Height(panel)-1))
 				}
 			}
-		} else if Dev && (m.tab == tabRoom || m.tab == tabProfile) {
+		} else if Dev && !m.hideDev && (m.tab == tabRoom || m.tab == tabProfile) {
 			help += m.t(" · x modo dev")
+		}
+		if m.canHideDev() {
+			help += m.t(" · h oculta opções dev")
 		}
 		inner := max(m.width-4, 1)
 		footer := func(help string) string {
@@ -765,7 +780,7 @@ func (m model) errLine() string {
 // header: abas à esquerda, o seu status à direita, sempre visível.
 func (m model) header() string {
 	parts := []string{m.st.title.Render("sshiu") + " "}
-	for i, name := range tabNames[:tabs()] {
+	for i, name := range tabNames[:m.tabs()] {
 		if tab(i) == m.tab {
 			parts = append(parts, m.st.tabOn.Render(m.t(name)))
 		} else {
