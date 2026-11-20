@@ -1,0 +1,76 @@
+{
+  "colors": [
+    {
+      "id": "blue",
+      "displayName": {
+        "pt": "azul",
+        "en": "blue"
+      },
+      "order": 0,
+      "color": "#8EC9F0"
+    },
+    {
+      "id": "green",
+      "displayName": {
+        "pt": "verde",
+        "en": "green"
+      },
+      "order": 1,
+      "color": "#8EE08A"
+    },
+    {
+      "id": "yellow",
+      "displayName": {
+        "pt": "amarelo",
+        "en": "yellow"
+      },
+      "order": 2,
+      "color": "#FFD166"
+    },
+    {
+      "id": "coral",
+      "displayName": {
+        "pt": "coral",
+        "en": "coral"
+      },
+      "order": 3,
+      "color": "#F0908E"
+    },
+    {
+      "id": "purple",
+      "displayName": {
+        "pt": "roxo",
+        "en": "purple"
+      },
+      "order": 4,
+      "color": "#C7A0E8"
+    },
+    {
+      "id": "turquoise",
+      "displayName": {
+        "pt": "turquesa",
+        "en": "turquoise"
+      },
+      "order": 5,
+      "color": "#7FD8D0"
+    },
+    {
+      "id": "orange",
+      "displayName": {
+        "pt": "laranja",
+        "en": "orange"
+      },
+      "order": 6,
+      "color": "#F2B07A"
+    },
+    {
+      "id": "pink",
+      "displayName": {
+        "pt": "rosa",
+        "en": "pink"
+      },
+      "order": 7,
+      "color": "#E890C0"
+    }
+  ]
+}

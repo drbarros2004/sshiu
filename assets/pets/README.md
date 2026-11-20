@@ -1,7 +1,7 @@
 # assets dos personagens e chapéus
 
 Preparação dos arquivos descritos em Specifications de 00_random_ssh_trab.txt.
-Esta pasta fica ao lado de 00_sprites e do repositório ssh-focus-app.
+Esta pasta fica em assets/pets, dentro do repositório ssh-focus-app.
 Os arquivos originais continuam em 00_sprites. A integração com o aplicativo é uma etapa posterior.
 
 ## Onde editar
@@ -15,7 +15,8 @@ Os arquivos originais continuam em 00_sprites. A integração com o aplicativo �
 - main-assets.json identifica as duas camadas compartilhadas de partículas.
 - templates guarda os marcadores da fruta e do Claude para edição ou geração de PNGs no futuro.
 
-Todos os caminhos nos JSONs são relativos a esta pasta assets.
+Os caminhos dos sprites e dos catálogos de pets são relativos a esta pasta assets/pets.
+artworkColors, em characters.json, aponta para ../artworks/colors.json, também relativo a esta pasta.
 Os IDs e nomes de arquivos estão em inglês, em minúsculas.
 displayName contém os nomes por idioma, por exemplo {"pt": "azul", "en": "blue"}.
 Edite esses nomes em characters.json e hats.json. Os IDs identificam as opções independentemente do idioma.
@@ -27,6 +28,16 @@ Os arrays também ficam nessa ordem para facilitar a leitura.
 Cartola usa normal, normal_detailed e black. Cowboy usa normal e normal_detailed.
 A última lista de cores das notas, identificada novamente como bunny, foi interpretada como claude.
 Os personagens são fruit, bunny e claude. Os chapéus são top_hat, cowboy e xmas_hat.
+
+## Cor da obra
+
+Cada variante em characters.json tem artworkColor com o ID da cor da sua peça na obra.
+Os IDs disponíveis e seus nomes em pt e en ficam em ../artworks/colors.json.
+Por exemplo, a variante normal do Claude usa "artworkColor": "coral".
+As demais variantes usam o ID da própria cor; fruta e coelho usam os mesmos oito IDs.
+Mudar displayName não muda essa ligação, pois ela usa IDs, não nomes de apresentação.
+Na integração futura, um artworkColor ausente ou que não exista no catálogo deve gerar erro.
+O aplicativo ainda não carrega esses catálogos: esta ligação prepara a integração dos novos personagens.
 
 ## Nomes dos humores
 
