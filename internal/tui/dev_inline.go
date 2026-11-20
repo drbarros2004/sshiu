@@ -124,6 +124,7 @@ func (m model) inlineRender() model {
 		for _, p := range s.People {
 			if p.ID == m.id {
 				m.pet = p.Pet
+				m.nick = p.Nick
 				if !m.custom {
 					m.pcolor = pet.ColorIndex(p.Pet.Color)
 				}
@@ -381,6 +382,13 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+r":
 		d.target = m.original
 		return m, nil
+	case "ctrl+n":
+		if m.tab == tabProfile || d.locked {
+			d.field = "name"
+			m.in = newInput(m.t("seu apelido"), nickMax)
+			m.in.SetValue(p.Nick)
+		}
+		return m, nil
 	case "ctrl+e":
 		d.field = "energy"
 		d.number = p.Pet.EnergyAt(m.now)
@@ -445,10 +453,6 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k {
 	case "ctrl+u":
 		d.target = p.ID
-	case "ctrl+n":
-		d.field = "name"
-		m.in = newInput(m.t("seu apelido"), nickMax)
-		m.in.SetValue(p.Nick)
 	case "ctrl+l":
 		d.field = "color"
 		d.picker = pet.ColorIndex(p.Pet.Color)
@@ -578,10 +582,11 @@ func (m model) inlineHelp() string {
 	}
 	base := m.t("ctrl+s salva · x salva e sai · esc volta · ctrl+r volta a você")
 	if m.tab == tabProfile {
+		actions := m.t("ctrl+n nome") + " · " + m.t("ctrl+e energia")
 		if m.custom {
-			return m.t("←/→ cor · ↑/↓ prévia do humor · enter confirma prévia · esc volta") + " · " + base
+			return m.t("←/→ cor · ↑/↓ prévia do humor · enter confirma prévia · esc volta") + " · " + actions + " · " + base
 		}
-		return m.profileHelp() + " · " + m.t("ctrl+e energia") + " · " + base
+		return m.profileHelp() + " · " + actions + " · " + base
 	}
 	if d.locked {
 		return m.t("ctrl+n nome · ctrl+e energia · ctrl+l cor · ctrl+o estágio da obra · ctrl+p presença · ctrl+d remove · ctrl+t tarefa · ctrl+u assume") + " · " + base
