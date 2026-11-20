@@ -47,6 +47,10 @@ var pending []botReaction // reações agendadas pelos bots
 
 // SeedBots cria a sala demo com os bots, alguns já focando, e põe os bots para andar.
 func SeedBots() {
+	if Dev {
+		seedDevDemo()
+		return
+	}
 	for i, b := range bots {
 		if err := putBot(b); err != nil {
 			log.Fatal("seed bots", "err", err)
@@ -143,5 +147,57 @@ func botsReactTo(r *room, e *Event) {
 			continue
 		}
 		pending = append(pending, botReaction{time.Now().Add(2*time.Second + rand.N(6*time.Second)), "bot:" + b.nick, r.code, e.ID, rand.N(Reactions)})
+	}
+}
+
+// A demo dev persiste e não é dirigida por bots: só o editor muda o cenário.
+func seedDevDemo() {
+	mu.Lock()
+	defer mu.Unlock()
+	if rooms[DemoCode] != nil {
+		return
+	}
+	r := &room{code: DemoCode, name: "sala demo", max: MaxMembers, obra: "trem", meta: store.DefaultObraMeta}
+	var writes []store.DevWrite
+	now := time.Now()
+	for i, b := range bots {
+		id := "bot:" + b.nick
+		nick, p, exists, err := store.GetUser(id)
+		if err != nil {
+			log.Fatal("dev demo", "err", err)
+		}
+		if !exists {
+			nick = b.nick + "-bot"
+			p = pet.Pet{Energy: b.energy, LastActive: now, Color: pet.Colors[(i+1)%len(pet.Colors)].ID, Today: now.Format(time.DateOnly), TodayMin: b.energy}
+		}
+		write := store.DevWrite{ID: id, Nick: nick, Pet: p, New: !exists}
+		if !exists && !b.offline && i != 2 {
+			write.Open = &store.OpenTask{User: id, Task: b.tasks[0], Room: DemoCode, Start: now, SegStart: now, Ends: now.Add(time.Minute), Declared: 1}
+		}
+		if exists {
+			if u := users[id]; u != nil && u.focus != nil {
+				f := u.focus
+				write.Open = &store.OpenTask{User: id, Task: f.Task, Room: f.Room, Start: f.Start, SegStart: f.SegStart, Ends: f.Ends, Declared: f.Declared, Counted: f.Counted}
+			}
+		}
+		writes = append(writes, write)
+		r.members = append(r.members, id)
+		devSaved.Presence[id] = !b.offline
+	}
+	row := store.RoomRow{Code: r.code, Name: r.name, Max: r.max, Obra: r.obra, ObraMeta: r.meta}
+	if err := store.SaveDevScene(writes, &row, r.members, devSaved); err != nil {
+		log.Fatal("dev demo", "err", err)
+	}
+	rooms[DemoCode] = r
+	for _, id := range r.members {
+		u := load(id)
+		on := devSaved.Presence[id]
+		u.devOnline = &on
+		for _, w := range writes {
+			if w.ID == id && w.Open != nil {
+				f := w.Open
+				u.focus = &Focus{Task: f.Task, Room: f.Room, Start: f.Start, SegStart: f.SegStart, Ends: f.Ends, Declared: f.Declared, Counted: f.Counted}
+			}
+		}
 	}
 }

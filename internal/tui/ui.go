@@ -11,9 +11,9 @@ import (
 	"sshiu/internal/pet"
 	"sshiu/internal/rooms"
 	"sshiu/internal/store"
+	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -21,7 +21,6 @@ import (
 	"charm.land/log/v2"
 	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/rivo/uniseg"
 )
 
 // Temas: só as cores de destaque; o texto normal usa a cor do próprio terminal (funciona em fundo claro e escuro).
@@ -95,6 +94,7 @@ type (
 		err  error
 	}
 	profileMsg struct {
+		id     string
 		pet    pet.Pet
 		tasks  []store.TaskRow
 		days   map[string]float64 // minutos focados por dia, para o calendário
@@ -121,43 +121,46 @@ func act(f func()) tea.Cmd {
 }
 
 type model struct {
-	id, nick        string // nick vazio = primeiro acesso
-	invite          string // o "ssh ..." com que um colega chega a este servidor
-	pending         string // código que veio no comando do ssh, a entrar na primeira chance
-	w               rooms.World
-	room            string    // código da sala que você está vendo ("" = nenhuma: o menu de salas)
-	left            string    // a sala de que você saiu ou que encerrou: um retrato de antes não a traz de volta
-	first           bool      // primeiro acesso: o apelido já foi, falta a cor do pet
-	arrived         time.Time // quando a sala atual foi criada ou aberta por código: segura o enter repetido
-	now             time.Time
-	tab             tab
-	aboutSel        int // a pergunta aberta na aba sobre
-	tick, width     int
-	height          int
-	pixel           bool // terminal com 256+ cores: pet em pixel art
-	err, notice     string
-	noticeSeen      string    // o aviso como estava no último tick...
-	noticeAt        time.Time // ...e desde quando: um aviso velho sai da tela sozinho
-	st              styles
-	theme, saved    int          // tema em prévia e tema salvo
-	lang, langSaved lang         // idioma em prévia e idioma salvo (#86)
-	statsList       bool         // as stats em lista, em vez de painéis (#45)...
-	listSaved       bool         // ...e o que está no banco
-	pcolor          int          // cor do pet em prévia (índice em pet.Colors)
-	pcSaved         int          // a cor do pet que está no banco
-	custom          bool         // aba de perfil no modo personalizar
-	previewMood     pet.Mood     // só o desenho da personalização; nunca vai para o banco ou para a sala
-	vis, visSaved   store.Garden // modo jardim em prévia e salvo
-	vrow            int          // linha selecionada na aba visual
-	ncur, nobra     int          // linha e obra escolhidas na tela de criar sala
-	obraFull        bool         // a obra sozinha na tela (tecla o)
-	garden          *garden      // modo jardim em tela cheia (nil = desligado)
-	dev             devPanel     // a aba dev (só com -dev)
-	gardenGen       int          // distingue os ticks de cada abertura
-	side            *garden      // o jardim da coluna da sala solo (nil = não tem)
-	lastKey         time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim, se a aba visual deixar
-	wall            int          // o wallpaper trocado no jardim, que vale para a tarefa...
-	wallFor         time.Time    // ...que começou neste instante
+	original            string // identidade SSH original, preservada ao assumir alguém no dev
+	roomDev, profileDev *inlineDev
+	quitArmed           bool
+	id, nick            string // nick vazio = primeiro acesso
+	invite              string // o "ssh ..." com que um colega chega a este servidor
+	pending             string // código que veio no comando do ssh, a entrar na primeira chance
+	w                   rooms.World
+	room                string    // código da sala que você está vendo ("" = nenhuma: o menu de salas)
+	left                string    // a sala de que você saiu ou que encerrou: um retrato de antes não a traz de volta
+	first               bool      // primeiro acesso: o apelido já foi, falta a cor do pet
+	arrived             time.Time // quando a sala atual foi criada ou aberta por código: segura o enter repetido
+	now                 time.Time
+	tab                 tab
+	aboutSel            int // a pergunta aberta na aba sobre
+	tick, width         int
+	height              int
+	pixel               bool // terminal com 256+ cores: pet em pixel art
+	err, notice         string
+	noticeSeen          string    // o aviso como estava no último tick...
+	noticeAt            time.Time // ...e desde quando: um aviso velho sai da tela sozinho
+	st                  styles
+	theme, saved        int          // tema em prévia e tema salvo
+	lang, langSaved     lang         // idioma em prévia e idioma salvo (#86)
+	statsList           bool         // as stats em lista, em vez de painéis (#45)...
+	listSaved           bool         // ...e o que está no banco
+	pcolor              int          // cor do pet em prévia (índice em pet.Colors)
+	pcSaved             int          // a cor do pet que está no banco
+	custom              bool         // aba de perfil no modo personalizar
+	previewMood         pet.Mood     // só o desenho da personalização; nunca vai para o banco ou para a sala
+	vis, visSaved       store.Garden // modo jardim em prévia e salvo
+	vrow                int          // linha selecionada na aba visual
+	ncur, nobra         int          // linha e obra escolhidas na tela de criar sala
+	obraFull            bool         // a obra sozinha na tela (tecla o)
+	garden              *garden      // modo jardim em tela cheia (nil = desligado)
+	dev                 devPanel     // a aba dev (só com -dev)
+	gardenGen           int          // distingue os ticks de cada abertura
+	side                *garden      // o jardim da coluna da sala solo (nil = não tem)
+	lastKey             time.Time    // a última tecla: 30 s sem nenhuma liga o modo jardim, se a aba visual deixar
+	wall                int          // o wallpaper trocado no jardim, que vale para a tarefa...
+	wallFor             time.Time    // ...que começou neste instante
 
 	in       textinput.Model    // o campo ativo: apelido, tarefa, nome ou código de sala
 	entering bool               // escrevendo a tarefa
@@ -232,7 +235,11 @@ func (m model) noticeStyle() lipgloss.Style {
 }
 
 func New(id, invite, code string) model {
-	m := model{id: id, invite: invite, pending: code, width: 80, height: 24, now: time.Now(),
+	original := id
+	if Dev {
+		id = rooms.DevIdentity(original)
+	}
+	m := model{original: original, id: id, invite: invite, pending: code, width: 80, height: 24, now: time.Now(),
 		lastKey: time.Now()}
 	m.setWorld(rooms.SnapshotWorld())
 	nick, p, ok, err := store.GetUser(id)
@@ -333,11 +340,14 @@ func (m model) loadProfile() tea.Cmd {
 			return errMsg{err}
 		}
 		rec, recAt := longestRun(days, time.Now())
-		return profileMsg{p, ts, days, hours, totals, rec, recAt}
+		return profileMsg{id, p, ts, days, hours, totals, rec, recAt}
 	}
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if next, cmd, ok := m.updateInline(msg); ok {
+		return next, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -359,7 +369,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case m.garden != nil && !m.garden.keep && !active: // o foco acabou ou esgotou: volta para responder
 			m.garden = nil
-		case m.garden == nil && active && m.nick != "" && m.vis.Auto && m.now.Sub(m.lastKey) >= gardenIdle:
+		case m.garden == nil && m.inline() == nil && active && m.nick != "" && m.vis.Auto && m.now.Sub(m.lastKey) >= gardenIdle:
 			var cmd tea.Cmd
 			m, cmd = m.openGarden(gardenFocus)
 			return m, tea.Batch(doTick(), cmd)
@@ -439,6 +449,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = msg.err.Error()
 		}
 	case profileMsg:
+		if msg.id != "" && msg.id != m.id {
+			return m, nil
+		}
 		m.pet, m.tasks, m.days, m.hours, m.totals = msg.pet, msg.tasks, msg.days, msg.hours, msg.totals
 		m.rec, m.recAt = msg.rec, msg.recAt
 	case boardMsg:
@@ -451,6 +464,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.err = m.lang.errText(msg.error)
 	case tea.PasteMsg: // colar vai para o campo ativo; o texto vem do terminal (bracketed paste)
+		if d := m.inline(); d != nil && (d.field == "energy" || d.field == "taskMinutes") {
+			if n, e := strconv.ParseFloat(strings.TrimSpace(msg.Content), 64); e == nil && n >= 0 && n <= 120 {
+				d.number = n
+				d.rawNumber = strconv.FormatFloat(n, 'f', -1, 64)
+				d.freshNumber = false
+			}
+			return m, nil
+		}
 		if m.other { // os minutos do "outro" não são o m.in: cada caractere passa pela mesma regra da tecla
 			for _, r := range msg.Content {
 				next, _ := m.otherKey(string(r))
@@ -485,6 +506,35 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.garden = nil
 		return m, nil
 	}
+	if k == "ctrl+c" || k == "q" && m.nick != "" && !m.typing() {
+		dirty := Dev && (m.roomDev != nil && m.roomDev.dirty() || m.profileDev != nil && m.profileDev.dirty())
+		if dirty && !m.quitArmed {
+			m.quitArmed = true
+			m.err = m.t("há alterações por salvar; repita para sair sem salvar")
+			return m, nil
+		}
+		return m, tea.Quit
+	}
+
+	if k != "ctrl+c" && k != "q" {
+		m.quitArmed = false
+	}
+	if Dev && m.nick != "" && (m.tab == tabProfile || m.tab == tabRoom) {
+		if d := m.inline(); d != nil {
+			if d.field != "" || k != "tab" && k != "shift+tab" && !(k == "a" || k == "d") {
+				return m.inlineKey(msg)
+			}
+		} else if k == "x" && !m.typing() && !m.cfg && !m.picking && (m.tab == tabProfile || m.room != "") {
+			d := &inlineDev{busy: true}
+			if m.tab == tabRoom {
+				m.roomDev = d
+				m.entering, m.choosing, m.other = false, false, false
+			} else {
+				m.profileDev = d
+			}
+			return m, m.readInline()
+		}
+	}
 	n := tabs()
 	switch {
 	case k == "ctrl+c":
@@ -517,7 +567,7 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 	if m.tab == tabVisual && t != tabVisual { // saiu sem salvar: desfaz a prévia
 		m.theme, m.st, m.vis, m.lang, m.statsList = m.saved, newStyles(themes[m.saved]), m.visSaved, m.langSaved, m.listSaved
 	}
-	if m.tab == tabProfile && t != tabProfile { // idem para a cor do pet
+	if m.tab == tabProfile && t != tabProfile && m.profileDev == nil { // idem para a cor do pet
 		m.pcolor, m.custom = m.pcSaved, false
 	}
 	m.obraFull = false
@@ -537,7 +587,7 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 // Os formulários sem campo (o tamanho da sala, a confirmação de saída) não entram: neles as
 // teclas de sempre valem, inclusive o q.
 func (m model) typing() bool {
-	return m.entering || m.other || m.cname || m.form == formNew || m.form == formCode || m.tab == tabDev && m.dev.input != ""
+	return m.inline() != nil && m.inline().field != "" || m.entering || m.other || m.cname || m.form == formNew || m.form == formCode || m.tab == tabDev && m.dev.input != ""
 }
 
 func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -562,33 +612,20 @@ func (m model) nickKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // nickMax: o apelido mais largo, em colunas do terminal. Caracteres largos (日, 🐱) valem 2.
-const nickMax = 16 // docs/regras.md
+const nickMax = store.NickMax // docs/regras.md
 
 // nickProblem: o que impede o apelido, ou "" se ele serve. Cada caractere ocupa uma ou duas
 // colunas sozinho: acento combinante, emoji composto e caractere invisível ficam de fora, porque
 // cada terminal conta a largura deles de um jeito e a sala e o jardim desalinhavam (#84, #85).
 func nickProblem(l lang, nick string) string {
-	if nick == "" {
-		return l.t("escreva um apelido")
-	}
-	if strings.ContainsAny(nick, " :") {
-		return l.t("apelido sem espaços, por favor")
-	}
-	if ansi.StringWidth(nick) > nickMax {
-		return l.tf("apelido de até %d letras, por favor (日 e 🐱 contam como 2)", nickMax)
-	}
-	state := -1
-	for s := nick; s != ""; {
-		var g string
-		g, s, _, state = uniseg.FirstGraphemeClusterInString(s, state)
-		if r := []rune(g); len(r) > 1 || !unicode.IsGraphic(r[0]) || ansi.StringWidth(g) == 0 {
-			return l.t("apelido só com letras, números e símbolos simples, por favor")
-		}
+	if err := store.ValidateNick(nick); err != nil {
+		return l.errText(err)
 	}
 	return ""
 }
 
 func (m model) View() tea.View {
+	m = m.previewField().inlineRender()
 	if m.garden != nil {
 		v := tea.NewView(m.garden.frame)
 		v.AltScreen = true
@@ -613,6 +650,17 @@ func (m model) View() tea.View {
 			content, help = m.aboutView, m.t("↑/↓ escolhe a pergunta")
 		case tabDev:
 			content, help = func(_, h int) string { return m.devView(h) }, m.devHelp()
+		}
+		if m.inline() != nil {
+			help = m.inlineHelp()
+			if m.tab == tabProfile {
+				content = func(w, h int) string {
+					panel := m.inlinePanel(w)
+					return panel + "\n" + m.profileView(w, max(1, h-lipgloss.Height(panel)-1))
+				}
+			}
+		} else if Dev && (m.tab == tabRoom || m.tab == tabProfile) {
+			help += m.t(" · x modo dev")
 		}
 		inner := max(m.width-4, 1)
 		footer := func(help string) string {

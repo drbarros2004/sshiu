@@ -60,6 +60,7 @@ func Open(path string) error {
 	d.Exec(`ALTER TABLE users ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'`)
 	d.Exec(`ALTER TABLE users ADD COLUMN last_min INTEGER NOT NULL DEFAULT 0`)
 	d.Exec(`ALTER TABLE users ADD COLUMN stats_list INTEGER NOT NULL DEFAULT 0`)
+	d.Exec(`ALTER TABLE users ADD COLUMN dev_energy INTEGER NOT NULL DEFAULT 0`)
 	db = d
 	return nil
 }
@@ -157,7 +158,7 @@ func SetPetColor(id, c string) error {
 
 func scanUser(row *sql.Row) (nick string, p pet.Pet, ok bool, err error) {
 	var last int64
-	err = row.Scan(&nick, &p.Energy, &last, &p.Streak, &p.StreakDay, &p.Today, &p.TodayMin, &p.Color)
+	err = row.Scan(&nick, &p.Energy, &last, &p.Streak, &p.StreakDay, &p.Today, &p.TodayMin, &p.Color, &p.DirectEnergy)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", pet.Pet{}, false, nil
 	}
@@ -165,7 +166,7 @@ func scanUser(row *sql.Row) (nick string, p pet.Pet, ok bool, err error) {
 	return nick, p, err == nil, err
 }
 
-const selectUser = `SELECT nick, energy, last_active, streak, streak_day, today, today_min, pet_color FROM users WHERE id = ?`
+const selectUser = `SELECT nick, energy, last_active, streak, streak_day, today, today_min, pet_color, dev_energy FROM users WHERE id = ?`
 
 func GetUser(id string) (string, pet.Pet, bool, error) {
 	return scanUser(db.QueryRow(selectUser, id))
@@ -195,13 +196,22 @@ func RecordTask(id string, t TaskRow) (pet.Pet, error) {
 		return pet.Pet{}, err
 	}
 	defer tx.Rollback()
+	p, err := recordTask(tx, id, t)
+	if err != nil {
+		return pet.Pet{}, err
+	}
+	return p, tx.Commit()
+}
+
+// recordTask permite que o editor dev inclua o encerramento no mesmo commit das outras mudanças.
+func recordTask(tx *sql.Tx, id string, t TaskRow) (pet.Pet, error) {
 	_, p, _, err := scanUser(tx.QueryRow(selectUser, id))
 	if err != nil {
 		return pet.Pet{}, err
 	}
 	p.Focus(t.Focused.Minutes(), t.Result == pet.Done, t.End)
-	if _, err = tx.Exec(`UPDATE users SET energy = ?, last_active = ?, streak = ?, streak_day = ?, today = ?, today_min = ? WHERE id = ?`,
-		p.Energy, p.LastActive.Unix(), p.Streak, p.StreakDay, p.Today, p.TodayMin, id); err != nil {
+	if _, err = tx.Exec(`UPDATE users SET energy = ?, last_active = ?, streak = ?, streak_day = ?, today = ?, today_min = ?, dev_energy = ? WHERE id = ?`,
+		p.Energy, p.LastActive.Unix(), p.Streak, p.StreakDay, p.Today, p.TodayMin, p.DirectEnergy, id); err != nil {
 		return pet.Pet{}, err
 	}
 	if _, err = tx.Exec(`INSERT INTO tasks (user_id, started_at, ended_at, task, declared_min, focused_sec, result, room_code)
@@ -212,7 +222,7 @@ func RecordTask(id string, t TaskRow) (pet.Pet, error) {
 	if _, err = tx.Exec(`DELETE FROM open_tasks WHERE user_id = ?`, id); err != nil {
 		return pet.Pet{}, err
 	}
-	return p, tx.Commit()
+	return p, nil
 }
 
 // OpenTask: a tarefa em andamento, gravada ao começar e ao continuar para sobreviver a um restart.
@@ -493,4 +503,12 @@ func LeaveRoom(user, code string) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// Close libera o banco ao encerrar uma execução ou um teste isolado.
+func Close() error {
+	if db == nil {
+		return nil
+	}
+	return db.Close()
 }

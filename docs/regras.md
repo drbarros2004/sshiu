@@ -120,6 +120,15 @@ Só com a flag `-dev` ([ADR 0011](adr/0011-modo-dev.md)). Os passos da aba dev e
 | Minutos de hoje | tarefas de 15 min, começando agora | O passo do streak (15 min): um `+` já faz o dia contar. O `-` apaga a última tarefa dev de hoje. | [dev.go:20](../internal/rooms/dev.go#L20) |
 | Minutos de antes de hoje | tarefas de 60 min, uma por dia para trás (ontem, anteontem...) | Cada `+` anda um dia, então a semana, o mês e o total da tabela de foco se separam sozinhos. Uma tabela já aberta na tecla `o` só mostra o ajuste depois de reaberta ou de trocar o período. | [dev.go:21](../internal/rooms/dev.go#L21), [dev.go:141](../internal/rooms/dev.go#L141) |
 | Tarefa em andamento | o `+` sem tarefa começa uma de 25 min; com tarefa, `+` dá mais 5 min e `-` faz 5 min passarem (até esgotar) | 25 min é o tempo padrão de quem foca de verdade. O `-` leva a tarefa ao "tempo esgotado" sem esperar, e os minutos passados contam como focados. Depois de esgotar, o `+` funciona como o continuar: o tempo sem resposta não conta. | [dev.go:22-23](../internal/rooms/dev.go#L22-L23), [dev.go:197](../internal/rooms/dev.go#L197) |
-| Online | uma sessão de mentira por pessoa, aberta e fechada pelo painel | Passa pelo mesmo caminho das sessões de verdade: sem sessão nenhuma, a tarefa em andamento espera os 2 min de tolerância e é interrompida. | [dev.go:161](../internal/rooms/dev.go#L161) |
+| Online no ambiente dev | presença simulada persistente | Independente da conexão SSH e da participação na sala; ficar offline não fecha conexões reais nem interrompe a tarefa do cenário dev. | [dev.go](../internal/rooms/dev.go), [dev_scene.go](../internal/rooms/dev_scene.go) |
 | Banco e endereço | `sshiu-dev.db`, só localhost | O modo dev não encosta nos dados de verdade, e ninguém de fora entra sem chave. O WAL vem do `store.Open`, como no banco de verdade: com o journal padrão, cada ajuste da aba dev levava ~0,4 s no Windows. | [main.go:34](../main.go#L34) |
 | Tamanho da aba dev | cabe em 80 colunas: apelido em 10, cada coluna em 6 e a cor como um bloco pintado; a lista rola na altura do terminal, com o cursor sempre à vista | É o menor terminal que o app suporta. O nome da cor ("turquesa") não cabia em 6. | [tui/dev.go](../internal/tui/dev.go) |
+
+
+### Editor dev inline
+
+- Energia exibida: 0 a 100, passo 1 por seta; número digitado aceita o valor exato. Preserva o streak e o cronômetro, sem bônus oculto na energia escolhida.
+- Estágio da obra: 0 a 3, ou -1 para usar novamente o progresso real. O estágio salvo é o novo ponto de partida, com deslocamento diário de minutos; tarefas não são inventadas.
+- Tarefa nova: os mesmos limites do fluxo normal, 5 a 120 min (1 min também na demo); setas ajustam a duração em passos de 5 min. Tempos de tarefas existentes só mudam na aba dev.
+- Conta removida da sala permanece disponível para adicionar novamente; tamanho máximo e nomes válidos continuam seguindo as regras normais.
+- Salvamento inline é único para todas as alterações; Enter em um campo não grava o banco. Ver [ADR 0011](adr/0011-modo-dev.md#editor-na-própria-tela).

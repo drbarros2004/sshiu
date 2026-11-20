@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 	pet_color   TEXT NOT NULL DEFAULT '',  -- ID da paleta do pet ("" = azul)
 	lang        TEXT NOT NULL DEFAULT 'en', -- idioma da interface: "en" ou "pt" (#86)
 	last_min    INTEGER NOT NULL DEFAULT 0,   -- o último tempo declarado, que o seletor já traz escolhido (0 = nenhum)
+	dev_energy INTEGER NOT NULL DEFAULT 0, -- ponto de partida de energia exclusivo do dev
 	stats_list  INTEGER NOT NULL DEFAULT 0    -- 1 = as stats em lista; 0 = em painéis, o padrão (#45)
 );
 CREATE TABLE IF NOT EXISTS tasks ( -- uma por tarefa encerrada
@@ -52,3 +53,6 @@ CREATE TABLE IF NOT EXISTS open_tasks ( -- a tarefa em andamento, uma por usuár
 	counted_sec    INTEGER NOT NULL, -- o que contou antes do último continuar
 	room_code      TEXT NOT NULL
 );
+
+-- Metadados exclusivos do ambiente -dev.
+CREATE TABLE IF NOT EXISTS dev_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);

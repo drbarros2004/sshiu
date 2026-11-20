@@ -78,6 +78,18 @@ func devDo(f func() error) tea.Cmd {
 func (m model) devKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	d := &m.dev
 	k := msg.String()
+	if d.input == "assume" {
+		if k == "esc" {
+			d.input = ""
+		}
+		if k == "enter" {
+			d.input = ""
+			if len(d.rows) > 0 {
+				return m, m.assume(d.rows[d.row].ID)
+			}
+		}
+		return m, nil
+	}
 	if d.input != "" {
 		switch k {
 		case "esc":
@@ -129,6 +141,9 @@ func (m model) devKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		})
 	}
 	switch k {
+	case "ctrl+u":
+		d.input = "assume"
+		return m, nil
 	case "up", "k":
 		d.row = max(0, d.row-1)
 	case "down", "j":
@@ -194,10 +209,13 @@ func (d *devPanel) setRows(rows []store.DevRow, at time.Time, sel string) bool {
 }
 
 func (m model) devHelp() string {
+	if m.dev.input == "assume" {
+		return m.t("enter assume identidade e descarta rascunhos · esc cancela")
+	}
 	if m.dev.input != "" {
 		return m.t("enter confirma · esc desiste")
 	}
-	return m.t("setas escolhem · +/- muda · espaço põe ou tira da sala · o passa a sala · t tarefa · x cumpre · n pessoa nova")
+	return m.t("ctrl+u assume usuário") + " · " + m.t("setas escolhem · +/- muda · espaço põe ou tira da sala · o passa a sala · t tarefa · x cumpre · n pessoa nova")
 }
 
 // devView cabe em 80 colunas (os números em 6, o apelido em 10) e rola as pessoas na altura h.
@@ -279,6 +297,10 @@ func (m model) devView(h int) string {
 		b.WriteString(line + "  " + m.st.muted.Render(strings.Join(names, ", ")) + "\n")
 	}
 	switch d.input {
+	case "assume":
+		if len(d.rows) > 0 {
+			b.WriteString("\n" + m.tf("assumir identidade: %s", d.rows[d.row].Nick) + "\n")
+		}
 	case "nova":
 		b.WriteString("\n" + m.t("pessoa nova: ") + m.in.View() + "\n")
 	case "tarefa":

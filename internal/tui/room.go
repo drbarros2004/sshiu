@@ -54,7 +54,7 @@ func minuteChoices() []int {
 
 // O "outro" aceita de otherMin a otherMax minutos (docs/regras.md): acima disso, o tempo esgotado
 // deixaria contar foco demais com o terminal aberto e ninguém na frente.
-const otherMin, otherMax = 5, 120
+const otherMin, otherMax = rooms.MinTaskMinutes, rooms.MaxTaskMinutes
 
 // choices: os tempos do seletor. O último usado entra no lugar dele quando não é um dos fixos, e o
 // "outro" (0) fica no fim, para digitar os minutos.
@@ -572,6 +572,9 @@ func (m model) soloLog() string {
 
 // focusPanel: o seu foco em até w colunas, conforme o momento.
 func (m model) focusPanel(w int) string {
+	if m.inline() != nil {
+		return m.inlinePanel(w)
+	}
 	me := m.me()
 	f := me.Focus
 	// o tempo escolhido entre as setas; o último usado leva o ↺, e o "outro" vira o campo dos minutos
@@ -696,6 +699,19 @@ func (m model) cards(s rooms.Snapshot, w int, compact bool) string {
 	got := received(s)
 	inner := m.cardInner(ms)
 	per := max(1, w/(inner+2))
+	if d := m.inline(); d != nil {
+		index := slices.IndexFunc(ms, func(x rooms.Member) bool { return x.ID == d.selected })
+		rowHeight := 12
+		if compact {
+			rowHeight = 5
+		}
+		visible := max(1, (m.height-16)/rowHeight) * per
+		if len(ms) > visible {
+			start := max(0, index) / per * per
+			start = min(start, max(0, len(ms)-visible))
+			ms = ms[start:min(len(ms), start+visible)]
+		}
+	}
 	var rows []string
 	for i := 0; i < len(ms); i += per {
 		var row []string
@@ -729,6 +745,13 @@ func (m model) card(x rooms.Member, got int, compact bool, inner int) string {
 	}
 	if x.Status == rooms.Offline { // quem fechou o terminal dorme: o humor volta quando a pessoa volta
 		st = st.BorderForeground(m.st.off)
+	}
+	if d := m.inline(); d != nil && d.selected == x.ID {
+		c := "#5FD7D7"
+		if d.locked {
+			c = "#AFFFFF"
+		}
+		st = st.BorderForeground(lipgloss.Color(c)).Border(lipgloss.ThickBorder())
 	}
 	art := pet.Render(mood, m.tick, m.pixel, x.Color)
 	if compact {

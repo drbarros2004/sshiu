@@ -46,8 +46,8 @@ const (
 // DevCreate cria uma pessoa com o apelido nick. O id vem do apelido, então quem entra com
 // "ssh nick@localhost" no modo dev é ela.
 func DevCreate(nick string) (string, error) {
-	if nick == "" || len(nick) > 16 || strings.ContainsAny(nick, " :") {
-		return "", errors.New("apelido sem espaços, por favor")
+	if err := store.ValidateNick(nick); err != nil {
+		return "", err
 	}
 	id := "dev:" + nick
 	if _, _, ok, _ := store.GetUser(id); ok { // o PutUser só redefiniria a energia
@@ -159,6 +159,19 @@ func DevAdjust(id string, f DevField, d int, now time.Time) error {
 // setHere abre ou fecha a sessão de mentira de id, pelo mesmo caminho das de verdade: sem sessão
 // nenhuma, a tarefa em andamento espera a tolerância de reconexão e é interrompida. Chame com devMu.
 func setHere(id string, on bool) {
+	if Dev {
+		mu.Lock()
+		defer mu.Unlock()
+		u := load(id)
+		v := on
+		u.devOnline = &v
+		devSaved.Presence[id] = on
+		if err := store.SaveDevScene(nil, nil, nil, devSaved); err != nil {
+			log.Error("presença dev", "err", err)
+		}
+		return
+	}
+
 	if on == devHere[id] {
 		return
 	}

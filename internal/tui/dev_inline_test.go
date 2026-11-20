@@ -1,0 +1,191 @@
+package tui
+
+import (
+	"path/filepath"
+	"sshiu/internal/pet"
+	"sshiu/internal/rooms"
+	"sshiu/internal/store"
+	"strings"
+	"testing"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
+)
+
+func inlineModel(t *testing.T, name string) model {
+	t.Helper()
+	old, oldRooms := Dev, rooms.Dev
+	Dev, rooms.Dev = true, true
+	t.Cleanup(func() { Dev, rooms.Dev = old, oldRooms })
+	if e := store.Open(filepath.Join(t.TempDir(), "dev.db")); e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() { store.Close() })
+	id, e := rooms.DevCreate(name)
+	if e != nil {
+		t.Fatal(e)
+	}
+	code, e := rooms.Create(id, "sala de teste", 5)
+	if e != nil {
+		t.Fatal(e)
+	}
+	m := New(id, "ssh teste", "")
+	m.room = code
+	m.now = time.Now()
+	m.width, m.height = 120, 42
+	return m
+}
+func pressInline(m model, code rune, ctrl bool) (model, tea.Cmd) {
+	key := tea.KeyPressMsg{Code: code}
+	if !ctrl && code >= 32 && code < 127 {
+		key.Text = string(code)
+	}
+	if ctrl {
+		key.Mod = tea.ModCtrl
+	}
+	next, cmd := m.key(key)
+	return next.(model), cmd
+}
+func openInline(t *testing.T, m model) model {
+	t.Helper()
+	next, cmd := pressInline(m, 'x', false)
+	if cmd == nil {
+		t.Fatal("não abriu dev")
+	}
+	result, _ := next.Update(cmd())
+	return result.(model)
+}
+
+func TestInlineCancelAndFieldPreview(t *testing.T) {
+	m := openInline(t, inlineModel(t, "ui-cancel"))
+	m, _ = pressInline(m, 'e', true)
+	m.roomDev.number = 19
+	rendered := m.previewField().inlineRender()
+	if rendered.w.Users[m.id].Energy != 19 {
+		t.Fatal("barra/card não usa a energia do campo")
+	}
+	if _, p, _, _ := store.GetUser(m.id); p.EnergyAt(time.Now()) != 50 {
+		t.Fatal("prévia gravou")
+	}
+	next, _ := m.key(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m = next.(model)
+	if len(m.roomDev.changes) != 0 {
+		t.Fatal("esc do campo confirmou a energia")
+	}
+	next, _ = m.key(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m = next.(model)
+	if m.roomDev != nil {
+		t.Fatal("esc não saiu do editor")
+	}
+}
+
+func TestInlineProfileColorWaitsForSave(t *testing.T) {
+	m := inlineModel(t, "ui-profile")
+	m.tab = tabProfile
+	m = openInline(t, m)
+	m.custom = true
+	m.pcolor = 2
+	m, _ = pressInline(m, tea.KeyEnter, false)
+	if m.profileDev.changes[0].Color == nil || *m.profileDev.changes[0].Color != pet.Colors[2].ID {
+		t.Fatal("enter não confirmou cor no rascunho")
+	}
+	if _, p, _, _ := store.GetUser(m.id); p.Color != "" {
+		t.Fatal("enter do perfil dev salvou antes de ctrl+s")
+	}
+	m, cmd := pressInline(m, 's', true)
+	result := cmd()
+	next, _ := m.Update(result)
+	m = next.(model)
+	if _, p, _, _ := store.GetUser(m.id); p.Color != pet.Colors[2].ID {
+		t.Fatal("ctrl+s não salvou cor")
+	}
+	if m.profileDev == nil {
+		t.Fatal("ctrl+s saiu do dev")
+	}
+}
+
+func TestInlineIdentityDropsDraftsAndRejectsOldProfile(t *testing.T) {
+	m := inlineModel(t, "ui-origin")
+	id, e := rooms.DevCreate("ui-other")
+	if e != nil {
+		t.Fatal(e)
+	}
+	m.roomDev = &inlineDev{target: id}
+	m.profileDev = &inlineDev{selected: m.id}
+	next, _, ok := m.updateInline(m.assume(id)())
+	if !ok {
+		t.Fatal("troca não tratada")
+	}
+	m = next.(model)
+	if m.id != id || m.original != "dev:ui-origin" || m.roomDev != nil || m.profileDev != nil {
+		t.Fatal("identidade/rascunhos incorretos")
+	}
+	if New("dev:ui-origin", "", "").id != id {
+		t.Fatal("identidade assumida não foi restaurada ao reconectar")
+	}
+	if e := rooms.DevAssume("dev:ui-origin", "dev:ui-origin"); e != nil {
+		t.Fatal(e)
+	}
+	if New("dev:ui-origin", "", "").id != "dev:ui-origin" {
+		t.Fatal("não voltou à identidade original")
+	}
+	next, _ = m.Update(profileMsg{id: "dev:ui-origin", pet: pet.Pet{Energy: 99}})
+	if next.(model).pet.Energy == 99 {
+		t.Fatal("perfil atrasado sobrescreveu identidade")
+	}
+}
+
+func TestInlineScreenAndTypingShortcuts(t *testing.T) {
+	m := openInline(t, inlineModel(t, "ui-screen"))
+	m.roomDev.field = "name"
+	m.in = newInput("", 16)
+	m.in.SetValue("ana")
+	m, _ = pressInline(m, 'x', false)
+	if m.in.Value() != "anax" || m.roomDev.busy {
+		t.Fatal("x digitado virou salvar")
+	}
+	m.roomDev.field = ""
+	m.roomDev.locked = true
+	screen := ansi.Strip(m.View().Content)
+	if !strings.Contains(screen, "dev mode") || !strings.Contains(screen, "ctrl+e") {
+		t.Fatalf("controles não visíveis: %s", screen)
+	}
+}
+
+func TestInlineExactEnergyNumber(t *testing.T) {
+	m := openInline(t, inlineModel(t, "ui-number"))
+	m, _ = pressInline(m, 'e', true)
+	for _, r := range "12.5" {
+		m, _ = pressInline(m, r, false)
+	}
+	if m.roomDev.number != 12.5 {
+		t.Fatalf("valor digitado: %v", m.roomDev.number)
+	}
+	if e := m.previewField().inlineRender().w.Users[m.id].Energy; e != 12.5 {
+		t.Fatalf("energia da prévia: %v", e)
+	}
+	m, _ = pressInline(m, tea.KeyEnter, false)
+	if *m.roomDev.changes[0].Energy != 12.5 {
+		t.Fatal("confirmar arredondou a energia")
+	}
+}
+
+func TestInlineQuitAlsoChecksDraftsInOtherTabs(t *testing.T) {
+	m := openInline(t, inlineModel(t, "ui-quit"))
+	_, cmd := pressInline(m, 'c', true)
+	if cmd == nil {
+		t.Fatal("ctrl+c não sai do editor sem alterações")
+	}
+	e := 20.0
+	m.roomDev.change(m.id).Energy = &e
+	m.tab = tabVisual
+	m, cmd = pressInline(m, 'q', false)
+	if cmd != nil || m.err == "" {
+		t.Fatal("não avisou sobre rascunho em outra aba")
+	}
+	_, cmd = pressInline(m, 'q', false)
+	if cmd == nil {
+		t.Fatal("repetir q não confirmou saída")
+	}
+}

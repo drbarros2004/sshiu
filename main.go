@@ -36,8 +36,12 @@ func main() {
 	if err := store.Open(db); err != nil {
 		log.Fatal("sqlite", "err", err)
 	}
+	rooms.Dev = tui.Dev
 	if err := rooms.Load(); err != nil {
 		log.Fatal("salas", "err", err)
+	}
+	if err := rooms.LoadDev(); err != nil {
+		log.Fatal("dev", "err", err)
 	}
 	if rooms.Demo {
 		rooms.SeedBots()
