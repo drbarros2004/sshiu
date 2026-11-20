@@ -23,7 +23,7 @@ func TestAboutAndDevTabs(t *testing.T) {
 		if enabled {
 			want += ",dev"
 		}
-		if got := strings.Join(tabNames[:tabs()], ","); got != want {
+		if got := strings.Join(tabNames[:(model{}).tabs()], ","); got != want {
 			t.Fatalf("dev=%v: abas %s, esperado %s", enabled, got, want)
 		}
 		m := model{nick: "ana", tab: tabVisual}

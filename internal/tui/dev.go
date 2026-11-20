@@ -29,12 +29,16 @@ func (m model) loginHint() string {
 	return m.t("enter confirma · sua chave SSH é o seu login")
 }
 
-// tabs: quantas abas aparecem. A dev é a última e só existe no modo dev.
-func tabs() tab {
-	if Dev {
+// tabs: a aba dev é a última; a prévia limpa usa só as abas normais nesta conexão.
+func (m model) tabs() tab {
+	if Dev && !m.hideDev {
 		return tab(len(tabNames))
 	}
 	return tabDev
+}
+
+func (m model) canHideDev() bool {
+	return Dev && !m.hideDev && m.nick != "" && !m.typing() && m.roomDev == nil && m.profileDev == nil
 }
 
 type devPanel struct {

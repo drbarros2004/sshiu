@@ -80,3 +80,16 @@ Em telas pequenas da sala, `?` expande a lista de atalhos no próprio painel.
 No perfil dev, `Ctrl+N` edita o apelido da identidade efetiva. O título do perfil mostra a
 prévia enquanto o campo é editado; `Enter` confirma só o rascunho e o salvamento dev grava
 o nome junto das demais alterações. `Esc` permite cancelar. O ID de login permanece igual.
+
+
+### Prévia limpa para capturas
+
+Com os editores dev fechados, `h` oculta a aba dev e os atalhos exclusivos do dev,
+inclusive a indicação do próprio `h`. As abas e a navegação passam a ser as do modo
+normal, mantendo as animações e o cenário salvo no banco dev. Se a aba dev estiver
+selecionada, a prévia abre na sala.
+
+`h` alterna entre ocultar e mostrar. Na prévia limpa, `x` também restaura os controles
+sem abrir o editor no mesmo toque; outro `x` volta a editar
+normalmente. Em campos de texto, `h` e `x` continuam sendo letras. A opção vale só
+para a conexão atual e não muda o modo do servidor nem as outras conexões.
