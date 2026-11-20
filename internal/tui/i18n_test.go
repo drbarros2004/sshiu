@@ -95,6 +95,7 @@ func dynamicTexts() []string {
 	s = append(s, "só o dono muda a sala", "a sala precisa de um nome", "para sair da sala, use sair",
 		"essa pessoa não está na sala", "a sala solo não tem obra",
 		"a sala demo não tem saída: ela some quando o servidor desliga")
+	s = append(s, "modo dev desativado", "obra inválida", "cor inválida", "estágio inválido", "já existe uma tarefa em andamento", "nenhuma tarefa em andamento", "ação inválida", "a sala já está cheia", "o cenário mudou; cancele e abra o editor de novo", "tarefa de 1 a 80 caracteres", "tempo de 5 a 120 min", "escreva um apelido", "apelido sem espaços, por favor", "apelido de até %d letras, por favor (日 e 🐱 contam como 2)", "apelido só com letras, números e símbolos simples, por favor")
 	return append(s, gardenEditorSizeHint)
 }
 

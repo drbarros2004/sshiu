@@ -32,6 +32,7 @@ const (
 
 // Focus soma ao pet uma tarefa encerrada: os minutos que contaram e se foi cumprida.
 func (p *Pet) Focus(minutes float64, done bool, now time.Time) {
+	p.DirectEnergy = false
 	e := p.decayed(now) + minutes*energyPer30Min/30
 	if done && minutes >= doneBonusMinutes {
 		e += doneBonus
@@ -86,17 +87,21 @@ func NextMood(current Mood) (Mood, int, bool) {
 }
 
 type Pet struct {
-	Energy     float64 // energia guardada, sem decaimento nem bônus
-	LastActive time.Time
-	Streak     int
-	StreakDay  string // último dia que contou pro streak (YYYY-MM-DD)
-	Today      string // dia de TodayMin (YYYY-MM-DD)
-	TodayMin   float64
-	Color      string // cor escolhida para o pet ("" = a cor sai do humor)
+	DirectEnergy bool    // ponto de partida do dev: sem somar novamente o bônus já existente
+	Energy       float64 // energia guardada, sem decaimento nem bônus
+	LastActive   time.Time
+	Streak       int
+	StreakDay    string // último dia que contou pro streak (YYYY-MM-DD)
+	Today        string // dia de TodayMin (YYYY-MM-DD)
+	TodayMin     float64
+	Color        string // cor escolhida para o pet ("" = a cor sai do humor)
 }
 
 // EnergyAt é o que o pet mostra agora: energia com decaimento + bônus do streak.
 func (p Pet) EnergyAt(now time.Time) float64 {
+	if p.DirectEnergy {
+		return p.decayed(now)
+	}
 	return clamp(p.decayed(now) + min(float64(p.StreakAt(now))*streakBonus, streakBonusMax))
 }
 

@@ -22,7 +22,7 @@ type DevRow struct {
 // DevUsers: todo mundo do banco, em ordem de apelido, com os minutos de antes de hoje.
 func DevUsers(now time.Time) ([]DevRow, error) {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	rows, err := db.Query(`SELECT id, nick, energy, last_active, streak, streak_day, today, today_min, pet_color,
+	rows, err := db.Query(`SELECT id, nick, energy, last_active, streak, streak_day, today, today_min, pet_color, dev_energy,
 		COALESCE((SELECT SUM(focused_sec) FROM tasks t WHERE t.user_id = users.id AND t.ended_at < ?), 0)
 		FROM users ORDER BY nick`, today.Unix())
 	if err != nil {
@@ -35,7 +35,7 @@ func DevUsers(now time.Time) ([]DevRow, error) {
 		var last int64
 		var sec float64
 		if err := rows.Scan(&r.ID, &r.Nick, &r.Pet.Energy, &last, &r.Pet.Streak, &r.Pet.StreakDay,
-			&r.Pet.Today, &r.Pet.TodayMin, &r.Pet.Color, &sec); err != nil {
+			&r.Pet.Today, &r.Pet.TodayMin, &r.Pet.Color, &r.Pet.DirectEnergy, &sec); err != nil {
 			return nil, err
 		}
 		r.Pet.LastActive, r.Before = time.Unix(last, 0), sec/60
@@ -46,8 +46,8 @@ func DevUsers(now time.Time) ([]DevRow, error) {
 
 // SetPet grava o pet inteiro como está.
 func SetPet(id string, p pet.Pet) error {
-	_, err := db.Exec(`UPDATE users SET energy = ?, last_active = ?, streak = ?, streak_day = ?, today = ?, today_min = ?, pet_color = ? WHERE id = ?`,
-		p.Energy, p.LastActive.Unix(), p.Streak, p.StreakDay, p.Today, p.TodayMin, p.Color, id)
+	_, err := db.Exec(`UPDATE users SET energy = ?, last_active = ?, streak = ?, streak_day = ?, today = ?, today_min = ?, pet_color = ?, dev_energy = ? WHERE id = ?`,
+		p.Energy, p.LastActive.Unix(), p.Streak, p.StreakDay, p.Today, p.TodayMin, p.Color, p.DirectEnergy, id)
 	return err
 }
 

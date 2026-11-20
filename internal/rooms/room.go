@@ -20,12 +20,15 @@ import (
 )
 
 const (
-	DemoCode   = "demo"
-	Reactions  = 4  // quantas reações existem (as teclas 1 a 4)
-	MaxMembers = 10 // maior sala que dá para escolher (docs/regras.md)
-	MinMembers = 1  // a sala solo, para focar sozinho (ADR 0006)
-	ObraStages = 4  // estágios de cada peça, contando o vazio: um desenho cada (ADR 0008)
-	maxEvents  = 20
+	MinTaskMinutes = 5
+	MaxTaskMinutes = 120
+	MaxTaskLength  = 80
+	DemoCode       = "demo"
+	Reactions      = 4  // quantas reações existem (as teclas 1 a 4)
+	MaxMembers     = 10 // maior sala que dá para escolher (docs/regras.md)
+	MinMembers     = 1  // a sala solo, para focar sozinho (ADR 0006)
+	ObraStages     = 4  // estágios de cada peça, contando o vazio: um desenho cada (ADR 0008)
+	maxEvents      = 20
 )
 
 var ReconnectGrace = 2 * time.Minute // conexão instável (ou um restart) não interrompe a tarefa; var para o teste
@@ -77,15 +80,16 @@ func (f Focus) Focused(now time.Time) time.Duration {
 }
 
 type user struct {
-	id, nick string
-	color    string // a cor escolhida para o pet ("" = a cor sai do humor)
-	energy   float64
-	today    string  // dia de todayMin (YYYY-MM-DD), como o pet guarda
-	todayMin float64 // minutos focados hoje, sem a tarefa em andamento
-	focus    *Focus
-	online   int       // sessões abertas
-	gone     time.Time // quando a última sessão fechou
-	bot      *bot
+	id, nick  string
+	color     string // a cor escolhida para o pet ("" = a cor sai do humor)
+	energy    float64
+	today     string  // dia de todayMin (YYYY-MM-DD), como o pet guarda
+	todayMin  float64 // minutos focados hoje, sem a tarefa em andamento
+	focus     *Focus
+	online    int       // sessões abertas
+	gone      time.Time // quando a última sessão fechou
+	devOnline *bool     // presença simulada, sem fechar conexões reais
+	bot       *bot
 }
 
 // minutesToday: os minutos focados hoje, com a tarefa em andamento incluída. É o que faz a peça
@@ -103,7 +107,9 @@ func (u *user) minutesToday(now time.Time) float64 {
 
 func (u *user) status() Status {
 	switch {
-	case u.online == 0: // a tarefa ainda espera a tolerância, mas a sala vê a ausência na hora
+	case Dev && u.devOnline != nil && !*u.devOnline:
+		return Offline
+	case u.online == 0 && !(Dev && u.devOnline != nil && *u.devOnline): // a tarefa ainda espera a tolerância, mas a sala vê a ausência na hora
 		return Offline
 	case u.focus != nil:
 		return Focusing
@@ -204,6 +210,9 @@ func Disconnect(id string) {
 // Cada timer espera uma queda só: se u voltou e caiu de novo, quem decide é o timer da queda nova,
 // senão a primeira queda cortava a segunda antes de ela ter a tolerância inteira. Chame com mu travado.
 func awaitReturn(u *user) {
+	if Dev {
+		return
+	}
 	if f, gone := u.focus, u.gone; f != nil {
 		time.AfterFunc(ReconnectGrace, func() {
 			mu.Lock()
@@ -240,7 +249,16 @@ func SetColor(id, hex string) {
 func Start(id, room, task string, minutes int) {
 	mu.Lock()
 	defer mu.Unlock()
-	start(load(id), room, task, minutes, time.Duration(minutes)*time.Minute)
+	u := load(id)
+	if Dev {
+		on := true
+		u.devOnline = &on
+		devSaved.Presence[id] = true
+		if err := store.SaveDevScene(nil, nil, nil, devSaved); err != nil {
+			log.Error("presença dev", "err", err)
+		}
+	}
+	start(u, room, task, minutes, time.Duration(minutes)*time.Minute)
 }
 
 func start(u *user, room, task string, minutes int, d time.Duration) {
@@ -322,7 +340,7 @@ func roomEvent(r *room, u *user, verb, task string) {
 	if len(r.events) > maxEvents {
 		r.events = r.events[:maxEvents]
 	}
-	if r.code == DemoCode {
+	if r.code == DemoCode && !Dev {
 		botsReactTo(r, e)
 	}
 }
@@ -365,7 +383,7 @@ func owned(id, code string) (*room, error) {
 
 // saveRoom grava a sala como ela está agora. A demo só existe em memória. Chame com mu travado.
 func saveRoom(r *room) {
-	if r.code == DemoCode {
+	if r.code == DemoCode && !Dev {
 		return
 	}
 	if err := store.SetRoom(store.RoomRow{Code: r.code, Name: r.name, Owner: r.owner,
@@ -432,7 +450,7 @@ func Kick(id, code, who string) error {
 	if !slices.Contains(r.members, who) {
 		return errors.New("essa pessoa não está na sala")
 	}
-	if code != DemoCode {
+	if code != DemoCode || Dev {
 		if err := store.LeaveRoom(who, code); err != nil {
 			return err
 		}
@@ -574,7 +592,7 @@ func Join(id, code string) error {
 	if r.closed {
 		return fmt.Errorf("%s não está aceitando mais ninguém", r.name)
 	}
-	if code != DemoCode {
+	if code != DemoCode || Dev {
 		if err := store.JoinRoom(id, code); err != nil {
 			return err
 		}
@@ -586,7 +604,7 @@ func Join(id, code string) error {
 
 // Leave tira id da sala; a sala some quando o último membro sai (ADR 0003).
 func Leave(id, code string) error {
-	if code == DemoCode {
+	if code == DemoCode && !Dev {
 		return errors.New("a sala demo não tem saída: ela some quando o servidor desliga")
 	}
 	if err := store.LeaveRoom(id, code); err != nil {
@@ -661,7 +679,13 @@ func SnapshotWorld() World {
 		s := Snapshot{Code: code, Name: r.name, Owner: r.owner, Max: r.max, Closed: r.closed,
 			Obra: r.obra, Meta: r.meta, BoardOpen: r.boardOpen, BoardRank: r.boardRank}
 		for _, id := range r.members {
-			s.Members = append(s.Members, w.Users[id])
+			x := w.Users[id]
+			if Dev {
+				if o, ok := devSaved.Progress[code][id]; ok && o.Day == time.Now().Format(time.DateOnly) {
+					x.TodayMin = max(0, x.TodayMin+o.Minutes)
+				}
+			}
+			s.Members = append(s.Members, x)
 		}
 		for _, e := range r.events {
 			c := *e
