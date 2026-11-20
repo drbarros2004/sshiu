@@ -1,0 +1,25 @@
+{
+  "moods": [
+    {
+      "id": "wilted",
+      "displayName": {
+        "pt" : "bugado",
+        "en": "bugged"
+      }
+    },
+    {
+      "id": "tired",
+      "displayName": {
+        "pt": "não funciona",
+        "en": "nonfunctional"
+      }
+    },
+    {
+      "id": "normal",
+      "displayName": {
+        "pt": "funcional",
+        "en": "functional"
+      }
+    }
+  ]
+}

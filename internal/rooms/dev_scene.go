@@ -46,6 +46,7 @@ type DevChange struct {
 	Nick           *string
 	Energy         *float64
 	Color          *string
+	Appearance     *pet.Appearance
 	Stage          *int // -1 volta aos minutos reais, sem apagar tarefas.
 	Online, Member *bool
 	Action, Task   string // start, done ou stop; o tempo só é escolhido ao iniciar.
@@ -160,10 +161,28 @@ func DevPreview(base DevScene, changes []DevChange, obra *string, now time.Time)
 			p.Pet.Energy, p.Pet.LastActive, p.Pet.DirectEnergy = *c.Energy, now, true
 		}
 		if c.Color != nil {
-			if !slices.ContainsFunc(pet.Colors, func(p pet.Palette) bool { return p.ID == *c.Color }) {
+			a := p.Pet.Look()
+			found := false
+			for _, v := range pet.Pets.Character(a.Character).Variants {
+				candidate := a
+				candidate.Variant = v.ID
+				if pet.Pets.ArtworkColor(candidate) == *c.Color {
+					a = candidate
+					found = true
+					break
+				}
+			}
+			if !found {
 				return s, errors.New("cor inválida")
 			}
-			p.Pet.Color = *c.Color
+			p.Pet.Appearance, p.Pet.Color = a, *c.Color
+		}
+		if c.Appearance != nil {
+			if err := pet.Pets.ValidateAppearance(*c.Appearance); err != nil {
+				return s, err
+			}
+			p.Pet.Appearance = *c.Appearance
+			p.Pet.Color = pet.Pets.ArtworkColor(*c.Appearance)
 		}
 		if c.Online != nil {
 			p.Online = *c.Online
@@ -259,7 +278,7 @@ func DevWorld(w World, s DevScene, changes []DevChange, now time.Time) World {
 		out.Users[k] = v
 	}
 	for _, p := range s.People {
-		x := Member{ID: p.ID, Nick: p.Nick, Color: p.Pet.Color, Energy: p.Pet.EnergyAt(now), TodayMin: personMinutes(p, now), Status: Offline}
+		x := Member{ID: p.ID, Nick: p.Nick, Color: p.Pet.Color, Appearance: p.Pet.Look(), Energy: p.Pet.EnergyAt(now), TodayMin: personMinutes(p, now), Status: Offline}
 		if p.Online {
 			x.Status = Idle
 		}
@@ -354,6 +373,7 @@ func DevSaveAs(base DevScene, changes []DevChange, obra *string, now time.Time, 
 				w.Pet.Energy, w.Pet.LastActive, w.Pet.DirectEnergy = *c.Energy, now, true
 			}
 			w.Pet.Color = p.Pet.Color
+			w.Pet.Appearance = p.Pet.Appearance
 			result := pet.NotDone
 			if c.Action == "done" {
 				result = pet.Done
@@ -385,6 +405,7 @@ func DevSaveAs(base DevScene, changes []DevChange, obra *string, now time.Time, 
 	for _, c := range changes {
 		p := next.People[slices.IndexFunc(next.People, func(p DevPerson) bool { return p.ID == c.ID })]
 		u := load(p.ID)
+		u.appearance = p.Pet.Look()
 		u.nick, u.color, u.energy, u.today, u.todayMin, u.focus = p.Nick, p.Pet.Color, p.Pet.EnergyAt(now), p.Pet.Today, p.Pet.TodayMin, p.Focus
 		if on, ok := state.Presence[p.ID]; ok {
 			v := on

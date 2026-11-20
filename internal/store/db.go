@@ -61,6 +61,9 @@ func Open(path string) error {
 	d.Exec(`ALTER TABLE users ADD COLUMN last_min INTEGER NOT NULL DEFAULT 0`)
 	d.Exec(`ALTER TABLE users ADD COLUMN stats_list INTEGER NOT NULL DEFAULT 0`)
 	d.Exec(`ALTER TABLE users ADD COLUMN dev_energy INTEGER NOT NULL DEFAULT 0`)
+	for _, column := range []string{"pet_character", "pet_variant", "pet_hat", "pet_hat_variant"} {
+		d.Exec(`ALTER TABLE users ADD COLUMN ` + column + ` TEXT NOT NULL DEFAULT ''`)
+	}
 	db = d
 	return nil
 }
@@ -156,17 +159,32 @@ func SetPetColor(id, c string) error {
 	return err
 }
 
+// SetAppearance salva só a aparência; energia e tarefas podem mudar em paralelo.
+func SetAppearance(id string, a pet.Appearance) error {
+	if err := pet.Pets.ValidateAppearance(a); err != nil {
+		return err
+	}
+	_, err := db.Exec(`UPDATE users SET pet_character=?,pet_variant=?,pet_hat=?,pet_hat_variant=?,pet_color=? WHERE id=?`,
+		a.Character, a.Variant, a.Hat, a.HatVariant, pet.Pets.ArtworkColor(a), id)
+	return err
+}
+
 func scanUser(row *sql.Row) (nick string, p pet.Pet, ok bool, err error) {
 	var last int64
-	err = row.Scan(&nick, &p.Energy, &last, &p.Streak, &p.StreakDay, &p.Today, &p.TodayMin, &p.Color, &p.DirectEnergy)
+	err = row.Scan(&nick, &p.Energy, &last, &p.Streak, &p.StreakDay, &p.Today, &p.TodayMin, &p.Color, &p.DirectEnergy, &p.Appearance.Character, &p.Appearance.Variant, &p.Appearance.Hat, &p.Appearance.HatVariant)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", pet.Pet{}, false, nil
 	}
 	p.LastActive = time.Unix(last, 0)
+	if err == nil && p.Appearance.Character != "" {
+		if invalid := pet.Pets.ValidateAppearance(p.Appearance); invalid != nil {
+			return "", pet.Pet{}, false, fmt.Errorf("aparência de %s: %w", nick, invalid)
+		}
+	}
 	return nick, p, err == nil, err
 }
 
-const selectUser = `SELECT nick, energy, last_active, streak, streak_day, today, today_min, pet_color, dev_energy FROM users WHERE id = ?`
+const selectUser = `SELECT nick, energy, last_active, streak, streak_day, today, today_min, pet_color, dev_energy, pet_character, pet_variant, pet_hat, pet_hat_variant FROM users WHERE id = ?`
 
 func GetUser(id string) (string, pet.Pet, bool, error) {
 	return scanUser(db.QueryRow(selectUser, id))

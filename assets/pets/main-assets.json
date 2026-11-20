@@ -1,0 +1,12 @@
+{
+  "assets": [
+    {
+      "id": "tired_particles",
+      "spriteSheet": "main_assets/tired_particles.png"
+    },
+    {
+      "id": "sleep_particles",
+      "spriteSheet": "main_assets/sleep_particles.png"
+    }
+  ]
+}

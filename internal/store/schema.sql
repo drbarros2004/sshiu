@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS users (
 	streak      INTEGER NOT NULL DEFAULT 0,
 	streak_day  TEXT NOT NULL DEFAULT '',
 	pet_color   TEXT NOT NULL DEFAULT '',  -- ID da paleta do pet ("" = azul)
+	pet_character TEXT NOT NULL DEFAULT '',
+	pet_variant TEXT NOT NULL DEFAULT '',
+	pet_hat TEXT NOT NULL DEFAULT '',
+	pet_hat_variant TEXT NOT NULL DEFAULT '',
 	lang        TEXT NOT NULL DEFAULT 'en', -- idioma da interface: "en" ou "pt" (#86)
 	last_min    INTEGER NOT NULL DEFAULT 0,   -- o último tempo declarado, que o seletor já traz escolhido (0 = nenhum)
 	dev_energy INTEGER NOT NULL DEFAULT 0, -- ponto de partida de energia exclusivo do dev

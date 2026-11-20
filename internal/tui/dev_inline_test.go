@@ -85,9 +85,9 @@ func TestInlineProfileColorWaitsForSave(t *testing.T) {
 	m.tab = tabProfile
 	m = openInline(t, m)
 	m.custom = true
-	m.pcolor = 2
+	m.appearanceEdit = newAppearanceEditor(pet.Appearance{Character: "fruit", Variant: "yellow"})
 	m, _ = pressInline(m, tea.KeyEnter, false)
-	if m.profileDev.changes[0].Color == nil || *m.profileDev.changes[0].Color != pet.Colors[2].ID {
+	if m.profileDev.changes[0].Appearance == nil || m.profileDev.changes[0].Appearance.Variant != "yellow" {
 		t.Fatal("enter não confirmou cor no rascunho")
 	}
 	if _, p, _, _ := store.GetUser(m.id); p.Color != "" {

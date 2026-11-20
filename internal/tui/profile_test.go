@@ -31,22 +31,22 @@ func TestMoodPreviewIsolation(t *testing.T) {
 		return cmd
 	}
 	press('c')
+	m.appearanceEdit.Row = len(m.appearanceEdit.rows(true)) - 1
 	if m.previewMood != pet.MoodOf(original.EnergyAt(m.now)) {
 		t.Fatal("a prévia não começou no humor atual")
 	}
 	seen := map[pet.Mood]bool{}
 	for range len(pet.MoodName) {
 		seen[m.previewMood] = true
-		if cmd := press(tea.KeyDown); cmd != nil || m.pet != original {
+		if cmd := press(tea.KeyRight); cmd != nil || m.pet != original {
 			t.Fatal("a prévia alterou o pet ou produziu um efeito")
 		}
 	}
 	if len(seen) != len(pet.MoodName) || !seen[pet.Sleeping] {
 		t.Fatal("a prévia não percorreu todos os estados, incluindo dormindo")
 	}
-	press(tea.KeyUp)
 	press(tea.KeyRight)
-	if !strings.Contains(m.profileView(80, 100), "prévia do pet") ||
+	if !strings.Contains(m.profileView(80, 100), "prévia do humor") ||
 		!strings.Contains(m.profileView(80, 100), "não altera humor ou energia") {
 		t.Fatal("a tela não identifica a simulação")
 	}
@@ -56,33 +56,38 @@ func TestMoodPreviewIsolation(t *testing.T) {
 		!strings.Contains(view, pet.MoodName[m.previewMood]) {
 		t.Fatal("a janela pequena cortou a identificação da prévia")
 	}
+	m.appearanceEdit.Row = 1
+	press(tea.KeyRight)
 	cmd := press(tea.KeyEnter)
 	if cmd == nil {
 		t.Fatal("salvar a cor não produziu um efeito")
 	}
-	cmd()
+	next, _ := m.Update(cmd())
+	m = next.(model)
 	_, saved, _, err := store.GetUser("preview")
 	if err != nil || saved.Color != pet.Colors[1].ID {
 		t.Fatalf("a cor não foi salva: %+v, %v", saved, err)
 	}
-	saved.Color = original.Color
-	if saved != original || m.custom || strings.Contains(m.profileView(80, 100), "prévia do pet") {
+	saved.Color, saved.Appearance = original.Color, original.Appearance
+	if saved != original || m.custom || strings.Contains(m.profileView(80, 100), "prévia do humor") {
 		t.Fatal("salvar a cor alterou os dados de foco ou manteve a simulação")
 	}
+	original = m.pet
 	press('c')
+	m.appearanceEdit.Row = len(m.appearanceEdit.rows(true)) - 1
 	if m.previewMood != pet.MoodOf(original.EnergyAt(m.now)) {
 		t.Fatal("reabrir manteve o humor simulado")
 	}
 	press(tea.KeyRight)
 	press(tea.KeyEscape)
-	if m.custom || m.pcolor != m.pcSaved || m.pet != original {
+	if m.custom || m.appearanceEdit != nil || m.pet != original {
 		t.Fatal("cancelar não descartou a prévia")
 	}
 	press('c')
 	press(tea.KeyDown)
-	next, _ := m.switchTab(tabRoom)
+	next, _ = m.switchTab(tabRoom)
 	m = next.(model)
-	if m.custom || m.pcolor != m.pcSaved || m.pet != original {
+	if m.custom || m.appearanceEdit != nil || m.pet != original {
 		t.Fatal("trocar de aba não descartou a prévia")
 	}
 }

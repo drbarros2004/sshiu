@@ -94,14 +94,15 @@ type (
 		err  error
 	}
 	profileMsg struct {
-		id     string
-		pet    pet.Pet
-		tasks  []store.TaskRow
-		days   map[string]float64 // minutos focados por dia, para o calendário
-		hours  [24]float64        // minutos focados por hora do dia
-		totals store.Totals
-		rec    int       // a maior sequência nos dias carregados (longestRun)...
-		recAt  time.Time // ...e o dia em que ela terminou
+		appearanceRevision int
+		id                 string
+		pet                pet.Pet
+		tasks              []store.TaskRow
+		days               map[string]float64 // minutos focados por dia, para o calendário
+		hours              [24]float64        // minutos focados por hora do dia
+		totals             store.Totals
+		rec                int       // a maior sequência nos dias carregados (longestRun)...
+		recAt              time.Time // ...e o dia em que ela terminou
 	}
 	errMsg  struct{ error }
 	roomMsg struct { // entrei numa sala (criada agora ou por código)
@@ -142,12 +143,13 @@ type model struct {
 	noticeSeen          string    // o aviso como estava no último tick...
 	noticeAt            time.Time // ...e desde quando: um aviso velho sai da tela sozinho
 	st                  styles
-	theme, saved        int          // tema em prévia e tema salvo
-	lang, langSaved     lang         // idioma em prévia e idioma salvo (#86)
-	statsList           bool         // as stats em lista, em vez de painéis (#45)...
-	listSaved           bool         // ...e o que está no banco
-	pcolor              int          // cor do pet em prévia (índice em pet.Colors)
-	pcSaved             int          // a cor do pet que está no banco
+	theme, saved        int  // tema em prévia e tema salvo
+	lang, langSaved     lang // idioma em prévia e idioma salvo (#86)
+	statsList           bool // as stats em lista, em vez de painéis (#45)...
+	listSaved           bool // ...e o que está no banco
+	pendingAppearance   *pet.Appearance
+	appearanceRevision  int
+	appearanceEdit      *appearanceEditor
 	custom              bool         // aba de perfil no modo personalizar
 	previewMood         pet.Mood     // só o desenho da personalização; nunca vai para o banco ou para a sala
 	vis, visSaved       store.Garden // modo jardim em prévia e salvo
@@ -247,8 +249,7 @@ func New(id, invite, code string) model {
 		log.Error("getUser", "err", err)
 	}
 	m.nick = nick
-	m.pcolor = pet.ColorIndex(p.Color)
-	m.pcSaved = m.pcolor
+	m.pet = p
 	m.theme = themeIndex(store.Theme(id))
 	m.saved, m.st = m.theme, newStyles(themes[m.theme])
 	m.lang = lang(store.Lang(id))
@@ -317,7 +318,7 @@ func (m model) syncSide() model {
 
 // loadProfile lê o pet e as últimas tarefas do banco: a aba perfil e o painel da sala solo.
 func (m model) loadProfile() tea.Cmd {
-	id := m.id
+	id, revision := m.id, m.appearanceRevision
 	return func() tea.Msg {
 		_, p, _, err := store.GetUser(id)
 		if err != nil {
@@ -340,7 +341,7 @@ func (m model) loadProfile() tea.Cmd {
 			return errMsg{err}
 		}
 		rec, recAt := longestRun(days, time.Now())
-		return profileMsg{id, p, ts, days, hours, totals, rec, recAt}
+		return profileMsg{revision, id, p, ts, days, hours, totals, rec, recAt}
 	}
 }
 
@@ -433,6 +434,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// personalizar, com o pet grande do lado mudando junto com a escolha
 			m.tab, m.custom, m.first = tabProfile, true, true
 			m.previewMood = pet.MoodOf(pet.EnergyStart)
+			m.appearanceEdit = newAppearanceEditor(m.pet.Look())
 			cmds := []tea.Cmd{m.loadProfile()}
 			if m.pending != "" { // o código do comando esperava o apelido do primeiro acesso
 				code := m.pending
@@ -448,9 +450,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.err = msg.err.Error()
 		}
+	case appearanceSavedMsg:
+		if msg.id != m.id || msg.revision != m.appearanceRevision {
+			return m, nil
+		}
+		m.pendingAppearance = nil
+		m.appearanceRevision++
+		if msg.err != nil {
+			m.err = m.lang.errText(msg.err)
+			m.notice = ""
+		} else {
+			m.notice = m.t("salvo")
+			m.setWorld(msg.world)
+		}
+		return m, m.loadProfile()
 	case profileMsg:
+		if msg.appearanceRevision != m.appearanceRevision {
+			return m, nil
+		}
 		if msg.id != "" && msg.id != m.id {
 			return m, nil
+		}
+		if m.pendingAppearance != nil {
+			msg.pet.Appearance = *m.pendingAppearance
+			msg.pet.Color = pet.Pets.ArtworkColor(*m.pendingAppearance)
 		}
 		m.pet, m.tasks, m.days, m.hours, m.totals = msg.pet, msg.tasks, msg.days, msg.hours, msg.totals
 		m.rec, m.recAt = msg.rec, msg.recAt
@@ -568,7 +591,7 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 		m.theme, m.st, m.vis, m.lang, m.statsList = m.saved, newStyles(themes[m.saved]), m.visSaved, m.langSaved, m.listSaved
 	}
 	if m.tab == tabProfile && t != tabProfile && m.profileDev == nil { // idem para a cor do pet
-		m.pcolor, m.custom = m.pcSaved, false
+		m.custom, m.appearanceEdit = false, nil
 	}
 	m.obraFull = false
 	m.tab, m.err, m.notice, m.entering, m.choosing, m.other, m.picking, m.form = t, "", "", false, false, false, false, formNone
@@ -655,6 +678,9 @@ func (m model) View() tea.View {
 			help = m.inlineHelp()
 			if m.tab == tabProfile {
 				content = func(w, h int) string {
+					if m.custom && m.inline().field == "" {
+						return m.profileView(w, h)
+					}
 					panel := m.inlinePanel(w)
 					return panel + "\n" + m.profileView(w, max(1, h-lipgloss.Height(panel)-1))
 				}

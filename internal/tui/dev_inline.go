@@ -3,7 +3,6 @@ package tui
 // Edição na própria tela: base é o retrato salvo; changes é o rascunho, nunca o banco.
 import (
 	"slices"
-	"sshiu/internal/pet"
 	"sshiu/internal/rooms"
 	"strconv"
 	"strings"
@@ -23,6 +22,7 @@ type inlineDev struct {
 	value       string
 	number      float64
 	picker      int
+	appearance  *appearanceEditor
 	target      string
 	busy        bool
 	freshNumber bool
@@ -125,9 +125,6 @@ func (m model) inlineRender() model {
 			if p.ID == m.id {
 				m.pet = p.Pet
 				m.nick = p.Nick
-				if !m.custom {
-					m.pcolor = pet.ColorIndex(p.Pet.Color)
-				}
 			}
 		}
 	}
@@ -318,7 +315,16 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 
 			return m, nil
-		case "color", "stage", "obra":
+		case "appearance":
+			if k == "enter" {
+				v := d.appearance.Choice
+				d.change(p.ID).Appearance = &v
+				d.field, d.locked, d.appearance = "", false, nil
+			} else {
+				d.appearance.key(k, false, &m.previewMood)
+			}
+			return m, nil
+		case "stage", "obra":
 			delta := 0
 			if k == "left" {
 				delta = -1
@@ -327,10 +333,7 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				delta = 1
 			}
 			if delta != 0 {
-				n := len(pet.Colors)
-				if d.field == "stage" {
-					n = rooms.ObraStages + 1
-				}
+				n := rooms.ObraStages + 1
 				if d.field == "obra" {
 					n = len(rooms.Obras)
 				}
@@ -338,9 +341,6 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			if k == "enter" {
 				switch d.field {
-				case "color":
-					v := pet.Colors[d.picker].ID
-					d.change(p.ID).Color = &v
 				case "stage":
 					v := d.picker - 1
 					d.change(p.ID).Stage = &v
@@ -358,12 +358,17 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
+	if m.tab == tabProfile && m.custom && k == "esc" {
+		m.custom, m.appearanceEdit = false, nil
+		return m, nil
+	}
 	switch k {
 	case "ctrl+s", "x":
 		if m.tab == tabProfile && m.custom {
-			v := m.myColor()
-			d.change(m.id).Color = &v
+			v := m.profileAppearance()
+			d.change(m.id).Appearance = &v
 			m.custom = false
+			m.appearanceEdit = nil
 		}
 		return m, m.saveInline(k == "x")
 	case "esc":
@@ -376,7 +381,8 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.profileDev = nil
 			m.custom = false
-			m.pcolor = m.pcSaved
+			m.appearanceEdit = nil
+			m.appearanceEdit = nil
 		}
 		return m, m.loadProfile()
 	case "ctrl+r":
@@ -398,15 +404,17 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.tab == tabProfile {
 		if m.custom && (k == "x" || k == "ctrl+s") {
-			v := m.myColor()
-			d.change(m.id).Color = &v
+			v := m.profileAppearance()
+			d.change(m.id).Appearance = &v
 			m.custom = false
+			m.appearanceEdit = nil
 			return m, m.saveInline(k == "x")
 		}
 		if m.custom && k == "enter" {
-			v := m.myColor()
-			d.change(m.id).Color = &v
+			v := m.profileAppearance()
+			d.change(m.id).Appearance = &v
 			m.custom = false
+			m.appearanceEdit = nil
 			return m, nil
 		}
 		return m.profileKey(msg)
@@ -454,8 +462,8 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+u":
 		d.target = p.ID
 	case "ctrl+l":
-		d.field = "color"
-		d.picker = pet.ColorIndex(p.Pet.Color)
+		d.field = "appearance"
+		d.appearance = newAppearanceEditor(p.Pet.Look())
 	case "ctrl+o":
 		d.field = "stage"
 		d.picker = 1
@@ -498,9 +506,9 @@ func (m model) previewField() model {
 	case "energy":
 		v := d.number
 		c.Energy = &v
-	case "color":
-		v := pet.Colors[d.picker].ID
-		c.Color = &v
+	case "appearance":
+		v := d.appearance.Choice
+		c.Appearance = &v
 	case "stage":
 		v := d.picker - 1
 		c.Stage = &v
@@ -547,8 +555,8 @@ func (m model) inlinePanel(w int) string {
 		if len(people) > 0 {
 			body += "\n‹ " + people[min(d.picker, len(people)-1)].Nick + " ›"
 		}
-	case "color":
-		body = m.t("cor") + ": ‹ " + m.t(pet.Colors[d.picker].Name) + " ›"
+	case "appearance":
+		body = m.appearanceRows(d.appearance.Choice, d.appearance, false)
 	case "stage":
 		body = m.tf("estágio da obra: %d · -1 usa o progresso real", d.picker-1)
 	case "obra":
@@ -575,6 +583,9 @@ func (m model) inlineHelp() string {
 		return ""
 	}
 	if d.field != "" {
+		if d.field == "appearance" {
+			return m.t("↑/↓ opção · ←/→ altera · enter confirma prévia · esc volta")
+		}
 		return m.t("enter confirma prévia · esc cancela campo")
 	}
 	if m.tab == tabRoom && (m.width < 100 || m.height < 30) {
@@ -584,12 +595,12 @@ func (m model) inlineHelp() string {
 	if m.tab == tabProfile {
 		actions := m.t("ctrl+n nome") + " · " + m.t("ctrl+e energia")
 		if m.custom {
-			return m.t("←/→ cor · ↑/↓ prévia do humor · enter confirma prévia · esc volta") + " · " + actions + " · " + base
+			return m.t("↑/↓ opção · ←/→ altera · enter confirma prévia · esc volta") + " · " + actions + " · " + base
 		}
 		return m.profileHelp() + " · " + actions + " · " + base
 	}
 	if d.locked {
-		return m.t("ctrl+n nome · ctrl+e energia · ctrl+l cor · ctrl+o estágio da obra · ctrl+p presença · ctrl+d remove · ctrl+t tarefa · ctrl+u assume") + " · " + base
+		return m.t("ctrl+n nome · ctrl+e energia · ctrl+l aparência · ctrl+o estágio da obra · ctrl+p presença · ctrl+d remove · ctrl+t tarefa · ctrl+u assume") + " · " + base
 	}
 	return m.t("←/→ membro · enter edita · ctrl+b adiciona · ctrl+o obra · ctrl+u assume") + " · " + base
 }
@@ -621,14 +632,14 @@ func (m model) updateInline(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		for _, p := range v.scene.People {
 			if p.ID == m.id {
 				m.nick = p.Nick
-				m.pcolor = pet.ColorIndex(p.Pet.Color)
-				m.pcSaved = m.pcolor
+				m.pet = p.Pet
 			}
 		}
 		if !slices.Contains(v.scene.Members, d.selected) && v.tab == tabRoom && len(v.scene.Members) > 0 {
 			d.selected = v.scene.Members[0]
 		}
 		if v.save {
+			m.appearanceRevision++
 			m.notice = m.t("salvo")
 			if v.tab == tabRoom && v.scene.Room == nil {
 				m.roomDev = nil
@@ -642,6 +653,7 @@ func (m model) updateInline(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 				} else {
 					m.profileDev = nil
 					m.custom = false
+					m.appearanceEdit = nil
 				}
 			}
 			return m, tea.Batch(act(func() {}), m.loadProfile()), true
