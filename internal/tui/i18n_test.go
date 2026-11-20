@@ -76,7 +76,11 @@ func dynamicTexts() []string {
 		s = append(s, x)
 	}
 	s = append(s, weekdays[:]...)
-	s = append(s, periods...) // os períodos da tabela de foco
+	s = append(s, periods...)   // os períodos da tabela de foco
+	for _, c := range devCols { // as colunas da aba dev
+		s = append(s, c.name)
+	}
+	s = append(s, "ninguém com esse id", "esse apelido já está em uso") // os erros do modo dev, em rooms
 	s = append(s, months[:]...)
 	s = append(s, rooms.BotTasks()...)
 	for _, f := range faqs {

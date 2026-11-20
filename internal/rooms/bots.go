@@ -8,6 +8,7 @@ import (
 	"slices"
 	"sshiu/internal/pet"
 	"sshiu/internal/store"
+	"strings"
 	"time"
 
 	"charm.land/log/v2"
@@ -47,7 +48,7 @@ var pending []botReaction // reações agendadas pelos bots
 // SeedBots cria a sala demo com os bots, alguns já focando, e põe os bots para andar.
 func SeedBots() {
 	for i, b := range bots {
-		if err := store.PutUser("bot:"+b.nick, b.nick, b.energy); err != nil {
+		if err := putBot(b); err != nil {
 			log.Fatal("seed bots", "err", err)
 		}
 		// cada bot numa cor, a partir da segunda: quem entra fica com a primeira, e a obra mostra
@@ -80,6 +81,16 @@ func SeedBots() {
 		}
 	}
 	go runBots()
+}
+
+// putBot grava o bot. Se o apelido já é de alguém (no modo dev, a ana do exemplo; em qualquer
+// banco, quem escolheu o nome antes da primeira demo), o bot fica com "<apelido>-bot".
+func putBot(b *bot) error {
+	err := store.PutUser("bot:"+b.nick, b.nick, b.energy)
+	if err != nil && strings.Contains(err.Error(), "UNIQUE") {
+		err = store.PutUser("bot:"+b.nick, b.nick+"-bot", b.energy)
+	}
+	return err
 }
 
 func runBots() {

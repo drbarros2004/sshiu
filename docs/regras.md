@@ -70,7 +70,7 @@ Tudo em [`internal/rooms/room.go`](../internal/rooms/room.go), salvo onde indica
 | Tabela de foco | fechada (só o dono vê) e em tabela, até o dono mudar; no ranking, empate divide a posição e quem tem 0 min fica sem número | O ranking compara as pessoas, então alguém escolhe ligá-lo ([ADR 0010](adr/0010-tabela-de-foco.md)). Hoje são os minutos da obra e zeram junto com ela. | [board.go](../internal/tui/board.go) |
 | Períodos da tabela de foco | hoje, esta semana (de segunda), este mês ou o total, escolhido por quem olha; a tarefa conta no dia em que termina; o banco é relido ao abrir, ao trocar o período e na virada do dia | Os dias anteriores só mudam à meia-noite; hoje vem ao vivo no retrato. | [board.go](../internal/tui/board.go) |
 | Tabela de foco compacta na sala | até 3 pessoas, à direita do painel de foco, com "+N no o"; só quando sobram ao lado dela as 43 colunas do relógio com a tarefa (umas 100 colunas de terminal), e fora enquanto se escreve a tarefa | Fica uma ou duas linhas mais alta que o painel: cabe a 120×40 até com 10 pessoas. A largura decide, e não o estado do painel, para ela não aparecer e sumir a cada tecla. | [board.go](../internal/tui/board.go), [room.go](../internal/tui/room.go) |
-| Bots da demo | tarefas de 40 a 90 s, uns 90 s parados entre uma e outra | A sala parece viva sem empurrar os seus eventos para fora da tela. | [bots.go:78-79](../internal/rooms/bots.go#L78-L79) |
+| Bots da demo | tarefas de 40 a 90 s, uns 90 s parados entre uma e outra; se o apelido já é de alguém, o bot vira `<apelido>-bot` | A sala parece viva sem empurrar os seus eventos para fora da tela. Sem o sufixo, uma pessoa chamada ana impedia a demo de subir. | [bots.go:102-103](../internal/rooms/bots.go#L102-L103), [bots.go:80](../internal/rooms/bots.go#L80) |
 
 ## As stats
 
@@ -108,3 +108,18 @@ O que o perfil e a sala solo parada mostram sobre o seu foco ([#45](https://gith
 | Quadros do modo jardim | 8 por segundo | Movimento suave. Medido no protótipo: de 2 a 24 KB/s (em pixel art: árvore 4, café 21 e estrada 31 KB/s com o painel e 29 sem) e de 4 a 6% de um núcleo por usuário; 5 fps gasta uns 40% menos CPU. | [garden.go:26](../internal/tui/garden.go#L26) |
 | Padrões do modo jardim | wallpaper sorteado a cada tarefa, relógio só com os minutos, tarefa e sala aparecem, liga sozinho depois de 30 s, wallpapers para devs de verdade não | Quem chega vê o que o modo jardim oferece e desliga o que achar demais. O brainrot é de piada e gasta ~8× a banda da chuva: só entra na lista, nas setas e no sorteio de quem pede ([#36](https://github.com/drbarros2004/sshiu/issues/36)). | [db.go:67](../internal/store/db.go#L67) |
 | Brainrot | dois vídeos de 1 min, a 8 quadros por segundo, em 54 × 48 células no tamanho cheio (ou 75%, 50%, 35% do que couber) | Vertical, como no celular. Os quadros em ANSI (~70 MB) são montados na primeira vez que alguém abre o brainrot, em ~0,5 s, e servem para todo o servidor. | [brainrot.go](../internal/tui/brainrot.go), [brainrot_gen.go](../internal/tui/brainrot_gen.go) |
+
+## Modo dev
+
+Só com a flag `-dev` ([ADR 0011](adr/0011-modo-dev.md)). Os passos da aba dev estão em [`internal/rooms/dev.go`](../internal/rooms/dev.go).
+
+| Regra | Valor | Por quê | Código |
+|---|---|---|---|
+| Energia | de 5 em 5, na energia guardada | Chega a qualquer faixa de humor em poucas teclas. Os dias parados continuam decaindo por cima. | [dev.go:19](../internal/rooms/dev.go#L19) |
+| Dias parado | um dia por passo na última atividade, nunca depois de agora | Mostra o decaimento de 8 por dia sem esperar dias de verdade. Encerrar uma tarefa zera, como sempre. | [dev.go:111](../internal/rooms/dev.go#L111) |
+| Minutos de hoje | tarefas de 15 min, começando agora | O passo do streak (15 min): um `+` já faz o dia contar. O `-` apaga a última tarefa dev de hoje. | [dev.go:20](../internal/rooms/dev.go#L20) |
+| Minutos de antes de hoje | tarefas de 60 min, uma por dia para trás (ontem, anteontem...) | Cada `+` anda um dia, então a semana, o mês e o total da tabela de foco se separam sozinhos. Uma tabela já aberta na tecla `o` só mostra o ajuste depois de reaberta ou de trocar o período. | [dev.go:21](../internal/rooms/dev.go#L21), [dev.go:141](../internal/rooms/dev.go#L141) |
+| Tarefa em andamento | o `+` sem tarefa começa uma de 25 min; com tarefa, `+` dá mais 5 min e `-` faz 5 min passarem (até esgotar) | 25 min é o tempo padrão de quem foca de verdade. O `-` leva a tarefa ao "tempo esgotado" sem esperar, e os minutos passados contam como focados. Depois de esgotar, o `+` funciona como o continuar: o tempo sem resposta não conta. | [dev.go:22-23](../internal/rooms/dev.go#L22-L23), [dev.go:197](../internal/rooms/dev.go#L197) |
+| Online | uma sessão de mentira por pessoa, aberta e fechada pelo painel | Passa pelo mesmo caminho das sessões de verdade: sem sessão nenhuma, a tarefa em andamento espera os 2 min de tolerância e é interrompida. | [dev.go:161](../internal/rooms/dev.go#L161) |
+| Banco e endereço | `sshiu-dev.db`, só localhost | O modo dev não encosta nos dados de verdade, e ninguém de fora entra sem chave. O WAL vem do `store.Open`, como no banco de verdade: com o journal padrão, cada ajuste da aba dev levava ~0,4 s no Windows. | [main.go:34](../main.go#L34) |
+| Tamanho da aba dev | cabe em 80 colunas: apelido em 10, cada coluna em 6 e a cor como um bloco pintado; a lista rola na altura do terminal, com o cursor sempre à vista | É o menor terminal que o app suporta. O nome da cor ("turquesa") não cabia em 6. | [tui/dev.go](../internal/tui/dev.go) |
