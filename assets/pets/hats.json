@@ -1,0 +1,698 @@
+{
+  "width": 16,
+  "height": 6,
+  "hats": [
+    {
+      "id": "top_hat",
+      "displayName": {
+        "pt": "cartola",
+        "en": "top hat"
+      },
+      "order": 0,
+      "variants": [
+        {
+          "id": "normal",
+          "displayName": {
+            "pt": "normal",
+            "en": "normal"
+          },
+          "image": "hats/top_hat/top_hat_normal.png",
+          "order": 0
+        },
+        {
+          "id": "normal_detailed",
+          "displayName": {
+            "pt": "normal detalhado",
+            "en": "normal detailed"
+          },
+          "image": "hats/top_hat/top_hat_normal_detailed.png",
+          "order": 1
+        },
+        {
+          "id": "black",
+          "displayName": {
+            "pt": "preta",
+            "en": "black"
+          },
+          "image": "hats/top_hat/top_hat_black.png",
+          "order": 2
+        },
+        {
+          "id": "navy",
+          "displayName": {
+            "pt": "azul-marinho",
+            "en": "navy"
+          },
+          "image": "hats/top_hat/top_hat_navy.png",
+          "order": 3
+        },
+        {
+          "id": "emerald",
+          "displayName": {
+            "pt": "esmeralda",
+            "en": "emerald"
+          },
+          "image": "hats/top_hat/top_hat_emerald.png",
+          "order": 4
+        },
+        {
+          "id": "burgundy",
+          "displayName": {
+            "pt": "bordô",
+            "en": "burgundy"
+          },
+          "image": "hats/top_hat/top_hat_burgundy.png",
+          "order": 5
+        },
+        {
+          "id": "white",
+          "displayName": {
+            "pt": "branca",
+            "en": "white"
+          },
+          "image": "hats/top_hat/top_hat_white.png",
+          "order": 6
+        },
+        {
+          "id": "blue_band",
+          "displayName": {
+            "pt": "faixa azul",
+            "en": "blue band"
+          },
+          "image": "hats/top_hat/top_hat_blue_band.png",
+          "order": 7
+        }
+      ]
+    },
+    {
+      "id": "cowboy",
+      "displayName": {
+        "pt": "chapéu de cowboy",
+        "en": "cowboy"
+      },
+      "order": 1,
+      "variants": [
+        {
+          "id": "normal",
+          "displayName": {
+            "pt": "normal",
+            "en": "normal"
+          },
+          "image": "hats/cowboy/cowboy_normal.png",
+          "order": 0
+        },
+        {
+          "id": "normal_detailed",
+          "displayName": {
+            "pt": "normal detalhado",
+            "en": "normal detailed"
+          },
+          "image": "hats/cowboy/cowboy_normal_detailed.png",
+          "order": 1
+        },
+        {
+          "id": "black",
+          "displayName": {
+            "pt": "preto",
+            "en": "black"
+          },
+          "image": "hats/cowboy/cowboy_black.png",
+          "order": 2
+        },
+        {
+          "id": "sand",
+          "displayName": {
+            "pt": "areia",
+            "en": "sand"
+          },
+          "image": "hats/cowboy/cowboy_sand.png",
+          "order": 3
+        },
+        {
+          "id": "chestnut",
+          "displayName": {
+            "pt": "castanho",
+            "en": "chestnut"
+          },
+          "image": "hats/cowboy/cowboy_chestnut.png",
+          "order": 4
+        },
+        {
+          "id": "ivory",
+          "displayName": {
+            "pt": "marfim",
+            "en": "ivory"
+          },
+          "image": "hats/cowboy/cowboy_ivory.png",
+          "order": 5
+        },
+        {
+          "id": "navy",
+          "displayName": {
+            "pt": "azul-marinho",
+            "en": "navy"
+          },
+          "image": "hats/cowboy/cowboy_navy.png",
+          "order": 6
+        }
+      ]
+    },
+    {
+      "id": "xmas_hat",
+      "displayName": {
+        "pt": "gorro de natal",
+        "en": "xmas hat"
+      },
+      "order": 2,
+      "variants": [
+        {
+          "id": "normal",
+          "displayName": {
+            "pt": "normal",
+            "en": "normal"
+          },
+          "image": "hats/xmas_hat/xmas_hat_normal.png",
+          "order": 0
+        },
+        {
+          "id": "green",
+          "displayName": {
+            "pt": "verde",
+            "en": "green"
+          },
+          "image": "hats/xmas_hat/xmas_hat_green.png",
+          "order": 1
+        },
+        {
+          "id": "blue",
+          "displayName": {
+            "pt": "azul",
+            "en": "blue"
+          },
+          "image": "hats/xmas_hat/xmas_hat_blue.png",
+          "order": 2
+        },
+        {
+          "id": "purple",
+          "displayName": {
+            "pt": "roxo",
+            "en": "purple"
+          },
+          "image": "hats/xmas_hat/xmas_hat_purple.png",
+          "order": 3
+        },
+        {
+          "id": "pink",
+          "displayName": {
+            "pt": "rosa",
+            "en": "pink"
+          },
+          "image": "hats/xmas_hat/xmas_hat_pink.png",
+          "order": 4
+        },
+        {
+          "id": "black",
+          "displayName": {
+            "pt": "preto",
+            "en": "black"
+          },
+          "image": "hats/xmas_hat/xmas_hat_black.png",
+          "order": 5
+        }
+      ]
+    },
+    {
+      "id": "cap",
+      "displayName": {
+        "pt": "boné",
+        "en": "cap"
+      },
+      "order": 3,
+      "variants": [
+        {
+          "id": "blue",
+          "displayName": {
+            "pt": "azul",
+            "en": "blue"
+          },
+          "image": "hats/cap/cap_blue.png",
+          "order": 0
+        },
+        {
+          "id": "blue_backwards",
+          "displayName": {
+            "pt": "azul para trás",
+            "en": "blue backwards"
+          },
+          "image": "hats/cap/cap_blue_backwards.png",
+          "order": 1
+        },
+        {
+          "id": "purple",
+          "displayName": {
+            "pt": "roxo",
+            "en": "purple"
+          },
+          "image": "hats/cap/cap_purple.png",
+          "order": 2
+        },
+        {
+          "id": "purple_backwards",
+          "displayName": {
+            "pt": "roxo para trás",
+            "en": "purple backwards"
+          },
+          "image": "hats/cap/cap_purple_backwards.png",
+          "order": 3
+        },
+        {
+          "id": "red",
+          "displayName": {
+            "pt": "vermelho",
+            "en": "red"
+          },
+          "image": "hats/cap/cap_red.png",
+          "order": 4
+        },
+        {
+          "id": "red_backwards",
+          "displayName": {
+            "pt": "vermelho para trás",
+            "en": "red backwards"
+          },
+          "image": "hats/cap/cap_red_backwards.png",
+          "order": 5
+        },
+        {
+          "id": "green",
+          "displayName": {
+            "pt": "verde",
+            "en": "green"
+          },
+          "image": "hats/cap/cap_green.png",
+          "order": 6
+        },
+        {
+          "id": "green_backwards",
+          "displayName": {
+            "pt": "verde para trás",
+            "en": "green backwards"
+          },
+          "image": "hats/cap/cap_green_backwards.png",
+          "order": 7
+        },
+        {
+          "id": "turquoise",
+          "displayName": {
+            "pt": "turquesa",
+            "en": "turquoise"
+          },
+          "image": "hats/cap/cap_turquoise.png",
+          "order": 8
+        },
+        {
+          "id": "turquoise_backwards",
+          "displayName": {
+            "pt": "turquesa para trás",
+            "en": "turquoise backwards"
+          },
+          "image": "hats/cap/cap_turquoise_backwards.png",
+          "order": 9
+        },
+        {
+          "id": "orange",
+          "displayName": {
+            "pt": "laranja",
+            "en": "orange"
+          },
+          "image": "hats/cap/cap_orange.png",
+          "order": 10
+        },
+        {
+          "id": "orange_backwards",
+          "displayName": {
+            "pt": "laranja para trás",
+            "en": "orange backwards"
+          },
+          "image": "hats/cap/cap_orange_backwards.png",
+          "order": 11
+        },
+        {
+          "id": "pink",
+          "displayName": {
+            "pt": "rosa",
+            "en": "pink"
+          },
+          "image": "hats/cap/cap_pink.png",
+          "order": 12
+        },
+        {
+          "id": "pink_backwards",
+          "displayName": {
+            "pt": "rosa para trás",
+            "en": "pink backwards"
+          },
+          "image": "hats/cap/cap_pink_backwards.png",
+          "order": 13
+        },
+        {
+          "id": "black",
+          "displayName": {
+            "pt": "preto",
+            "en": "black"
+          },
+          "image": "hats/cap/cap_black.png",
+          "order": 14
+        },
+        {
+          "id": "black_backwards",
+          "displayName": {
+            "pt": "preto para trás",
+            "en": "black backwards"
+          },
+          "image": "hats/cap/cap_black_backwards.png",
+          "order": 15
+        },
+        {
+          "id": "reference",
+          "displayName": {
+            "pt": "referência",
+            "en": "reference"
+          },
+          "image": "hats/cap/cap_reference.png",
+          "order": 16
+        }
+      ]
+    },
+    {
+      "id": "crown",
+      "displayName": {
+        "pt": "coroa",
+        "en": "crown"
+      },
+      "order": 4,
+      "variants": [
+        {
+          "id": "normal",
+          "displayName": {
+            "pt": "normal",
+            "en": "normal"
+          },
+          "image": "hats/crown/crown_normal.png",
+          "order": 0
+        },
+        {
+          "id": "rgb",
+          "displayName": {
+            "pt": "crown rgb",
+            "en": "crown rgb"
+          },
+          "image": "hats/crown/crown_rgb.png",
+          "order": 1
+        },
+        {
+          "id": "silver",
+          "displayName": {
+            "pt": "prata e safira",
+            "en": "silver & sapphire"
+          },
+          "image": "hats/crown/crown_silver.png",
+          "order": 2
+        },
+        {
+          "id": "rose_gold",
+          "displayName": {
+            "pt": "ouro rosé",
+            "en": "rose gold"
+          },
+          "image": "hats/crown/crown_rose_gold.png",
+          "order": 3
+        },
+        {
+          "id": "emerald",
+          "displayName": {
+            "pt": "esmeralda",
+            "en": "emerald"
+          },
+          "image": "hats/crown/crown_emerald.png",
+          "order": 4
+        },
+        {
+          "id": "amethyst",
+          "displayName": {
+            "pt": "ametista",
+            "en": "amethyst"
+          },
+          "image": "hats/crown/crown_amethyst.png",
+          "order": 5
+        }
+      ]
+    },
+    {
+      "id": "little_hair",
+      "displayName": {
+        "pt": "topete",
+        "en": "little hair"
+      },
+      "order": 5,
+      "variants": [
+        {
+          "id": "normal",
+          "displayName": {
+            "pt": "normal",
+            "en": "normal"
+          },
+          "image": "hats/little_hair/little_hair_normal.png",
+          "order": 0
+        },
+        {
+          "id": "dark",
+          "displayName": {
+            "pt": "escuro",
+            "en": "dark"
+          },
+          "image": "hats/little_hair/little_hair_dark.png",
+          "order": 1
+        },
+        {
+          "id": "rainbow",
+          "displayName": {
+            "pt": "arco-íris",
+            "en": "rainbow"
+          },
+          "image": "hats/little_hair/little_hair_rainbow.png",
+          "order": 2
+        },
+        {
+          "id": "blonde",
+          "displayName": {
+            "pt": "loiro",
+            "en": "blonde"
+          },
+          "image": "hats/little_hair/little_hair_blonde.png",
+          "order": 3
+        },
+        {
+          "id": "chestnut",
+          "displayName": {
+            "pt": "castanho",
+            "en": "chestnut"
+          },
+          "image": "hats/little_hair/little_hair_chestnut.png",
+          "order": 4
+        },
+        {
+          "id": "copper",
+          "displayName": {
+            "pt": "cobre",
+            "en": "copper"
+          },
+          "image": "hats/little_hair/little_hair_copper.png",
+          "order": 5
+        },
+        {
+          "id": "blue",
+          "displayName": {
+            "pt": "azul",
+            "en": "blue"
+          },
+          "image": "hats/little_hair/little_hair_blue.png",
+          "order": 6
+        },
+        {
+          "id": "pink",
+          "displayName": {
+            "pt": "rosa",
+            "en": "pink"
+          },
+          "image": "hats/little_hair/little_hair_pink.png",
+          "order": 7
+        },
+        {
+          "id": "white",
+          "displayName": {
+            "pt": "branco",
+            "en": "white"
+          },
+          "image": "hats/little_hair/little_hair_white.png",
+          "order": 8
+        }
+      ]
+    },
+    {
+      "id": "pirate",
+      "displayName": {
+        "pt": "chapéu de pirata",
+        "en": "pirate"
+      },
+      "order": 6,
+      "variants": [
+        {
+          "id": "normal",
+          "displayName": {
+            "pt": "normal",
+            "en": "normal"
+          },
+          "image": "hats/pirate/pirate_normal.png",
+          "order": 0
+        },
+        {
+          "id": "red",
+          "displayName": {
+            "pt": "vermelho",
+            "en": "red"
+          },
+          "image": "hats/pirate/pirate_red.png",
+          "order": 1
+        },
+        {
+          "id": "red_detailed",
+          "displayName": {
+            "pt": "vermelho detalhado",
+            "en": "red detailed"
+          },
+          "image": "hats/pirate/pirate_red_detailed.png",
+          "order": 2
+        },
+        {
+          "id": "navy",
+          "displayName": {
+            "pt": "azul-marinho",
+            "en": "navy"
+          },
+          "image": "hats/pirate/pirate_navy.png",
+          "order": 3
+        },
+        {
+          "id": "forest",
+          "displayName": {
+            "pt": "verde-floresta",
+            "en": "forest"
+          },
+          "image": "hats/pirate/pirate_forest.png",
+          "order": 4
+        },
+        {
+          "id": "purple",
+          "displayName": {
+            "pt": "roxo",
+            "en": "purple"
+          },
+          "image": "hats/pirate/pirate_purple.png",
+          "order": 5
+        },
+        {
+          "id": "ivory",
+          "displayName": {
+            "pt": "marfim",
+            "en": "ivory"
+          },
+          "image": "hats/pirate/pirate_ivory.png",
+          "order": 6
+        }
+      ]
+    },
+    {
+      "id": "firefighter_helmet",
+      "displayName": {
+        "pt": "capacete de bombeiro",
+        "en": "firefighter helmet"
+      },
+      "order": 7,
+      "variants": [
+        {
+          "id": "normal",
+          "displayName": {
+            "pt": "normal",
+            "en": "normal"
+          },
+          "image": "hats/firefighter_helmet/firefighter_helmet_normal.png",
+          "order": 0
+        },
+        {
+          "id": "yellow",
+          "displayName": {
+            "pt": "amarelo",
+            "en": "yellow"
+          },
+          "image": "hats/firefighter_helmet/firefighter_helmet_yellow.png",
+          "order": 1
+        },
+        {
+          "id": "white",
+          "displayName": {
+            "pt": "branco",
+            "en": "white"
+          },
+          "image": "hats/firefighter_helmet/firefighter_helmet_white.png",
+          "order": 2
+        },
+        {
+          "id": "black",
+          "displayName": {
+            "pt": "preto",
+            "en": "black"
+          },
+          "image": "hats/firefighter_helmet/firefighter_helmet_black.png",
+          "order": 3
+        },
+        {
+          "id": "blue",
+          "displayName": {
+            "pt": "azul",
+            "en": "blue"
+          },
+          "image": "hats/firefighter_helmet/firefighter_helmet_blue.png",
+          "order": 4
+        },
+        {
+          "id": "rainbow",
+          "displayName": {
+            "pt": "arco-íris",
+            "en": "rainbow"
+          },
+          "image": "hats/firefighter_helmet/firefighter_helmet_rainbow.png",
+          "order": 5
+        },
+        {
+          "id": "ocean",
+          "displayName": {
+            "pt": "oceano",
+            "en": "ocean"
+          },
+          "image": "hats/firefighter_helmet/firefighter_helmet_ocean.png",
+          "order": 6
+        },
+        {
+          "id": "sunset",
+          "displayName": {
+            "pt": "pôr do sol",
+            "en": "sunset"
+          },
+          "image": "hats/firefighter_helmet/firefighter_helmet_sunset.png",
+          "order": 7
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "moods": [
+    {
+      "id": "wilted",
+      "displayName": {
+        "pt": "murcho",
+        "en": "wilted"
+      }
+    },
+    {
+      "id": "tired",
+      "displayName": {
+        "pt": "cansado",
+        "en": "tired"
+      }
+    },
+    {
+      "id": "normal",
+      "displayName": {
+        "pt": "normal",
+        "en": "normal"
+      }
+    },
+    {
+      "id": "good",
+      "displayName": {
+        "pt": "bem",
+        "en": "good"
+      }
+    },
+    {
+      "id": "radiant",
+      "displayName": {
+        "pt": "radiante",
+        "en": "radiant"
+      }
+    },
+    {
+      "id": "sleeping",
+      "displayName": {
+        "pt": "dormindo",
+        "en": "asleep"
+      }
+    }
+  ]
+}
