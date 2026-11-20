@@ -2,6 +2,7 @@
   "artworkColors": "../artworks/colors.json",
   "spriteLayout": "sprite-layout.json",
   "mainAssets": "main-assets.json",
+  "moods": "moods.json",
   "characters": [
     {
       "id": "fruit",
@@ -33,6 +34,7 @@
             "pt": "azul",
             "en": "blue"
           },
+          "displayColor": "#87D7FF",
           "artworkColor": "blue",
           "spriteSheet": "characters/00_fruit/body/fruit_blue.png",
           "otherAssets": {
@@ -47,6 +49,7 @@
             "pt": "verde",
             "en": "green"
           },
+          "displayColor": "#87FF87",
           "artworkColor": "green",
           "spriteSheet": "characters/00_fruit/body/fruit_green.png",
           "otherAssets": {
@@ -61,6 +64,7 @@
             "pt": "amarelo",
             "en": "yellow"
           },
+          "displayColor": "#FFFF5F",
           "artworkColor": "yellow",
           "spriteSheet": "characters/00_fruit/body/fruit_yellow.png",
           "otherAssets": {
@@ -75,6 +79,7 @@
             "pt": "coral",
             "en": "coral"
           },
+          "displayColor": "#FF8787",
           "artworkColor": "coral",
           "spriteSheet": "characters/00_fruit/body/fruit_coral.png",
           "otherAssets": {
@@ -89,6 +94,7 @@
             "pt": "roxo",
             "en": "purple"
           },
+          "displayColor": "#D787FF",
           "artworkColor": "purple",
           "spriteSheet": "characters/00_fruit/body/fruit_purple.png",
           "otherAssets": {
@@ -103,6 +109,7 @@
             "pt": "turquesa",
             "en": "turquoise"
           },
+          "displayColor": "#87FFD7",
           "artworkColor": "turquoise",
           "spriteSheet": "characters/00_fruit/body/fruit_turquoise.png",
           "otherAssets": {
@@ -117,6 +124,7 @@
             "pt": "laranja",
             "en": "orange"
           },
+          "displayColor": "#FF8700",
           "artworkColor": "orange",
           "spriteSheet": "characters/00_fruit/body/fruit_orange.png",
           "otherAssets": {
@@ -131,6 +139,7 @@
             "pt": "rosa",
             "en": "pink"
           },
+          "displayColor": "#FF87D7",
           "artworkColor": "pink",
           "spriteSheet": "characters/00_fruit/body/fruit_pink.png",
           "otherAssets": {
@@ -168,6 +177,7 @@
             "pt": "azul",
             "en": "blue"
           },
+          "displayColor": "#87AFD7",
           "artworkColor": "blue",
           "spriteSheet": "characters/01_bunny/body/bunny_blue.png",
           "order": 0
@@ -178,6 +188,7 @@
             "pt": "verde",
             "en": "green"
           },
+          "displayColor": "#87FF87",
           "artworkColor": "green",
           "spriteSheet": "characters/01_bunny/body/bunny_green.png",
           "order": 1
@@ -188,6 +199,7 @@
             "pt": "amarelo",
             "en": "yellow"
           },
+          "displayColor": "#FFFF5F",
           "artworkColor": "yellow",
           "spriteSheet": "characters/01_bunny/body/bunny_yellow.png",
           "order": 2
@@ -198,6 +210,7 @@
             "pt": "coral",
             "en": "coral"
           },
+          "displayColor": "#FF8787",
           "artworkColor": "coral",
           "spriteSheet": "characters/01_bunny/body/bunny_coral.png",
           "order": 3
@@ -208,6 +221,7 @@
             "pt": "roxo",
             "en": "purple"
           },
+          "displayColor": "#D787FF",
           "artworkColor": "purple",
           "spriteSheet": "characters/01_bunny/body/bunny_purple.png",
           "order": 4
@@ -218,6 +232,7 @@
             "pt": "turquesa",
             "en": "turquoise"
           },
+          "displayColor": "#87FFD7",
           "artworkColor": "turquoise",
           "spriteSheet": "characters/01_bunny/body/bunny_turquoise.png",
           "order": 5
@@ -228,6 +243,7 @@
             "pt": "laranja",
             "en": "orange"
           },
+          "displayColor": "#FF8700",
           "artworkColor": "orange",
           "spriteSheet": "characters/01_bunny/body/bunny_orange.png",
           "order": 6
@@ -238,6 +254,7 @@
             "pt": "rosa",
             "en": "pink"
           },
+          "displayColor": "#FF87D7",
           "artworkColor": "pink",
           "spriteSheet": "characters/01_bunny/body/bunny_pink.png",
           "order": 7
@@ -272,6 +289,7 @@
             "pt": "normal",
             "en": "normal"
           },
+          "displayColor": "#D7875F",
           "artworkColor": "coral",
           "spriteSheet": "characters/02_claude/body/claude_normal.png",
           "order": 0
@@ -282,6 +300,7 @@
             "pt": "azul",
             "en": "blue"
           },
+          "displayColor": "#87D7FF",
           "artworkColor": "blue",
           "spriteSheet": "characters/02_claude/body/claude_blue.png",
           "order": 1
@@ -292,6 +311,7 @@
             "pt": "verde",
             "en": "green"
           },
+          "displayColor": "#87FF87",
           "artworkColor": "green",
           "spriteSheet": "characters/02_claude/body/claude_green.png",
           "order": 2
@@ -302,6 +322,7 @@
             "pt": "amarelo",
             "en": "yellow"
           },
+          "displayColor": "#FFFF5F",
           "artworkColor": "yellow",
           "spriteSheet": "characters/02_claude/body/claude_yellow.png",
           "order": 3
@@ -312,6 +333,7 @@
             "pt": "roxo",
             "en": "purple"
           },
+          "displayColor": "#D787FF",
           "artworkColor": "purple",
           "spriteSheet": "characters/02_claude/body/claude_purple.png",
           "order": 4
@@ -322,6 +344,7 @@
             "pt": "turquesa",
             "en": "turquoise"
           },
+          "displayColor": "#87FFD7",
           "artworkColor": "turquoise",
           "spriteSheet": "characters/02_claude/body/claude_turquoise.png",
           "order": 5
@@ -332,6 +355,7 @@
             "pt": "laranja",
             "en": "orange"
           },
+          "displayColor": "#FF8700",
           "artworkColor": "orange",
           "spriteSheet": "characters/02_claude/body/claude_orange.png",
           "order": 6
@@ -342,12 +366,12 @@
             "pt": "rosa",
             "en": "pink"
           },
+          "displayColor": "#FF87D7",
           "artworkColor": "pink",
           "spriteSheet": "characters/02_claude/body/claude_pink.png",
           "order": 7
         }
       ]
     }
-  ],
-  "moods": "moods.json"
+  ]
 }

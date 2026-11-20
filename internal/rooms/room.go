@@ -80,16 +80,17 @@ func (f Focus) Focused(now time.Time) time.Duration {
 }
 
 type user struct {
-	id, nick  string
-	color     string // a cor escolhida para o pet ("" = a cor sai do humor)
-	energy    float64
-	today     string  // dia de todayMin (YYYY-MM-DD), como o pet guarda
-	todayMin  float64 // minutos focados hoje, sem a tarefa em andamento
-	focus     *Focus
-	online    int       // sessões abertas
-	gone      time.Time // quando a última sessão fechou
-	devOnline *bool     // presença simulada, sem fechar conexões reais
-	bot       *bot
+	appearance pet.Appearance
+	id, nick   string
+	color      string // a cor escolhida para o pet ("" = a cor sai do humor)
+	energy     float64
+	today      string  // dia de todayMin (YYYY-MM-DD), como o pet guarda
+	todayMin   float64 // minutos focados hoje, sem a tarefa em andamento
+	focus      *Focus
+	online     int       // sessões abertas
+	gone       time.Time // quando a última sessão fechou
+	devOnline  *bool     // presença simulada, sem fechar conexões reais
+	bot        *bot
 }
 
 // minutesToday: os minutos focados hoje, com a tarefa em andamento incluída. É o que faz a peça
@@ -181,7 +182,7 @@ func load(id string) *user {
 	if err != nil {
 		log.Error("getUser", "err", err)
 	}
-	u := &user{id: id, nick: nick, color: p.Color, energy: p.EnergyAt(time.Now()),
+	u := &user{id: id, nick: nick, color: p.Color, appearance: p.Look(), energy: p.EnergyAt(time.Now()),
 		today: p.Today, todayMin: p.TodayMin}
 	users[id] = u
 	return u
@@ -236,12 +237,19 @@ func Created(id string) {
 	u.nick, u.energy = nick, p.EnergyAt(time.Now())
 }
 
-// SetColor: a pessoa trocou a cor do pet. Quem guarda é o banco; aqui é só o retrato que as
-// salas mostram, que ficaria com a cor velha até a próxima tarefa encerrada.
-func SetColor(id, hex string) {
+// SetAppearance atualiza o retrato das salas após salvar a escolha no banco.
+func SetAppearance(id string, a pet.Appearance) {
 	mu.Lock()
 	defer mu.Unlock()
-	load(id).color = hex
+	u := load(id)
+	u.appearance, u.color = a, pet.Pets.ArtworkColor(a)
+}
+
+func (m Member) Look() pet.Appearance {
+	if m.Appearance.Character == "" {
+		return pet.Pets.LegacyAppearance(m.Color)
+	}
+	return m.Appearance
 }
 
 // Start começa uma tarefa, se não há outra em andamento. A sala é a que estava na tela: a tarefa
@@ -316,6 +324,7 @@ func finish(u *user, r pet.Result, at time.Time) {
 	}
 	u.energy, u.today, u.todayMin = p.EnergyAt(at), p.Today, p.TodayMin
 	u.color = p.Color
+	u.appearance = p.Look()
 	if r == pet.Done {
 		event(u, "cumpriu", f.Task)
 	}
@@ -632,12 +641,13 @@ func Leave(id, code string) error {
 
 // Member: um usuário como as telas o veem. Focus só vale com Status == Focusing.
 type Member struct {
-	ID, Nick string
-	Color    string // a cor escolhida para o pet
-	Energy   float64
-	TodayMin float64 // minutos focados hoje, com a tarefa em andamento: a peça da obra
-	Status   Status
-	Focus    Focus
+	Appearance pet.Appearance
+	ID, Nick   string
+	Color      string // a cor escolhida para o pet
+	Energy     float64
+	TodayMin   float64 // minutos focados hoje, com a tarefa em andamento: a peça da obra
+	Status     Status
+	Focus      Focus
 }
 
 type Snapshot struct {
@@ -660,7 +670,7 @@ type World struct {
 }
 
 func member(u *user) Member {
-	m := Member{ID: u.id, Nick: u.nick, Color: u.color, Energy: u.energy, Status: u.status(),
+	m := Member{ID: u.id, Nick: u.nick, Color: u.color, Appearance: u.appearance, Energy: u.energy, Status: u.status(),
 		TodayMin: u.minutesToday(time.Now())}
 	if u.focus != nil {
 		m.Focus = *u.focus

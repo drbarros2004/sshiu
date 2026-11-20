@@ -4,7 +4,8 @@ Preparação dos arquivos descritos em Specifications de 00_random_ssh_trab.txt.
 Esta pasta fica em assets/pets, dentro do repositório ssh-focus-app.
 Os originais continuam fora do repositório, em 00_sprites e na pasta externa ssh/assets.
 A atualização dos chapéus foi importada de ssh/assets, preservando nomes, IDs, ordens e PNGs.
-A integração com o aplicativo é uma etapa posterior.
+O aplicativo carrega e valida esses catálogos ao iniciar. Os arquivos são embutidos no executável;
+recompile e reinicie para ver alterações.
 
 ## Onde editar
 
@@ -23,7 +24,7 @@ Os IDs e nomes de arquivos estão em inglês, em minúsculas.
 displayName contém os nomes por idioma, por exemplo {"pt": "azul", "en": "blue"}.
 Edite esses nomes em characters.json e hats.json. Os IDs identificam as opções independentemente do idioma.
 Novos idiomas podem ser acrescentados como outras chaves no mesmo objeto.
-Na integração futura, o carregador deve exigir um nome em en e usá-lo quando faltar a tradução escolhida.
+O carregador exige um nome em en e usá-lo quando faltar a tradução escolhida.
 O campo order define a ordem de personagens, chapéus e variantes dentro de cada personagem ou chapéu.
 As ordens começam em 0 e são independentes em cada lista. A variante com order 0 é a opção padrão.
 Os arrays também ficam nessa ordem para facilitar a leitura.
@@ -49,6 +50,15 @@ São 68 variantes. As variantes reference do boné e rgb da coroa foram mantidas
 opções porque estão explicitamente cadastradas no catálogo externo, com esses nomes.
 Todos os chapéus usam uma imagem 16×6, com transparência binária (alfa 0 ou 255).
 
+## Cor da amostra
+
+displayColor, em cada variante de characters.json, é a cor do quadradinho mostrado ao lado
+do nome da cor no perfil e dos indicadores compactos. É um hexadecimal editável, independente
+de artworkColor (que referencia a cor da obra).
+Os valores iniciais foram extraídos da cor opaca mais frequente de cada folha body.
+Essa extração foi feita só na preparação dos arquivos; o aplicativo deve ler o valor do JSON,
+sem calcular a cor predominante novamente durante a execução.
+
 ## Cor da obra
 
 Cada variante em characters.json tem artworkColor com o ID da cor da sua peça na obra.
@@ -56,8 +66,8 @@ Os IDs disponíveis e seus nomes em pt e en ficam em ../artworks/colors.json.
 Por exemplo, a variante normal do Claude usa "artworkColor": "coral".
 As demais variantes usam o ID da própria cor; fruta e coelho usam os mesmos oito IDs.
 Mudar displayName não muda essa ligação, pois ela usa IDs, não nomes de apresentação.
-Na integração futura, um artworkColor ausente ou que não exista no catálogo deve gerar erro.
-O aplicativo ainda não carrega esses catálogos: esta ligação prepara a integração dos novos personagens.
+Um artworkColor ausente ou que não exista no catálogo gera erro ao iniciar.
+A obra recebe a cor de referência desse catálogo, sem depender do nome da variante do personagem.
 
 ## Nomes dos humores
 
@@ -90,7 +100,7 @@ Fruta e coelho usam os nomes padrão. Claude mantém as exceções já versionad
 characters/02_claude/moods.json: bugado/bugged, não funciona/nonfunctional e funcional/functional.
 Essas exceções foram preservadas na importação, mesmo com a lista vazia na pasta externa.
 O nome em inglês de sleeping é asleep, seguindo a tradução atual do aplicativo.
-Na integração futura, a escolha deve procurar o nome do personagem no idioma selecionado e então
+A escolha procura o nome do personagem no idioma selecionado e então
 o padrão desse idioma. Se ambos faltarem, deve procurar en do personagem e depois en do catálogo.
 Os IDs continuam iguais quando se muda o texto de apresentação.
 
@@ -99,11 +109,15 @@ Os IDs continuam iguais quando se muda o texto de apresentação.
 As folhas atuais medem 64×96. Cada quadro mede 16×16.
 As seis linhas são wilted, tired, normal, good, radiant e sleeping.
 frameCounts é [2, 2, 2, 2, 2, 4]. Quadros vazios não precisam ser detectados.
-Um sprite-layout.json pode futuramente sobrescrever frameWidth, frameHeight, moodOrder e frameCounts.
+Um sprite-layout.json pode sobrescrever frameWidth, frameHeight, moodOrder, frameCounts e frameDurationMs.
+frameDurationMs informa a duração de cada quadro em milissegundos, na mesma ordem de moodOrder.
+Os valores iniciais são [2000, 1500, 1000, 1000, 500, 1500], preservando as velocidades anteriores.
+Quanto menor o valor, mais rápida a animação. O mínimo é 500 ms, que corresponde ao tick da tela. O arquivo local sprite-layout.json pode sobrescrever
+essa lista, assim como os outros campos; uma lista local substitui a lista padrão inteira.
 Neste conjunto, todos usam os mesmos valores e cada arquivo local contém somente hatY.
 O campo spriteLayout na raiz de characters.json aponta para o layout geral.
 O campo spriteLayout dentro de cada personagem aponta para seu layout específico.
-Ao integrar o carregador, campos ausentes no personagem devem herdar o valor geral.
+Campos ausentes no personagem herdam o valor geral.
 Campos presentes nos dois devem usar o valor do personagem, e campos locais como hatY devem ser acrescentados.
 Uma lista local substitui a lista geral inteira. Campos desconhecidos devem gerar erro.
 
@@ -142,7 +156,8 @@ e use characters/other_assets/ seguido de seu ID nas listas de composição em q
 - Os três com chapéu usam body, hat e sleep_particles.
 
 A ausência de chapéu é uma escolha do estado de personalização, não um chapéu cadastrado em hats.json.
-O estado futuro poderá guardar character, color, hat_present e hat. Os catálogos só listam as opções.
+O estado salva character, variant, hat e hatVariant. hat vazio significa sem chapéu.
+Os catálogos só listam as opções; não há restrições por recompensas nesta versão.
 Cada partícula já está na linha do humor correspondente, com transparência nas demais linhas.
 Todas as camadas de personagem e partículas mantêm o mesmo tamanho e alinhamento.
 Os PNGs de templates ficam fora dos catálogos de seleção.
@@ -165,6 +180,6 @@ e #F7F7F7 em characters/00_fruit/other_assets/sparkles/fruit_sparkles_pink.png.
 Os PNGs foram preservados sem recoloração. Essas duas cores podem ser aproximadas pelo terminal.
 As imagens em templates são marcadores de edição e não precisam representar uma paleta final.
 
-Ao integrar o carregamento, essas validações precisam fazer parte do código ou dos testes do aplicativo,
-com erros que indiquem o arquivo, personagem, linha e quadro inválidos. Esta importação prepara os
-arquivos; ainda não adiciona a seleção dos novos personagens e chapéus à interface.
+O carregador em internal/pet/catalog.go verifica os catálogos, caminhos, dimensões, camadas,
+quadros e posições, com erros de contexto ao iniciar. A seleção acontece no perfil (c) e no
+editor de aparência da sala dev (ctrl+l).

@@ -6,7 +6,6 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
-	"sshiu/internal/pet"
 	"sshiu/internal/rooms"
 	"strconv"
 	"strings"
@@ -63,12 +62,6 @@ func dynamicTexts() []string {
 		s = append(s, x.name)
 	}
 	s = append(s, clockModes...)
-	for _, x := range pet.MoodName {
-		s = append(s, x)
-	}
-	for _, x := range pet.Colors {
-		s = append(s, x.Name)
-	}
 	for _, x := range rooms.Obras[1:] {
 		s = append(s, x)
 	}

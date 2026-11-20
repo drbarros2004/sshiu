@@ -87,7 +87,7 @@
     {
       "id": "cowboy",
       "displayName": {
-        "pt": "chapéu de cowboy",
+        "pt": "cowboy",
         "en": "cowboy"
       },
       "order": 1,
@@ -615,8 +615,8 @@
     {
       "id": "firefighter_helmet",
       "displayName": {
-        "pt": "capacete de bombeiro",
-        "en": "firefighter helmet"
+        "pt": "bombeiro",
+        "en": "firefighter"
       },
       "order": 7,
       "variants": [

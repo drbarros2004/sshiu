@@ -87,14 +87,15 @@ func NextMood(current Mood) (Mood, int, bool) {
 }
 
 type Pet struct {
-	DirectEnergy bool    // ponto de partida do dev: sem somar novamente o bônus já existente
-	Energy       float64 // energia guardada, sem decaimento nem bônus
+	Appearance   Appearance // IDs da aparência; vazio herda a cor antiga da fruta
+	DirectEnergy bool       // ponto de partida do dev: sem somar novamente o bônus já existente
+	Energy       float64    // energia guardada, sem decaimento nem bônus
 	LastActive   time.Time
 	Streak       int
 	StreakDay    string // último dia que contou pro streak (YYYY-MM-DD)
 	Today        string // dia de TodayMin (YYYY-MM-DD)
 	TodayMin     float64
-	Color        string // cor escolhida para o pet ("" = a cor sai do humor)
+	Color        string // cor de referência da obra e escolha antiga usada na migração
 }
 
 // EnergyAt é o que o pet mostra agora: energia com decaimento + bônus do streak.
@@ -119,3 +120,6 @@ func (p Pet) decayed(now time.Time) float64 {
 
 func day(t time.Time) string  { return t.Format("2006-01-02") }
 func clamp(e float64) float64 { return max(0, min(100, e)) }
+
+// Chaves históricas da configuração de cores da barra; nomes exibidos vêm de moods.json.
+var MoodName = [...]string{"murcho", "cansado", "normal", "bem", "radiante", "dormindo"}

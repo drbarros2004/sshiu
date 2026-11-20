@@ -231,6 +231,8 @@ Os valores originais e convertidos estão no [guia](docs/pets-paletas.md).
 
 ## Dívida técnica conhecida
 
+- O cache de personagens guarda até 512 quadros e é renovado por inteiro ao atingir o teto. Se muitas aparências diferentes provocarem recomposição excessiva, substituir por LRU; hoje o limite evita guardar todas as combinações de chapéus na memória. Ver `internal/pet/appearance.go`.
+
 Também marcada no código com comentários `ponytail:`.
 
 - **Migração ingênua:** o `ALTER TABLE` ignora o erro de "coluna já existe". Trocar por uma ferramenta de migração quando houver várias.

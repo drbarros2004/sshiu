@@ -46,7 +46,7 @@ func SaveDevScene(writes []DevWrite, room *RoomRow, members []string, state any)
 			}
 		}
 		p := w.Pet
-		if _, err = tx.Exec(`UPDATE users SET nick=?,energy=?,last_active=?,streak=?,streak_day=?,today=?,today_min=?,pet_color=?,dev_energy=? WHERE id=?`, w.Nick, p.Energy, p.LastActive.Unix(), p.Streak, p.StreakDay, p.Today, p.TodayMin, p.Color, p.DirectEnergy, w.ID); err != nil {
+		if _, err = tx.Exec(`UPDATE users SET nick=?,energy=?,last_active=?,streak=?,streak_day=?,today=?,today_min=?,pet_color=?,dev_energy=?,pet_character=?,pet_variant=?,pet_hat=?,pet_hat_variant=? WHERE id=?`, w.Nick, p.Energy, p.LastActive.Unix(), p.Streak, p.StreakDay, p.Today, p.TodayMin, p.Color, p.DirectEnergy, p.Appearance.Character, p.Appearance.Variant, p.Appearance.Hat, p.Appearance.HatVariant, w.ID); err != nil {
 			return err
 		}
 		if w.Finish != nil {

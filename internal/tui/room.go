@@ -506,7 +506,7 @@ func (m model) soloView() string {
 	cols := soloGardenWidth(max(m.width-4, 40))
 	stats := cols > 0 && m.side == nil // a coluna da direita mostra as stats: o streak e o hoje ficam lá
 	who := lipgloss.JoinHorizontal(lipgloss.Center,
-		lipgloss.NewStyle().Width(20).Render(pet.Render(pet.MoodOf(m.me().Energy), m.tick, m.pixel, m.me().Color)),
+		lipgloss.NewStyle().Width(20).Render(pet.Pets.RenderTerminal(m.me().Look(), pet.MoodOf(m.me().Energy), m.tick, 1, 0, m.pixel)),
 		m.soloWho(stats))
 	panel := strings.Join([]string{m.focusPanel(panelCols - 1), "", who, "", m.soloLog()}, "\n")
 	if cols == 0 {
@@ -530,7 +530,7 @@ func (m model) soloView() string {
 // depois da primeira tarefa encerrada no dia. Com as stats ao lado, eles já estão lá, e aqui fica a
 // energia.
 func (m model) soloWho(stats bool) string {
-	rows := [][2]string{{m.t("humor"), m.t(pet.MoodName[pet.MoodOf(m.me().Energy)])}}
+	rows := [][2]string{{m.t("humor"), pet.Pets.MoodName(m.me().Look(), pet.MoodOf(m.me().Energy), string(m.lang))}}
 	if stats {
 		rows = append(rows, [2]string{m.t("energia"), fmt.Sprintf("%.0f", m.me().Energy)})
 	} else if p := m.pet; p.Today == m.now.Format("2006-01-02") {
@@ -673,7 +673,7 @@ func (m model) nameLine(x rooms.Member, mood pet.Mood) (name, moodName string) {
 	if x.ID == m.id {
 		name = m.t("você")
 	}
-	return name, m.t(pet.MoodName[mood])
+	return name, pet.Pets.MoodName(x.Look(), mood, string(m.lang))
 }
 
 // cardInner: o miolo dos cards da sala, o mesmo para todos, para a grade não desalinhar.
@@ -717,8 +717,13 @@ func (m model) cards(s rooms.Snapshot, w int, compact bool) string {
 	var rows []string
 	for i := 0; i < len(ms); i += per {
 		var row []string
+		height := 0
 		for _, x := range ms[i:min(i+per, len(ms))] {
-			row = append(row, m.card(x, got[x.ID], compact, inner))
+			_, h := pet.Pets.CanvasSize(x.Look())
+			height = max(height, h)
+		}
+		for _, x := range ms[i:min(i+per, len(ms))] {
+			row = append(row, m.card(x, got[x.ID], compact, inner, height))
 		}
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, row...))
 	}
@@ -727,7 +732,7 @@ func (m model) cards(s rooms.Snapshot, w int, compact bool) string {
 
 // card: um membro num card de miolo inner. O apelido que ainda passa (de antes do limite) termina
 // em "…" em vez de quebrar a linha.
-func (m model) card(x rooms.Member, got int, compact bool, inner int) string {
+func (m model) card(x rooms.Member, got int, compact bool, inner int, canvasHeight ...int) string {
 	mood := m.cardMood(x)
 	nick, moodName := m.nameLine(x, mood)
 	nick = ansi.Truncate(nick, inner-1-ansi.StringWidth(moodName), "…")
@@ -755,9 +760,13 @@ func (m model) card(x rooms.Member, got int, compact bool, inner int) string {
 		}
 		st = st.BorderForeground(lipgloss.Color(c)).Border(lipgloss.ThickBorder())
 	}
-	art := pet.Render(mood, m.tick, m.pixel, x.Color)
+	height := 0
+	if len(canvasHeight) > 0 {
+		height = canvasHeight[0]
+	}
+	art := pet.Pets.RenderTerminal(x.Look(), mood, m.tick, 1, height, m.pixel)
 	if compact {
-		art = lipgloss.NewStyle().Foreground(pet.Colors[pet.ColorIndex(x.Color)].Body).Render("●")
+		art = lipgloss.NewStyle().Foreground(pet.Pets.Swatch(x.Look())).Render("●")
 	} else {
 		art = lipgloss.NewStyle().Padding(cardPetPaddingTop, 0, cardPetPaddingBottom).Render(art)
 	}

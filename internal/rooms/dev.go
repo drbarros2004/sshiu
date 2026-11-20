@@ -5,6 +5,7 @@ package rooms
 
 import (
 	"errors"
+	"slices"
 	"sshiu/internal/pet"
 	"sshiu/internal/store"
 	"strings"
@@ -115,8 +116,11 @@ func DevAdjust(id string, f DevField, d int, now time.Time) error {
 	case DevStreak:
 		p.Streak, p.StreakDay = max(0, p.Streak+d), today
 	case DevColor:
-		n := len(pet.Colors)
-		p.Color = pet.Colors[((pet.ColorIndex(p.Color)+d)%n+n)%n].ID
+		a := p.Look()
+		variants := pet.Pets.Character(a.Character).Variants
+		i := slices.IndexFunc(variants, func(v pet.CharacterVariant) bool { return v.ID == a.Variant })
+		a.Variant = variants[((i+d)%len(variants)+len(variants))%len(variants)].ID
+		p.Appearance, p.Color = a, pet.Pets.ArtworkColor(a)
 	case DevToday:
 		if d > 0 {
 			start := now.Add(-DevTodayStep * time.Minute)
@@ -151,6 +155,7 @@ func DevAdjust(id string, f DevField, d int, now time.Time) error {
 		return err
 	}
 	if u := users[id]; u != nil {
+		u.appearance = p.Look()
 		u.energy, u.today, u.todayMin, u.color = p.EnergyAt(now), p.Today, p.TodayMin, p.Color
 	}
 	return nil

@@ -266,7 +266,7 @@ func (m model) devView(h int) string {
 		vals := []string{fmt.Sprint(int(p.EnergyAt(m.now))), fmt.Sprint(int(m.now.Sub(p.LastActive).Hours() / 24)),
 			fmt.Sprint(int(todayMin)), fmt.Sprint(int(r.Before)), fmt.Sprint(p.StreakAt(m.now)),
 			"██", online, task}
-		swatch := pet.Colors[pet.ColorIndex(p.Color)].Body // a cor é o bloco pintado: o nome não cabe
+		swatch := pet.Pets.Swatch(p.Look()) // a cor é o bloco pintado: o nome não cabe
 		cur := "  "
 		if i == d.row {
 			cur = m.st.sel.Render("› ")

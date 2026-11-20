@@ -27,18 +27,18 @@ A energia mostrada é a guardada, menos o decaimento, mais o bônus de streak, s
 
 ## Cores e folha do pet
 
-- Cada paleta tem uma cor por parte, fixa nos 6 humores visuais (incluindo dormindo).
-  Energia e humor não alteram as cores. Os nomes e os valores ficam em
-  [`palettes.json`](../internal/pet/palettes.json).
-- O template mede 64×96 pixels: 6 linhas de quadros 16×16; 2 quadros por humor e 4 no sono.
-  As cores de marcador identificam partes e não são as cores mostradas no terminal.
-- Os 8 IDs existentes são mantidos, para preservar escolhas salvas e os instrumentos da obra.
-  As 8 paletas reproduzem os PNGs de referência.
-- HEX pode ser convertido pelo terminal de 256 cores; há 3 aproximações nos PNGs atuais,
-  descritas no [guia de paletas](pets-paletas.md). `xterm:0` a `xterm:255` também são aceitos;
-  os primeiros 16 índices dependem do tema do terminal.
+- PNGs coloridos e camadas em [assets/pets](../assets/pets/README.md). A energia não muda as cores.
+- Layout padrão: quadros 16×16, seis linhas, [2,2,2,2,2,4] quadros ativos. Tamanhos, quadros e
+  duração vêm de sprite-layout.json, com sobrescrita por personagem no arquivo de mesmo nome.
+- Chapéus: caixa 16×6 definida em hats.json; hatY de 1 até frameHeight. A composição reserva
+  o maior espaço necessário acima do corpo; os cartões da mesma fileira alinham suas bases.
+- IDs e ordem das oito cores das obras são preservados no catálogo de obras. Claude normal usa coral.
+- O terminal pode aproximar cores fora da tabela xterm; os PNGs não são recoloridos pelo aplicativo.
+- Cache de desenho: até 512 quadros, renovado ao atingir o teto, para limitar a memória usada pelas combinações de aparência.
+- Perfil com menos de 26 linhas usa o desenho pequeno e uma disposição lateral; o tamanho do
+  desenho não é reduzido por aproximação. O espaçamento é editável nas constantes de profile.go.
 
-Veja [como editar cores e adicionar grupos](pets-paletas.md).
+Veja [como editar os personagens e chapéus](pets-paletas.md).
 
 ## A tarefa
 
@@ -96,7 +96,7 @@ O que o perfil e a sala solo parada mostram sobre o seu foco ([#45](https://gith
 | Tick da tela | 500 ms | Anima o pet e o relógio e atualiza a sala. | [ui.go:103](../internal/tui/ui.go#L103) |
 | Avisos na tela | somem depois de 8 s, ou na primeira tecla da sala | "salvo", "código enviado" e "a sala agora é de…" dizem o que acabou de acontecer e logo deixam de valer. Ficam no fim de uma linha que já existe, para a tela não pular quando somem. | [ui.go:186](../internal/tui/ui.go#L186) |
 | Enter depois de chegar na sala | ignorado por 600 ms depois de criar a sala ou entrar por código | Quem aperta enter de novo enquanto a sala nasce caía no campo da tarefa da sala nova, e o enter seguinte mostrava um erro. | [room.go:264](../internal/tui/room.go#L264) |
-| Respiração do pet | 1 a 4 ticks por quadro (radiante rápido, murcho lento), 2 quadros; dormindo são 4, a 3 ticks | O cansaço aparece no ritmo, não só no desenho. No sono os dois quadros a mais são o z subindo da cabeça, num ciclo de 6 s. | [render.go:89](../internal/pet/render.go#L89) |
+| Animação dos personagens | frameDurationMs: 2000, 1500, 1000, 1000, 500, 1500 ms por quadro; frameCounts: 2, 2, 2, 2, 2, 4 | Valores padrão na ordem dos humores. Cada personagem pode sobrescrever os mesmos campos no seu sprite-layout.json. A tela amostra a animação a cada tick de 500 ms. | [sprite-layout.json](../assets/pets/sprite-layout.json), [appearance.go](../internal/pet/appearance.go) |
 | Movimento da obra | 2 quadros: trem e fogueira 1 tick por quadro, orquestra e passarinhos 2, porto 3 | Mexe no ritmo do pet: o trem anda e o fogo crepita mais depressa, a água balança devagar. Pouco movimento, porque a obra fica no canto do olho de quem foca. | [obra.go:106-110](../internal/tui/obra.go#L106-L110) |
 | Modo jardim | liga depois de 30 s sem tecla, só durante o foco, se "liga sozinho" estiver em "depois de 30 s" na aba visual | Quem nunca abriu o jardim de propósito pode desligar e usar só o `j` ([#35](https://github.com/drbarros2004/sshiu/issues/35)). | [garden.go:27](../internal/tui/garden.go#L27) |
 | Jardim na sala solo | ocupa a direita a partir de 96 colunas de terminal | Menos que isso e o painel fica apertado; aí a tela é só o painel. | [room.go:21-22](../internal/tui/room.go#L21-L22) |

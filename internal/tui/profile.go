@@ -24,6 +24,13 @@ func (m model) profileView(w, h int) string {
 	if m.pet.LastActive.IsZero() {
 		return m.st.muted.Render(m.t("carregando…"))
 	}
+	titleNick := bold.Render(m.nick)
+	if m.inline() != nil && m.custom {
+		titleNick += " · " + devAccent.Render(m.t("dev"))
+	}
+	if m.notice != "" {
+		titleNick += " · " + m.noticeStyle().Render(m.notice)
+	}
 	e := m.pet.EnergyAt(m.now)
 	mood := pet.MoodOf(e)
 	moodSt := lipgloss.NewStyle().Foreground(energyColors.barColor(mood))
@@ -33,18 +40,22 @@ func (m model) profileView(w, h int) string {
 			m.st.muted.Render(m.t("enter salva e abre a aba sala")) + "\n\n"
 		gap = first
 	}
-	humor := fmt.Sprintf("%-9s", m.t("humor")) + moodSt.Render(m.t(pet.MoodName[mood])) + "\n" + m.energyBar(e, mood, moodSt) + "\n"
+	humor := fmt.Sprintf("%-9s", m.t("humor")) + moodSt.Render(pet.Pets.MoodName(m.profileAppearance(), mood, string(m.lang))) + "\n" + m.energyBar(e, mood, moodSt) + "\n"
 	drawing := func(big bool) string {
-		render := pet.Render
+		shownMood := mood
+		if m.custom {
+			shownMood = m.previewMood
+		}
+		scale := 1
 		if big {
-			render = pet.RenderBig
+			scale = 2
 		}
-		if !m.custom {
-			return render(mood, m.tick, m.pixel, m.myColor())
+		drawing := pet.Pets.RenderTerminal(m.profileAppearance(), shownMood, m.tick, scale, 0, m.pixel)
+		top, bottom := profilePetPaddingTop, profilePetPaddingBottom
+		if h < 26 {
+			top, bottom = 0, 0
 		}
-		return bold.Render(m.t("prévia do pet")) + "\n\n" + render(m.previewMood, m.tick, m.pixel, m.myColor()) + "\n\n" +
-			m.st.muted.Render("↑/↓ ") + m.t(pet.MoodName[m.previewMood]) + "\n" +
-			m.st.muted.Render(m.t("apenas para visualização")+"\n"+m.t("(não altera humor ou energia)"))
+		return lipgloss.NewStyle().Padding(top, profilePetPaddingHorizontal, bottom).Render(drawing)
 	}
 	tasks := []string{m.st.muted.Render(m.t("nenhuma ainda"))}
 	if len(m.tasks) > 0 {
@@ -71,6 +82,33 @@ func (m model) profileView(w, h int) string {
 	if m.totals.Tasks > 0 { // sem tarefa encerrada não há hora nem faixa a mostrar
 		hours, bands = m.hoursBody(), m.bandsBody()
 	}
+	// Em uma janela baixa, separar desenho/aparência dos números evita empilhar
+	// tudo num cartão que ultrapassaria a tela. A prévia mantém o tamanho original.
+	if h < 17 && w >= 70 {
+		side := humor + "\n" + m.colorRow()
+		if !m.custom {
+			side = humor + m.t("streak") + "  " + m.streakDays() + "\n" + m.t("recorde") + "  " + m.recordText() + "\n\n" + m.colorRow()
+		}
+		body := lipgloss.JoinHorizontal(lipgloss.Top, drawing(false), " ", side)
+		if lipgloss.Height(body)+2 > h {
+			return body
+		}
+		return m.box(titleNick, body, w, 0)
+	}
+	if h < 26 && w >= 70 {
+		if m.custom {
+			body := lipgloss.JoinHorizontal(lipgloss.Top, drawing(false), "  ", m.colorRow())
+			return m.box(titleNick, first+body+"\n"+humor, w, 0)
+		}
+		leftWidth := max(40, lipgloss.Width(m.colorRow())+4)
+		if leftWidth+1+calCols > w {
+			body := lipgloss.JoinHorizontal(lipgloss.Top, drawing(false), " ", humor+"\n"+m.colorRow())
+			return m.box(titleNick, body, w, 0)
+		}
+		left := m.box(titleNick, drawing(false)+"\n"+m.colorRow(), leftWidth, 0)
+		right := strings.ReplaceAll(humor, "\n"+strings.Repeat(" ", 9), "\n") + m.t("streak") + "  " + m.streakDays() + "\n" + m.t("recorde") + "  " + m.recordText() + "\n\n" + title + "\n" + calG + "\n" + legend
+		return lipgloss.JoinHorizontal(lipgloss.Top, left, " ", right)
+	}
 
 	if m.statsList {
 		d := drawing(h >= 23) // baixo (80×24): o pet menor, para o calendário caber embaixo do estado
@@ -90,7 +128,7 @@ func (m model) profileView(w, h int) string {
 			return title + "\n" + body
 		}
 		info := stack(h, "\n\n", []string{
-			bold.Render(m.nick) + "\n" + gap + humor + fmt.Sprintf("%-9s", m.t("streak")) + m.streakText() + "\n" + m.colorRow(),
+			titleNick + "\n" + gap + humor + fmt.Sprintf("%-9s", m.t("streak")) + m.streakText() + "\n" + m.colorRow(),
 			monthSec, numsSec, sec(hoursT, hours), sec(bandsT, bands),
 		}, func(k int) string { return bold.Render(m.t("últimas tarefas")) + "\n" + strings.Join(tasks[:k], "\n") }, len(tasks))
 		return lipgloss.JoinHorizontal(lipgloss.Top, d, "    ", info)
@@ -99,12 +137,12 @@ func (m model) profileView(w, h int) string {
 	// a legenda da energia sem o recuo: com ele o painel do pet fica largo demais para o
 	// calendário caber ao lado em 80 colunas
 	state := strings.Replace(humor, "\n"+strings.Repeat(" ", 9), "\n", 1) + fmt.Sprintf("%-9s", m.t("streak")) + m.streakDays() + "\n" +
-		fmt.Sprintf("%-9s", m.t("recorde")) + m.recordText() + "\n" +
+		fmt.Sprintf("%-9s", m.t("recorde")) + m.recordText() + "\n\n" + m.st.muted.Render(strings.Repeat("─", 24)) + "\n" +
 		m.colorRow()
 	left := func(big bool) string {
 		d := drawing(big)
 		in := max(lipgloss.Width(d), lipgloss.Width(state), lipgloss.Width(first))
-		return m.box(bold.Render(m.nick), first+lipgloss.PlaceHorizontal(in, lipgloss.Center, d)+"\n\n"+state, in+4, 0)
+		return m.box(titleNick, first+lipgloss.PlaceHorizontal(in, lipgloss.Center, d)+"\n\n"+state, in+4, 0)
 	}
 	recent := func(k int) string {
 		return m.box(m.st.title.Render(m.t("últimas tarefas")), strings.Join(tasks[:k], "\n"), w, 0)
@@ -124,7 +162,15 @@ func (m model) profileView(w, h int) string {
 		}
 		right := lipgloss.JoinVertical(lipgloss.Left, calRow, m.box(hoursT, hours, rw, 0), m.box(bandsT, bands, rw, 0))
 		if top := lipgloss.JoinHorizontal(lipgloss.Top, l, " ", right); lipgloss.Height(top) <= h {
-			return stack(h, "\n", []string{top}, recent, len(tasks))
+			if len(tasks) > 0 {
+				for k := len(tasks); k > 0; k-- {
+					withTasks := right + "\n" + m.box(m.st.title.Render(m.t("últimas tarefas")), strings.Join(tasks[:k], "\n"), rw, 0)
+					if lipgloss.Height(withTasks) <= h {
+						return lipgloss.JoinHorizontal(lipgloss.Top, l, " ", withTasks)
+					}
+				}
+			}
+			return top
 		}
 	}
 	// pequeno: o pet menor, e em cima só o pet, o estado e o calendário; o resto desce
@@ -143,42 +189,42 @@ func (m model) profileView(w, h int) string {
 	return stack(h, "\n", secs, recent, len(tasks))
 }
 
-// myColor: a cor do pet em prévia — a salva, fora do modo personalizar.
-func (m model) myColor() string { return pet.Colors[m.pcolor].ID }
+// Ajuste o respiro da imagem sem alterar seus quadros ou sua posição do chapéu.
+const (
+	profilePetPaddingHorizontal = 2
+	profilePetPaddingTop        = 1
+	profilePetPaddingBottom     = 1
+)
 
-// colorRow: a linha da cor do pet. Fora do modo personalizar ela só diz qual é e como mexer;
-// dentro, é a linha que as setas mudam, com a prévia no pet grande ao lado.
 func (m model) colorRow() string {
-	c := pet.Colors[m.pcolor]
-	name := m.t(c.Name) + " " + lipgloss.NewStyle().Foreground(c.Body).Render("██")
-	if !m.custom {
-		row := fmt.Sprintf("%-9s", m.t("cor")) + m.st.muted.Render(name)
-		if m.notice != "" { // o "salvo" da cor, na própria linha: quando ele some, nada sobe
-			row += "  " + m.noticeStyle().Render(m.notice)
-		}
-		return row
+	var editor *appearanceEditor
+	if m.custom {
+		editor = m.appearanceEdit
 	}
-	return m.st.sel.Render(fmt.Sprintf("%-9s", m.t("cor"))) + m.st.muted.Render("‹ ") + name + m.st.muted.Render(" ›")
+	return m.appearanceRows(m.profileAppearance(), editor, m.custom)
 }
 
 func (m model) profileHelp() string {
-	if m.custom && m.first {
-		return m.t("←/→ cor · ↑/↓ prévia do humor · enter salva e abre a sala")
-	}
 	if m.custom {
-		return m.t("←/→ cor · ↑/↓ prévia do humor · enter salva a cor · esc volta")
+		return m.t("↑/↓ opção · ←/→ altera · enter salva · esc cancela")
 	}
 	return m.t("←/→ mês · c personaliza o pet")
 }
 
-// profileKey: fora do personalizar, ←/→ trocam o mês do calendário. A cor é salva; o humor
-// escolhido só troca o desenho da prévia.
 func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
+	if m.pendingAppearance != nil {
+		return m, nil
+	}
 	if !m.custom {
 		switch k {
 		case "c":
 			m.custom, m.notice = true, ""
+			a := m.pet.Look()
+			if m.inline() != nil {
+				a = m.inlinePerson().Pet.Look()
+			}
+			m.appearanceEdit = newAppearanceEditor(a)
 			m.previewMood = pet.MoodOf(m.pet.EnergyAt(m.now))
 		case "left":
 			m = m.shiftMonth(-1)
@@ -187,37 +233,44 @@ func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+	if m.appearanceEdit == nil {
+		a := m.pet.Look()
+		if m.inline() != nil {
+			a = m.inlinePerson().Pet.Look()
+		}
+		m.appearanceEdit = newAppearanceEditor(a)
+	}
 	switch k {
-	case "up":
-		m.previewMood = (m.previewMood + pet.Sleeping) % (pet.Sleeping + 1)
-	case "down":
-		m.previewMood = (m.previewMood + 1) % (pet.Sleeping + 1)
-	case "left":
-		m.pcolor = (m.pcolor + len(pet.Colors) - 1) % len(pet.Colors)
-	case "right":
-		m.pcolor = (m.pcolor + 1) % len(pet.Colors)
 	case "esc", "c":
-		m.pcolor, m.custom = m.pcSaved, false
-		if m.first { // o primeiro acesso termina na sala, com a cor que veio
+		m.custom, m.appearanceEdit = false, nil
+		if m.first {
 			m.first = false
 			return m.switchTab(tabRoom)
 		}
 	case "enter":
-		id, paletteID := m.id, m.myColor()
-		m.pcSaved, m.custom, m.notice = m.pcolor, false, m.t("salvo")
-		save := act(func() {
-			if err := store.SetPetColor(id, paletteID); err != nil {
-				log.Error("setPetColor", "err", err)
-				return
+		id, a := m.id, m.appearanceEdit.Choice
+		m.appearanceRevision++
+		m.pet.Appearance, m.pet.Color = a, pet.Pets.ArtworkColor(a)
+		m.pendingAppearance = &a
+		revision := m.appearanceRevision
+		m.custom, m.notice, m.appearanceEdit = false, m.t("salvando…"), nil
+		save := func() tea.Msg {
+			err := store.SetAppearance(id, a)
+			if err != nil {
+				return appearanceSavedMsg{id: id, revision: revision, err: err}
 			}
-			rooms.SetColor(id, paletteID)
-		})
+			rooms.SetAppearance(id, a)
+			return appearanceSavedMsg{id: id, revision: revision, world: rooms.SnapshotWorld()}
+		}
+
 		if m.first {
 			m.first = false
 			next, cmd := m.switchTab(tabRoom)
 			return next, tea.Batch(save, cmd)
 		}
 		return m, save
+	default:
+		m.appearanceEdit.key(k, true, &m.previewMood)
 	}
 	return m, nil
 }
