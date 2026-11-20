@@ -38,7 +38,7 @@ Na sala, `←/→` escolhe um membro e `Enter` fixa a seleção. As ações são
 | Membro selecionado | Ctrl+N | editar apelido, com o validador do primeiro acesso |
 | Sala/perfil | Ctrl+E | editar energia exibida, por setas ou número digitado |
 | Membro selecionado | Ctrl+L | escolher cor |
-| Membro selecionado | Ctrl+G | escolher estágio; -1 volta aos minutos reais |
+| Membro selecionado | Ctrl+O | escolher estágio da obra; -1 volta aos minutos reais |
 | Membro selecionado | Ctrl+P | alternar presença simulada |
 | Membro selecionado | Ctrl+D | remover da sala, preservando conta e histórico |
 | Membro selecionado | Ctrl+T | iniciar tarefa (n), cumprir (f) ou parar (p) |

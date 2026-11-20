@@ -452,7 +452,7 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+l":
 		d.field = "color"
 		d.picker = pet.ColorIndex(p.Pet.Color)
-	case "ctrl+g":
+	case "ctrl+o":
 		d.field = "stage"
 		d.picker = 1
 		scene, _ := m.inlineScene()
@@ -546,7 +546,7 @@ func (m model) inlinePanel(w int) string {
 	case "color":
 		body = m.t("cor") + ": ‹ " + m.t(pet.Colors[d.picker].Name) + " ›"
 	case "stage":
-		body = m.tf("estágio: %d · -1 usa o progresso real", d.picker-1)
+		body = m.tf("estágio da obra: %d · -1 usa o progresso real", d.picker-1)
 	case "obra":
 		body = m.t("obra") + ": ‹ " + m.t(rooms.Obras[d.picker]) + " ›"
 	case "task":
@@ -584,7 +584,7 @@ func (m model) inlineHelp() string {
 		return m.profileHelp() + " · " + m.t("ctrl+e energia") + " · " + base
 	}
 	if d.locked {
-		return m.t("ctrl+n nome · ctrl+e energia · ctrl+l cor · ctrl+g estágio · ctrl+p presença · ctrl+d remove · ctrl+t tarefa · ctrl+u assume") + " · " + base
+		return m.t("ctrl+n nome · ctrl+e energia · ctrl+l cor · ctrl+o estágio da obra · ctrl+p presença · ctrl+d remove · ctrl+t tarefa · ctrl+u assume") + " · " + base
 	}
 	return m.t("←/→ membro · enter edita · ctrl+b adiciona · ctrl+o obra · ctrl+u assume") + " · " + base
 }
