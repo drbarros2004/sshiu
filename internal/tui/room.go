@@ -657,12 +657,14 @@ func orderedMembers(id string, s rooms.Snapshot) []rooms.Member {
 	return ms
 }
 
-// cardMin e cardMax: o miolo do card, em colunas. Ele cresce até caber "apelido humor" na mesma
-// linha do maior apelido da sala (nickMax mais " radiante"); antes, o nome comprido quebrava em
-// duas linhas e o card ficava mais alto que os vizinhos, deslocando os pets (#84).
+// Medidas dos cards: altere estes três espaços extras para experimentar o tamanho.
+// A largura acompanha o apelido/humor mais longo e é igual para toda a grade.
 const (
-	cardMin = 16
-	cardMax = nickMax + 9 // docs/regras.md
+	cardExtraWidth       = 6 // colunas extras na largura do miolo
+	cardPetPaddingTop    = 2 // linhas vazias acima do pet, no card completo
+	cardPetPaddingBottom = 1 // linhas vazias abaixo do pet, no card completo
+	cardMin              = 16 + cardExtraWidth
+	cardMax              = nickMax + 9 + cardExtraWidth // docs/regras.md
 )
 
 // nameLine: o apelido (ou "você") e o humor, como aparecem no card.
@@ -679,7 +681,7 @@ func (m model) cardInner(ms []rooms.Member) int {
 	inner := cardMin
 	for _, x := range ms {
 		name, mood := m.nameLine(x, m.cardMood(x))
-		inner = max(inner, ansi.StringWidth(name)+1+ansi.StringWidth(mood))
+		inner = max(inner, ansi.StringWidth(name)+1+ansi.StringWidth(mood)+cardExtraWidth)
 	}
 	return min(inner, cardMax)
 }
@@ -701,9 +703,9 @@ func (m model) cards(s rooms.Snapshot, w int, compact bool) string {
 	per := max(1, w/(inner+2))
 	if d := m.inline(); d != nil {
 		index := slices.IndexFunc(ms, func(x rooms.Member) bool { return x.ID == d.selected })
-		rowHeight := 12
-		if compact {
-			rowHeight = 5
+		rowHeight := 1
+		for _, x := range ms {
+			rowHeight = max(rowHeight, lipgloss.Height(m.card(x, got[x.ID], compact, inner)))
 		}
 		visible := max(1, (m.height-16)/rowHeight) * per
 		if len(ms) > visible {
@@ -756,6 +758,8 @@ func (m model) card(x rooms.Member, got int, compact bool, inner int) string {
 	art := pet.Render(mood, m.tick, m.pixel, x.Color)
 	if compact {
 		art = lipgloss.NewStyle().Foreground(pet.Colors[pet.ColorIndex(x.Color)].Body).Render("●")
+	} else {
+		art = lipgloss.NewStyle().Padding(cardPetPaddingTop, 0, cardPetPaddingBottom).Render(art)
 	}
 	return st.Render(lipgloss.JoinVertical(lipgloss.Center,
 		art,
