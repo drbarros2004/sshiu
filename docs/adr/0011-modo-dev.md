@@ -35,7 +35,7 @@ Na sala, `←/→` escolhe um membro e `Enter` fixa a seleção. As ações são
 |---|---|---|
 | Sala, fora da seleção fixa | Ctrl+B | adicionar usuário existente ou criar com Ctrl+N |
 | Sala, fora da seleção fixa | Ctrl+O | escolher obra |
-| Membro selecionado | Ctrl+N | editar apelido, com o validador do primeiro acesso |
+| Membro selecionado / perfil dev | Ctrl+N | editar apelido, com o validador do primeiro acesso |
 | Sala/perfil | Ctrl+E | editar energia exibida, por setas ou número digitado |
 | Membro selecionado | Ctrl+L | escolher cor |
 | Membro selecionado | Ctrl+O | escolher estágio da obra; -1 volta aos minutos reais |
@@ -76,3 +76,7 @@ Renderização de pets, cards, energia e obras continua nas funções existentes
 
 A identidade assumida é lembrada por login SSH original no banco dev, inclusive ao reconectar.
 Em telas pequenas da sala, `?` expande a lista de atalhos no próprio painel.
+
+No perfil dev, `Ctrl+N` edita o apelido da identidade efetiva. O título do perfil mostra a
+prévia enquanto o campo é editado; `Enter` confirma só o rascunho e o salvamento dev grava
+o nome junto das demais alterações. `Esc` permite cancelar. O ID de login permanece igual.

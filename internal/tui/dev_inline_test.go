@@ -105,6 +105,64 @@ func TestInlineProfileColorWaitsForSave(t *testing.T) {
 	}
 }
 
+func TestInlineProfileNicknamePreviewCancelAndSave(t *testing.T) {
+	m := inlineModel(t, "ui-profile-name")
+	m.tab = tabProfile
+	m = openInline(t, m)
+	originalID, originalNick := m.id, m.nick
+	m, _ = pressInline(m, 'n', true)
+	if m.profileDev.field != "name" || m.in.Value() != originalNick {
+		t.Fatal("perfil não abriu o apelido atual")
+	}
+	m.in.SetValue("novo-apelido")
+	preview := m.previewField().inlineRender()
+	if preview.nick != "novo-apelido" || !strings.Contains(ansi.Strip(preview.profileView(116, 32)), "novo-apelido") {
+		t.Fatal("prévia não atualizou o título do perfil")
+	}
+	if nick, _, _, _ := store.GetUser(m.id); nick != originalNick {
+		t.Fatal("prévia gravou o apelido")
+	}
+	m, _ = pressInline(m, tea.KeyEscape, false)
+	if m.inlineRender().nick != originalNick || len(m.profileDev.changes) != 0 {
+		t.Fatal("cancelar campo deixou o nome alterado")
+	}
+	m, _ = pressInline(m, 'n', true)
+	m.in.SetValue("novo-apelido")
+	m, _ = pressInline(m, tea.KeyEnter, false)
+	if nick, _, _, _ := store.GetUser(m.id); nick != originalNick {
+		t.Fatal("enter gravou antes do salvamento dev")
+	}
+	m, cmd := pressInline(m, 's', true)
+	next, _ := m.Update(cmd())
+	m = next.(model)
+	if nick, _, _, _ := store.GetUser(m.id); nick != "novo-apelido" {
+		t.Fatal("ctrl+s não gravou o apelido")
+	}
+	if m.nick != "novo-apelido" || m.id != originalID || m.profileDev == nil {
+		t.Fatal("salvamento mudou identidade ou saiu do editor")
+	}
+}
+
+func TestInlineProfileNicknameRejectsInvalidAndDuplicateNames(t *testing.T) {
+	m := inlineModel(t, "ui-name-invalid")
+	m.tab = tabProfile
+	m = openInline(t, m)
+	if _, e := rooms.DevCreate("nome-em-uso"); e != nil {
+		t.Fatal(e)
+	}
+	// Reabre para incluir o novo usuário no cenário, como faria ao entrar no editor.
+	m.profileDev = nil
+	m = openInline(t, m)
+	m, _ = pressInline(m, 'n', true)
+	for _, name := range []string{"nome com espaço", "nome-em-uso"} {
+		m.in.SetValue(name)
+		m, _ = pressInline(m, tea.KeyEnter, false)
+		if m.err == "" || m.profileDev.field != "name" || len(m.profileDev.changes) != 0 {
+			t.Fatalf("aceitou %q", name)
+		}
+	}
+}
+
 func TestInlineIdentityDropsDraftsAndRejectsOldProfile(t *testing.T) {
 	m := inlineModel(t, "ui-origin")
 	id, e := rooms.DevCreate("ui-other")

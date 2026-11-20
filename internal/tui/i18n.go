@@ -567,4 +567,5 @@ var en = map[string]string{
 	"salve a alteração de tarefa antes de outra ação":                                 "save the task change before another action",
 	"a duração precisa ser um número inteiro":                                         "the duration must be a whole number",
 	"←/→ cor · ↑/↓ prévia do humor · enter confirma prévia · esc volta":               "←/→ color · ↑/↓ mood preview · enter confirms preview · esc back",
+	"ctrl+n nome": "ctrl+n name",
 }
