@@ -4,36 +4,38 @@
 
 **a quiet focus room in your terminal, over ssh.**
 
-![the demo room while focusing, with the big clock and five bots](docs/telas/sala.webp)
+![the demo room with pets, member tasks and focus timers](docs/screens/sala.webp)
 
 </div>
 
-a focus app for a study group, living in the terminal. you say the next concrete thing you're going to do and for how long, you focus, and you mark it done when you finish. your room sees who's focusing and on what, and reacts. your pet blooms when you focus and wilts when you disappear.
+a focus app for a study group, living in the terminal. you say the next concrete thing you're going to do and for how long, you focus, and you mark it done when you finish. your room sees who's focusing and on what, and reacts. your pet's mood reflects your focus.
 
 ## screens
 
 **room:** your focus on top, one card per member (pet, mood, task, status and the reactions they got) and the room's events below, with reactions.
 
+**pets:** choose a pet from the available characters, each with its own colors. add a hat and choose its model. press `c` in your profile to customize your pet and preview its moods without changing its actual mood or energy.
+
 **garden mode:** the rest screen while you focus. press `j`, or let it turn on by itself after 30 s without a keystroke. a calm animated wallpaper (a tree at sunset, a night road, a coffee by the window, rain, a lava lamp...) with the time left, your task and who else is focusing on top. `←/→` switches the wallpaper.
 
-![garden mode with the tree wallpaper](docs/telas/jardim.webp)
+![garden mode with a wallpaper and focus information](docs/screens/jardim.webp)
 
 <table>
   <tr>
     <td width="50%"><b>mural:</b> what the room builds together today, one piece per member that grows as each one focuses. press <code>o</code> in the room.</td>
-    <td width="50%"><b>profile:</b> your pet and its color, energy, streak, a month of focus and your latest tasks.</td>
+    <td width="50%"><b>profile:</b> your pet's character, color and hat, energy, streak, a month of focus and your latest tasks.</td>
   </tr>
   <tr>
-    <td><img src="docs/telas/obra.webp" alt="the demo room's mural, a train with one car per member"></td>
-    <td><img src="docs/telas/perfil.webp" alt="the profile after the first finished task"></td>
+    <td><img src="docs/screens/obra.webp" alt="the room's mural with one piece per member"></td>
+    <td><img src="docs/screens/perfil.webp" alt="the profile with pet appearance, energy and focus history"></td>
   </tr>
   <tr>
     <td width="50%"><b>look:</b> the theme, the language (english or português) and what shows up in garden mode.</td>
     <td width="50%"><b>garden editor:</b> <code>v</code> in the look tab changes the same options over the garden itself.</td>
   </tr>
   <tr>
-    <td><img src="docs/telas/visual.webp" alt="the look tab previewing the catppuccin theme"></td>
-    <td><img src="docs/telas/jardim-editor.webp" alt="the garden editor panel over the tree wallpaper"></td>
+    <td><img src="docs/screens/visual.webp" alt="the look tab with theme, language and garden settings"></td>
+    <td><img src="docs/screens/jardim-editor.webp" alt="the garden settings panel over the wallpaper"></td>
   </tr>
 </table>
 
