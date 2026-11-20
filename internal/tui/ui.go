@@ -517,7 +517,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
 	m.lastKey = time.Now()
-	if Dev && m.hideDev && k == "x" && !m.typing() {
+	if Dev && m.hideDev && (k == "h" || k == "x") && !m.typing() {
 		m.hideDev = false
 		return m, nil // restaurar controles não abre o editor no mesmo toque
 	}

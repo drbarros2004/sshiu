@@ -53,6 +53,11 @@ func TestCleanDevPreviewNavigationAndReturn(t *testing.T) {
 		t.Fatal("o próximo X deveria abrir o editor normalmente")
 	}
 	m.roomDev = nil
+	m, _ = pressInline(m, 'h', false)
+	m, cmd = pressInline(m, 'h', false)
+	if m.hideDev || m.inline() != nil || cmd != nil {
+		t.Fatal("o segundo H deveria restaurar os controles, sem abrir o editor")
+	}
 	m.tab = tabDev
 	m, _ = pressInline(m, 'h', false)
 	if !m.hideDev || m.tab != tabRoom {
@@ -78,8 +83,12 @@ func TestCleanDevPreviewPreservesEditingAndNormalMode(t *testing.T) {
 		t.Fatal("H digitado numa tarefa deve continuar sendo texto")
 	}
 	m.hideDev = true
+	m, _ = pressInline(m, 'h', false)
+	if !m.hideDev || m.in.Value() != "hh" {
+		t.Fatal("H digitado numa tarefa não deve sair da prévia")
+	}
 	m, _ = pressInline(m, 'x', false)
-	if !m.hideDev || m.in.Value() != "hx" {
+	if !m.hideDev || m.in.Value() != "hhx" {
 		t.Fatal("X digitado numa tarefa não deve sair da prévia")
 	}
 	m.hideDev, m.entering = false, false

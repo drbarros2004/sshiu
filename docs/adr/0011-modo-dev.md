@@ -89,6 +89,7 @@ inclusive a indicação do próprio `h`. As abas e a navegação passam a ser as
 normal, mantendo as animações e o cenário salvo no banco dev. Se a aba dev estiver
 selecionada, a prévia abre na sala.
 
-`x` restaura os controles sem abrir o editor no mesmo toque; outro `x` volta a editar
+`h` alterna entre ocultar e mostrar. Na prévia limpa, `x` também restaura os controles
+sem abrir o editor no mesmo toque; outro `x` volta a editar
 normalmente. Em campos de texto, `h` e `x` continuam sendo letras. A opção vale só
 para a conexão atual e não muda o modo do servidor nem as outras conexões.
