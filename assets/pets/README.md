@@ -2,7 +2,9 @@
 
 Preparação dos arquivos descritos em Specifications de 00_random_ssh_trab.txt.
 Esta pasta fica em assets/pets, dentro do repositório ssh-focus-app.
-Os arquivos originais continuam em 00_sprites. A integração com o aplicativo é uma etapa posterior.
+Os originais continuam fora do repositório, em 00_sprites e na pasta externa ssh/assets.
+A atualização dos chapéus foi importada de ssh/assets, preservando nomes, IDs, ordens e PNGs.
+A integração com o aplicativo é uma etapa posterior.
 
 ## Onde editar
 
@@ -25,9 +27,27 @@ Na integração futura, o carregador deve exigir um nome em en e usá-lo quando 
 O campo order define a ordem de personagens, chapéus e variantes dentro de cada personagem ou chapéu.
 As ordens começam em 0 e são independentes em cada lista. A variante com order 0 é a opção padrão.
 Os arrays também ficam nessa ordem para facilitar a leitura.
-Cartola usa normal, normal_detailed e black. Cowboy usa normal e normal_detailed.
-A última lista de cores das notas, identificada novamente como bunny, foi interpretada como claude.
-Os personagens são fruit, bunny e claude. Os chapéus são top_hat, cowboy e xmas_hat.
+Cartola começa com normal, normal_detailed e black; cowboy começa com normal e normal_detailed.
+As demais variantes continuam na ordem definida no catálogo externo.
+Os personagens são fruit, bunny e claude. Os chapéus são top_hat, cowboy, xmas_hat,
+cap, crown, little_hair, pirate e firefighter_helmet.
+
+## Variantes dos chapéus
+
+| ID | Nome em português | Variantes |
+| --- | --- | --- |
+| top_hat | cartola | 8 |
+| cowboy | chapéu de cowboy | 7 |
+| xmas_hat | gorro de natal | 6 |
+| cap | boné | 17 |
+| crown | coroa | 6 |
+| little_hair | topete | 9 |
+| pirate | chapéu de pirata | 7 |
+| firefighter_helmet | capacete de bombeiro | 8 |
+
+São 68 variantes. As variantes reference do boné e rgb da coroa foram mantidas como
+opções porque estão explicitamente cadastradas no catálogo externo, com esses nomes.
+Todos os chapéus usam uma imagem 16×6, com transparência binária (alfa 0 ou 255).
 
 ## Cor da obra
 
@@ -66,7 +86,9 @@ characters/01_bunny/moods.json:
 
 Você pode preencher só pt ou só en. Remover a tradução do objeto faz o idioma voltar ao padrão.
 Cada id deve existir no catálogo padrão e aparecer no máximo uma vez na lista do personagem.
-Os arquivos foram criados com todas as exceções vazias, portanto os nomes atuais vêm de moods.json.
+Fruta e coelho usam os nomes padrão. Claude mantém as exceções já versionadas em
+characters/02_claude/moods.json: bugado/bugged, não funciona/nonfunctional e funcional/functional.
+Essas exceções foram preservadas na importação, mesmo com a lista vazia na pasta externa.
 O nome em inglês de sleeping é asleep, seguindo a tradução atual do aplicativo.
 Na integração futura, a escolha deve procurar o nome do personagem no idioma selecionado e então
 o padrão desse idioma. Se ambos faltarem, deve procurar en do personagem e depois en do catálogo.
@@ -127,11 +149,22 @@ Os PNGs de templates ficam fora dos catálogos de seleção.
 
 ## Verificações feitas
 
-Os 7 JSONs foram relidos e seus caminhos foram conferidos.
-Os 24 corpos e as 16 camadas coloridas da fruta foram comparados byte a byte com os arquivos de origem.
-Todos os PNGs têm tamanho esperado e alfa 0 ou 255.
-As 42 posições de chapéu têm o número de quadros esperado e valores entre 1 e 16.
-As duas folhas de partículas foram sobrepostas e reconstituíram o PNG original pixel por pixel.
+- 11 JSONs de pets e o catálogo de cores das obras lidos sem chaves duplicadas.
+- IDs únicos, ordens sequenciais, nomes em pt/en e caminhos conferidos com a mesma capitalização dos arquivos.
+- Os 115 PNGs do repositório correspondem byte a byte à pasta externa; 68 são chapéus.
+- Dimensões conferidas: chapéus 16×6; personagens, camadas e templates 64×96. Alfa sempre 0 ou 255.
+- 336 quadros ativos dos corpos têm desenho; os quadros inativos das folhas de seleção estão transparentes.
+- As 42 posições de chapéu seguem frameCounts e o intervalo de 1 a 16.
+- Composição, referências das camadas, humores e artworkColor resolvem os catálogos existentes.
+- As definições mais recentes do repositório foram preservadas: composição com referências de pastas,
+  ordem dos campos e cores de obras. A pasta externa ainda não contém essas mesmas definições.
+
+Todos os chapéus usam cores da paleta xterm de referência. Duas cores já existentes na fruta
+não pertencem exatamente à paleta: #FFE066 em characters/00_fruit/other_assets/plant/fruit_plant_green.png
+e #F7F7F7 em characters/00_fruit/other_assets/sparkles/fruit_sparkles_pink.png.
+Os PNGs foram preservados sem recoloração. Essas duas cores podem ser aproximadas pelo terminal.
+As imagens em templates são marcadores de edição e não precisam representar uma paleta final.
 
 Ao integrar o carregamento, essas validações precisam fazer parte do código ou dos testes do aplicativo,
-com erros que indiquem o arquivo, personagem, linha e quadro inválidos.
+com erros que indiquem o arquivo, personagem, linha e quadro inválidos. Esta importação prepara os
+arquivos; ainda não adiciona a seleção dos novos personagens e chapéus à interface.
