@@ -9,8 +9,51 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 )
+
+// Sobre continua acessível nos dois modos; dev só aparece por último com -dev.
+func TestAboutAndDevTabs(t *testing.T) {
+	previous := Dev
+	t.Cleanup(func() { Dev = previous })
+	for _, enabled := range []bool{false, true} {
+		Dev = enabled
+		want := "sala,perfil,visual,sobre"
+		if enabled {
+			want += ",dev"
+		}
+		if got := strings.Join(tabNames[:tabs()], ","); got != want {
+			t.Fatalf("dev=%v: abas %s, esperado %s", enabled, got, want)
+		}
+		m := model{nick: "ana", tab: tabVisual}
+		next, _ := m.key(tea.KeyPressMsg{Code: 'd'})
+		m = next.(model)
+		if m.tab != tabAbout {
+			t.Fatal("visual deveria levar a sobre")
+		}
+		next, _ = m.key(tea.KeyPressMsg{Code: 'd'})
+		wantTab := tabRoom
+		if enabled {
+			wantTab = tabDev
+		}
+		if next.(model).tab != wantTab {
+			t.Fatalf("dev=%v: aba depois de sobre = %v", enabled, next.(model).tab)
+		}
+	}
+}
+
+func TestTypingIncludesCustomMinutesAndDevInput(t *testing.T) {
+	if !(model{other: true}).typing() {
+		t.Fatal("minutos personalizados precisam proteger a digitação")
+	}
+	if !(model{tab: tabDev, dev: devPanel{input: "nova"}}).typing() {
+		t.Fatal("campo do dev precisa proteger a digitação")
+	}
+	if (model{tab: tabAbout}).typing() {
+		t.Fatal("sobre não tem campo de digitação")
+	}
+}
 
 // Quem nasce no meio da lista não muda a pessoa escolhida, e uma leitura velha não volta a tela.
 func TestDevSetRows(t *testing.T) {
