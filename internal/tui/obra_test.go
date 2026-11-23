@@ -330,9 +330,25 @@ func TestFogueiraNoMeio(t *testing.T) {
 			nomes = append(nomes, strings.Join(f, " "))
 		}
 	}
-	// 1-2-1: a fogueira não tem nome, então a fileira do meio mostra só os dois de cada lado
-	if want := []string{"você", "ana bia", "caio"}; !slices.Equal(nomes, want) {
+	// 2 e 2: a fogueira não tem nome, então a fileira de baixo mostra só as barracas dos lados
+	if want := []string{"você ana", "bia caio"}; !slices.Equal(nomes, want) {
 		t.Errorf("fileiras %q, queria %q", nomes, want)
+	}
+}
+
+// As obras vêm em duas fileiras a partir de quatro peças, com a sobra em cima; no acampamento, a
+// fileira de baixo, que leva a fogueira no meio, tem sempre um número par de barracas (ADR 0012).
+func TestDuasFileiras(t *testing.T) {
+	for n, want := range map[int][]int{1: {1}, 3: {3}, 4: {2, 2}, 5: {3, 2}, 7: {4, 3}, 9: {5, 4}, 10: {5, 5}} {
+		if got := twoRows(n, 0); !slices.Equal(got, want) {
+			t.Errorf("twoRows(%d) = %v, want %v", n, got, want)
+		}
+	}
+	for n := 3; n <= rooms.MaxMembers; n++ {
+		rs := campRows(n, 0)
+		if len(rs) != 2 || rs[0]+rs[1] != n || rs[1]%2 != 0 {
+			t.Errorf("campRows(%d) = %v: duas fileiras, a de baixo par", n, rs)
+		}
 	}
 }
 

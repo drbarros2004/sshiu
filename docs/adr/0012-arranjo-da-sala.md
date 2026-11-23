@@ -10,6 +10,7 @@ Decidimos manter tudo na mesma tela, com outro arranjo e outra ordem de encolher
 - **Com largura, os eventos entram na mesma faixa**, à esquerda: eventos, obra e tabela, nessa ordem. Os eventos ocupam só a largura que usam (até 80 colunas), e a faixa encosta na esquerda; a sobra fica à direita, em vez de um vão no meio numa tela larga.
 - **Entre o card cheio e o ponto existe o card médio**: o mesmo pet, sem o respiro em volta, com a tarefa numa linha e as reações na linha do status quando cabem. São 13 linhas em vez de 18. O pet não encolhe: o desenho só aumenta de escala, e um pet menor pediria arte nova.
 - **As fileiras de cards se dividem por igual.** Nove pessoas numa tela de oito cards viram 5 e 4, não 8 e 1.
+- **A obra vem em duas fileiras**, em todos os temas: até três peças numa fileira, e daí em diante duas, com a sobra em cima (nove viram 5 e 4). Duas fileiras deixam a obra baixa e larga, do jeito que cabe ao lado da tabela; as tabelas escritas à mão da cidade (3×3, 2-3-2) e do acampamento saíram. No acampamento, a fogueira fica no meio da fileira de baixo, que leva um número par de barracas para ela ficar mesmo no meio (sete viram 3 e 4). Quando nem duas fileiras cabem na largura, a obra volta à fileira que quebra.
 - **A ordem de encolher** (dentro de cada passo, os eventos encurtam primeiro):
   1. cards cheios, com a obra no arranjo do tema e a tabela inteira;
   2. a obra vira uma fileira;
