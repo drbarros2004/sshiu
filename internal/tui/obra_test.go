@@ -417,7 +417,7 @@ func TestApelidoEmbaixoDaPeca(t *testing.T) {
 
 // A tela abre mão das coisas na ordem certa quando falta altura (ADR 0012): a faixa encolhe com os
 // cards cheios, os cards viram médios antes de a faixa sair, e os pets só viram ponto com a faixa
-// já fora da tela.
+// já fora da tela; sem ela, eles voltam a cheios se couberem.
 func TestFitSteps(t *testing.T) {
 	sala := rooms.Snapshot{Obra: "cidade", Meta: 60, Max: rooms.MaxMembers, Members: []rooms.Member{
 		{ID: "eu", Nick: "eu"}, {ID: "a", Nick: "ana"}, {ID: "b", Nick: "bruno"},
@@ -436,9 +436,10 @@ func TestFitSteps(t *testing.T) {
 		if st.card == cardDot && st.band != bandFora {
 			t.Errorf("os pets viraram ponto com a faixa ainda na tela: %v", steps)
 		}
-		if st.card == cardFull && st.band == bandFora {
-			t.Errorf("a faixa saiu com os cards ainda cheios: %v", steps)
-		}
+	}
+	// sem a faixa, os pets voltam a cheios se couberem: a altura que ela ocupava é deles agora
+	if want := []fitStep{{cardFull, bandFora}, {cardMid, bandFora}, {cardDot, bandFora}}; !slices.Equal(steps[fora:], want) {
+		t.Errorf("depois da faixa: %v, want %v", steps[fora:], want)
 	}
 }
 

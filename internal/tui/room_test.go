@@ -202,7 +202,7 @@ func TestCardsAlinhados(t *testing.T) {
 	}
 }
 
-// Quando os cards quebram de linha, as fileiras ficam do mesmo tamanho: nove pessoas numa tela de
+// Quando os cards quebram de linha, as fileiras se dividem por igual: nove pessoas numa tela de
 // oito cards viram 5 e 4, não 8 e 1.
 func TestCardsEquilibrados(t *testing.T) {
 	s := rooms.Snapshot{Max: rooms.MaxMembers}
@@ -219,6 +219,18 @@ func TestCardsEquilibrados(t *testing.T) {
 	}
 	if !slices.Equal(per, []int{5, 4}) {
 		t.Errorf("fileiras %v, queria [5 4]", per)
+	}
+	// dez em fileiras de quatro: 4, 3 e 3, não 4, 4 e 2
+	s10 := s
+	s10.Members = append(slices.Clone(s.Members), rooms.Member{ID: "j", Nick: "j"})
+	per = nil
+	for _, l := range strings.Split(m.cards(s10, 4*(m.cardInner(s10.Members)+2), cardDot, 0), "\n") {
+		if n := strings.Count(l, "╭"); n > 0 {
+			per = append(per, n)
+		}
+	}
+	if !slices.Equal(per, []int{4, 3, 3}) {
+		t.Errorf("dez em fileiras de quatro: %v, queria [4 3 3]", per)
 	}
 	// no "+N" do fim, a fileira que aparece vem cheia: 8 e "+1", não 5 e "+4"
 	if out := ansi.Strip(m.cards(s, w, cardDot, 1)); strings.Count(out, "╭") != 8 || !strings.Contains(out, "+1:") {

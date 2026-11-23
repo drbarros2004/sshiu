@@ -402,9 +402,16 @@ func (m model) roomView(w, h int) string {
 		}
 		return bands[mode]
 	}
-	var out string
+	var out, prevBand string
+	prevCard := -1
 	for _, st := range m.fitSteps(s) {
 		band := bandOf(st.band)
+		// o passo que desenha a mesma faixa com os mesmos cards já foi tentado: a obra de até três
+		// peças já é uma fileira, e a tabela mais baixa que a obra não tem o que cortar
+		if st.card == prevCard && band == prevBand {
+			continue
+		}
+		prevCard, prevBand = st.card, band
 		// sem eventos só sem a faixa, e com os pets já encolhidos: com a obra ou a tabela na tela
 		// ficam pelo menos dois (ADR 0010)
 		for n := shownEvents; n >= 0 && (n > 0 || band == "" && st.card != cardFull); n -= 2 {
@@ -447,17 +454,18 @@ type fitStep struct{ card, band int }
 // fitSteps: a ordem em que a tela abre mão das coisas (ADR 0012). Dentro de cada passo os
 // eventos encurtam primeiro; depois a faixa encolhe com os cards cheios, os cards viram médios e a
 // faixa encolhe de novo, ela sai inteira (fica uma linha que aponta a tecla o) e só então os pets
-// viram ponto. Os rostos ficam o quanto der, e a obra e a tabela saem juntas, com um aviso, em vez
-// de os pets virarem ponto para elas caberem.
+// encolhem — sem a faixa, eles voltam a cheios se couberem, como numa sala sem obra. Os rostos
+// ficam o quanto der, e a obra e a tabela saem juntas, com um aviso, em vez de os pets virarem
+// ponto para elas caberem.
 func (m model) fitSteps(s rooms.Snapshot) []fitStep {
+	fora := []fitStep{{cardFull, bandFora}, {cardMid, bandFora}, {cardDot, bandFora}}
 	if m.obraOf(s) == nil && !m.boardInRoom(s) {
-		return []fitStep{{cardFull, bandFora}, {cardMid, bandFora}, {cardDot, bandFora}}
+		return fora
 	}
-	return []fitStep{
+	return append([]fitStep{
 		{cardFull, bandArranjo}, {cardFull, bandFileira}, {cardFull, bandApertada},
 		{cardMid, bandArranjo}, {cardMid, bandFileira}, {cardMid, bandApertada},
-		{cardMid, bandFora}, {cardDot, bandFora},
-	}
+	}, fora...)
 }
 
 // boardInRoom: a tabela de foco aparece na sala, para todo mundo, só quando o dono a abriu; a sala
@@ -792,17 +800,15 @@ func (m model) cardsPer(s rooms.Snapshot, w int) int {
 }
 
 // cards: quantos couberem em w por fileira, no tamanho size (cardFull, cardMid ou cardDot). Quando
-// não cabem numa fileira, elas ficam do mesmo tamanho: nove em fileiras de oito viram 5 e 4, não
-// 8 e 1. Com rows > 0, só as primeiras rows fileiras, cheias, e uma linha com quantos ficaram de
-// fora; aí e na rolagem do modo dev não há equilíbrio, para nenhuma fileira esconder quem cabe.
+// não cabem numa fileira, elas se dividem por igual (fitRows): nove em fileiras de oito viram 5 e
+// 4, e dez em fileiras de quatro, 4, 3 e 3. Com rows > 0, só as primeiras rows fileiras, cheias, e
+// uma linha com quantos ficaram de fora; aí e na rolagem do modo dev não há equilíbrio, para
+// nenhuma fileira esconder quem cabe.
 func (m model) cards(s rooms.Snapshot, w int, size int, rows int) string {
 	ms := orderedMembers(m.id, s)
 	got := received(s)
 	inner := m.cardInner(ms)
 	per := m.cardsPer(s, w)
-	if lines := (len(ms) + per - 1) / per; lines > 1 && rows == 0 && m.inline() == nil {
-		per = (len(ms) + lines - 1) / lines
-	}
 	var more string
 	if d := m.inline(); d == nil && rows > 0 && rows*per < len(ms) {
 		more = "\n" + m.st.muted.Render(m.tf("+%d: aumente a janela para ver todo mundo", len(ms)-rows*per))
@@ -820,18 +826,27 @@ func (m model) cards(s rooms.Snapshot, w int, size int, rows int) string {
 			ms = ms[start:min(len(ms), start+visible)]
 		}
 	}
+	sizes := fitRows(len(ms), per) // com o "+N", ms já vem cortado em fileiras cheias
+	if m.inline() != nil {
+		sizes = sizes[:0]
+		for i := 0; i < len(ms); i += per {
+			sizes = append(sizes, min(per, len(ms)-i))
+		}
+	}
 	var lines []string
-	for i := 0; i < len(ms); i += per {
+	i := 0
+	for _, n := range sizes {
 		var row []string
 		height := 0
-		for _, x := range ms[i:min(i+per, len(ms))] {
+		for _, x := range ms[i : i+n] {
 			_, h := pet.Pets.CanvasSize(x.Look())
 			height = max(height, h)
 		}
-		for _, x := range ms[i:min(i+per, len(ms))] {
+		for _, x := range ms[i : i+n] {
 			row = append(row, m.card(x, got[x.ID], size, inner, height))
 		}
 		lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top, row...))
+		i += n
 	}
 	return strings.Join(lines, "\n") + more
 }
