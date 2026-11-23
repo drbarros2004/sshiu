@@ -298,7 +298,7 @@ func (m model) obraView(s rooms.Snapshot, w, h int) string {
 	for _, tight := range []bool{false, true} {
 		body := head
 		if m.boardShown(s) {
-			body += m.boardBlock(s, reset, tight) + "\n\n"
+			body += m.boardBlock(s, reset, tight, h-2) + "\n\n" // 2: o nome da sala e a linha em branco
 		}
 		if m.obraOf(s) == nil {
 			if body = strings.TrimRight(body, "\n"); lipgloss.Height(body) <= h || tight {
@@ -312,7 +312,7 @@ func (m model) obraView(s rooms.Snapshot, w, h int) string {
 			}
 		}
 	}
-	return head + m.boardBlock(s, reset, true) + "\n\n" +
+	return head + m.boardBlock(s, reset, true, h-4) + "\n\n" + // 4: o nome, o aviso e as linhas em branco
 		m.st.muted.Render(m.t("a obra não coube junto da tabela: aumente a janela para ver as duas"))
 }
 

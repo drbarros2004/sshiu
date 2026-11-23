@@ -237,7 +237,7 @@ Também marcada no código com comentários `ponytail:`.
 
 - **Migração ingênua:** o `ALTER TABLE` ignora o erro de "coluna já existe". Trocar por uma ferramenta de migração quando houver várias.
 - **Um lock só** para todas as salas e usuários em `internal/rooms`: dá para uma turma; um lock por sala se houver muitas.
-- **Sala sem rolagem** (`roomView` em `internal/tui/room.go`): quando falta altura, a lista de eventos encurta e os pets viram um ponto da cor do corpo do pet, mas com muita gente num terminal baixo (80×24 já com 6 membros) os cards passam da altura e são cortados. Rolagem nos cards se isso aparecer de verdade.
+- **Sala sem rolagem** (`roomView` em `internal/tui/room.go`, `board` em `internal/tui/board.go`): quando falta altura, a lista de eventos encurta, os pets viram um ponto da cor do corpo do pet e, com muita gente num terminal baixo (80×24 já com 6 membros), as fileiras de cards que não cabem viram um "+N: aumente a janela" ([#119](https://github.com/drbarros2004/sshiu/issues/119)); a tabela de foco faz o mesmo com as linhas. Quem fica no "+N" só aparece com a janela maior: rolagem nos cards e na tabela se isso fizer falta.
 - **O card não encolhe de verdade** (`card` em `internal/tui/room.go`): no modo compacto o pet vira
   um ponto, mas a caixa continua com as duas linhas fixas da tarefa, então cada fileira de cards
   custa 8 linhas mesmo vazia. É o que decide hoje se a obra cabe: em 120 colunas os cards cabem

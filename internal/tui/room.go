@@ -349,10 +349,10 @@ func (m model) alone() bool {
 	return len(m.w.Rooms[m.room].Members) == 1 && m.room != rooms.DemoCode
 }
 
-// roomView: a sala em w×h células. Quando falta altura, a lista de eventos encurta e depois os
-// pets viram um ponto da cor do corpo do pet.
-// ponytail: com muita gente num terminal baixo os cards ainda passam da altura e são cortados;
-// rolagem nos cards se isso aparecer de verdade.
+// roomView: a sala em w×h células. Quando falta altura, a lista de eventos encurta, depois os
+// pets viram um ponto da cor do corpo do pet e, por último, as fileiras de cards que não cabem
+// viram um "+N" (#119): quem está focando vem primeiro, e o resto fica dito em vez de cortado.
+// ponytail: quem fica no "+N" só aparece com a janela maior; rolagem nos cards se isso fizer falta.
 func (m model) roomView(w, h int) string {
 	if m.inPicker() {
 		return m.pickerView()
@@ -388,7 +388,7 @@ func (m model) roomView(w, h int) string {
 	for _, st := range m.fitSteps(s, w) {
 		// sem eventos só depois de a obra ou os pets já terem encolhido, e nunca com a tabela na tela
 		for n := shownEvents; n >= 0 && (n > 0 || st.bd == "" && (st.compact || st.ob != "")); n -= 2 {
-			out = m.roomBody(s, title, w, n, st.compact, st.ob, st.bd)
+			out = m.roomBody(s, title, w, n, st.compact, st.ob, st.bd, 0)
 			if lipgloss.Height(out) <= h {
 				return out
 			}
@@ -396,6 +396,12 @@ func (m model) roomView(w, h int) string {
 	}
 	if m.alone() { // sem ninguém, o seu card é o que menos diz: ele sai antes do convite
 		return title + "\n\n" + m.focusPanel(w) + "\n\n" + m.invitePanel(s)
+	}
+	per := m.cardsPer(s, w)
+	for r := (len(s.Members)+per-1)/per - 1; r >= 1; r-- {
+		if out = m.roomBody(s, title, w, 0, true, "", "", r); lipgloss.Height(out) <= h {
+			break
+		}
 	}
 	return out
 }
@@ -440,8 +446,9 @@ func (m model) fitSteps(s rooms.Snapshot, w int) []fitStep {
 // vazios, a obra e a tabela de foco. A tabela fica à direita do painel de foco, presa na borda,
 // onde o alto da tela costuma estar vazio; se o painel não deixa espaço, ela fica só na tecla o.
 // O trem ocupa a largura e fica embaixo dos cards; a cidade cabe ao lado do log, no canto que
-// fica vazio, e sobe para entre os cards e o log quando a janela é estreita.
-func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, ob, bd string) string {
+// fica vazio, e sobe para entre os cards e o log quando a janela é estreita. Com rows > 0, só
+// essa quantidade de fileiras de cards.
+func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, ob, bd string, rows int) string {
 	panel := m.focusPanel(w)
 	// a largura decide, não o estado do painel: a tabela fica onde o relógio cabe ao lado dela e
 	// só sai enquanto você escreve a tarefa, que tem um campo largo
@@ -451,7 +458,7 @@ func (m model) roomBody(s rooms.Snapshot, title string, w, n int, compact bool, 
 	// o painel tem sempre a altura do relógio: parado ele tem duas linhas, e a linha a mais ao
 	// começar uma tarefa trocava o arranjo da tela inteira (a obra saía e o feed voltava)
 	panel = lipgloss.NewStyle().Height(clockRows).Render(panel)
-	out := title + "\n\n" + panel + "\n\n" + m.cards(s, w, compact)
+	out := title + "\n\n" + panel + "\n\n" + m.cards(s, w, compact, rows)
 	if m.alone() { // o convite vale mais que o feed vazio, e não encolhe
 		if ob != "" {
 			out += "\n\n" + ob
@@ -694,14 +701,23 @@ func (m model) cardMood(x rooms.Member) pet.Mood {
 	return pet.MoodOf(x.Energy)
 }
 
+// cardsPer: quantos cards cabem numa fileira de w colunas.
+func (m model) cardsPer(s rooms.Snapshot, w int) int {
+	return max(1, w/(m.cardInner(s.Members)+2))
+}
+
 // cards: quantos couberem em w por fileira; compact troca o desenho do pet por um ponto da cor do
-// corpo do pet.
-func (m model) cards(s rooms.Snapshot, w int, compact bool) string {
+// corpo do pet. Com rows > 0, só as primeiras rows fileiras, e uma linha com quantos ficaram de fora.
+func (m model) cards(s rooms.Snapshot, w int, compact bool, rows int) string {
 	ms := orderedMembers(m.id, s)
 	got := received(s)
 	inner := m.cardInner(ms)
-	per := max(1, w/(inner+2))
-	if d := m.inline(); d != nil {
+	per := m.cardsPer(s, w)
+	var more string
+	if d := m.inline(); d == nil && rows > 0 && rows*per < len(ms) {
+		more = "\n" + m.st.muted.Render(m.tf("+%d: aumente a janela para ver todo mundo", len(ms)-rows*per))
+		ms = ms[:rows*per]
+	} else if d != nil {
 		index := slices.IndexFunc(ms, func(x rooms.Member) bool { return x.ID == d.selected })
 		rowHeight := 1
 		for _, x := range ms {
@@ -714,7 +730,7 @@ func (m model) cards(s rooms.Snapshot, w int, compact bool) string {
 			ms = ms[start:min(len(ms), start+visible)]
 		}
 	}
-	var rows []string
+	var lines []string
 	for i := 0; i < len(ms); i += per {
 		var row []string
 		height := 0
@@ -725,9 +741,9 @@ func (m model) cards(s rooms.Snapshot, w int, compact bool) string {
 		for _, x := range ms[i:min(i+per, len(ms))] {
 			row = append(row, m.card(x, got[x.ID], compact, inner, height))
 		}
-		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, row...))
+		lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top, row...))
 	}
-	return strings.Join(rows, "\n")
+	return strings.Join(lines, "\n") + more
 }
 
 // card: um membro num card de miolo inner. O apelido que ainda passa (de antes do limite) termina
