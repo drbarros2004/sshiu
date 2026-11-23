@@ -6,8 +6,8 @@ package tui
 // wallpaper (a troca vale para a tarefa); qualquer outra tecla volta sem executar nada.
 //
 // Wallpapers escritos do zero (ADR 0005, créditos em CREDITS.md): céu noturno, chuva e lâmpada de
-// lava inspirados em projetos MIT/Apache; café, árvore e estrada são desenhos nossos, em pixels
-// (garden_pixels.go).
+// lava inspirados em projetos MIT/Apache; café, árvore, estrada, farol e o gato e o cachorro
+// dormindo são desenhos nossos, em pixels (garden_pixels.go).
 
 import (
 	"fmt"
@@ -46,6 +46,9 @@ var wallpapers = []wallpaper{
 	{"coffee", "café", func() scene { return &coffee{} }, false},
 	{"tree", "árvore", func() scene { return &tree{} }, false},
 	{"road", "estrada à noite", func() scene { return &road{} }, false},
+	{"lighthouse", "farol", func() scene { return &lighthouse{} }, false},
+	{"cat", "gato dormindo", func() scene { return &sleeper{} }, false},
+	{"dog", "cachorro dormindo", func() scene { return &sleeper{dog: true} }, false},
 	{"brainrot", "brainrot (para devs de verdade)", brainrotScene, true},
 }
 
@@ -347,8 +350,8 @@ func (g *garden) render(m model) {
 	if placed && len(lines) > 0 {
 		var x int
 		x, y0, ink = sp.spot(w, h, wd, len(lines))
-		cx = min(max(x, 1), w-wd-1) + wd/2
-		y0 = min(max(y0, 0), h-len(lines))
+		x, y0 = fitText(w, h, wd, len(lines), x, y0) // o mesmo ajuste que a cena usa para o quadro
+		cx = x + wd/2
 	}
 	g.scene.draw(c, t, dt)
 	put := func(ls []string, cx, y0, wd int, col func(i int) string) { // linhas centradas em cx

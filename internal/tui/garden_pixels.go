@@ -1,7 +1,8 @@
 package tui
 
-// Os wallpapers em pixel art: café, árvore e estrada à noite. Cada célula mostra dois pixels em
-// meio bloco ("▄" invertido: a cor de cima no fundo e a de baixo no glifo), então a imagem tem o
+// Os wallpapers em pixel art: café, árvore, estrada à noite, farol e o gato e o cachorro dormindo.
+// Cada célula mostra dois pixels em meio bloco ("▄" invertido: a cor de cima no fundo e a de baixo
+// no glifo), então a imagem tem o
 // dobro de linhas e o pixel sai quase quadrado. A regra da banda (docs/research/wallpapers-ascii.md): o
 // cenário fica parado e só o que é pequeno se mexe — o vapor, o café girando, as folhas, a faixa
 // da pista. E o que se mexe fica junto: o renderer reescreve a linha da primeira à última célula
@@ -68,6 +69,17 @@ func (p *pix) board(b [4]int, edge, face func(x, y int) uint8) {
 	}
 }
 
+// plank: a placa de tábuas deitadas, na árvore e no píer do farol.
+func (p *pix) plank(b [4]int) {
+	p.board(b, func(x, y int) uint8 { return shade([]uint8{58, 94}, 0.3+0.4*hash(x/3, y, 22), x, y) },
+		func(x, y int) uint8 {
+			if (y-2*b[1])%5 == 1 {
+				return 58 // a fresta entre duas tábuas
+			}
+			return 94
+		})
+}
+
 // boardAt: o quadro em volta de um bloco de texto tw × th com o canto em (x, y): a borda e mais
 // três colunas e uma linha de folga de cada lado, para o texto não encostar na moldura.
 func boardAt(x, y, tw, th int) [4]int { return [4]int{x - 5, y - 2, tw + 10, th + 4} }
@@ -132,7 +144,7 @@ type coffee struct {
 
 // spot: o texto vai numa lousa de giz na parede, à esquerda da janela, escrito em giz.
 func (s *coffee) spot(w, h, tw, th int) (int, int, [3]string) {
-	x, y := max(6, w*26/100-tw/2), max(3, (h*6/10-th)/2)
+	x, y := fitText(w, h, tw, th, max(6, w*26/100-tw/2), max(3, (h*6/10-th)/2))
 	s.board = boardAt(x, y, tw, th)
 	return x, y, [3]string{"248", "229", "255"}
 }
@@ -310,7 +322,7 @@ var canopy = [][3]float64{
 
 // spot: o texto vai numa placa de madeira fincada no campo, à direita, abaixo do sol.
 func (s *tree) spot(w, h, tw, th int) (int, int, [3]string) {
-	x, y := w*70/100-tw/2, h-th-6
+	x, y := fitText(w, h, tw, th, w*70/100-tw/2, h-th-6)
 	s.board = boardAt(x, y, tw, th)
 	return x, y, [3]string{"223", "230", "255"}
 }
@@ -401,13 +413,7 @@ func (s *tree) draw(c *canvas, t, dt float64) {
 				p.set(x+1, y, 58)
 			}
 		}
-		p.board(b, func(x, y int) uint8 { return shade([]uint8{58, 94}, 0.3+0.4*hash(x/3, y, 22), x, y) },
-			func(x, y int) uint8 {
-				if (y-2*b[1])%5 == 1 {
-					return 58 // a fresta entre duas tábuas
-				}
-				return 94
-			})
+		p.plank(b)
 	}
 
 	if t >= s.next {
@@ -780,4 +786,602 @@ func drawCar(p *pix, x0, y0 int, spin float64, bob int) {
 			return 244
 		})
 	}
+}
+
+// --- Farol: numa ilha de pedra ao longe, à noite, com o facho girando na neblina ---
+// O desenho é medido numa tela de 100×60 pixels e cresce por k; o farol, longe, cresce por kl. u e
+// v são as medidas dele, a partir do pé da torre (lx) e do horizonte (hz). O céu e o mar ficam em
+// faixas lisas; de um quadro para o outro mudam só o facho, as cristas e o reflexo da lanterna.
+
+type lighthouse struct {
+	board [4]int // a placa do píer, em células (largura 0 = sem placa)
+}
+
+// lighthouseTurn: segundos por volta do facho. Ele anda 4 vezes por segundo, não a cada quadro:
+// cada passo reescreve as linhas do céu por onde ele passa (docs/regras.md).
+const lighthouseTurn, lighthouseSteps = 20.0, 4.0
+
+// spot: o texto vai numa placa de madeira no píer, à esquerda do farol.
+func (s *lighthouse) spot(w, h, tw, th int) (int, int, [3]string) {
+	pier := lighthousePier(w, h*2) / 2 // a linha do píer, em células
+	x, y := fitText(w, h, tw, th, max(6, w*17/100-tw/2), max(2, pier-th-3))
+	s.board = boardAt(x, y, tw, th)
+	return x, y, [3]string{"223", "230", "255"}
+}
+
+// fitText: o canto do texto dentro da tela. O render e as cenas com quadro (a lousa, as placas, o
+// calendário) usam a mesma conta, para o quadro ficar em volta do texto em qualquer tela.
+func fitText(w, h, tw, th, x, y int) (int, int) {
+	return min(max(x, 1), w-tw-1), min(max(y, 0), h-th)
+}
+
+// lighthousePier: a linha do píer, em pixels: logo abaixo do horizonte, na escala da cena.
+func lighthousePier(W, H int) int {
+	return H*63/100 + int(2*min(float64(W)/100, float64(H)/60))
+}
+
+func (s *lighthouse) draw(c *canvas, t, dt float64) {
+	W, H := c.w, c.h*2
+	p := newPix(W, H)
+	fw := float64(W)
+	k := min(fw/100, float64(H)/60)
+	kl := k * 0.6 // o farol, longe
+	hz := H * 63 / 100
+	b := s.board
+	s.board = [4]int{} // vale para este quadro: sem texto no próximo, sem placa
+	lx := fw * 0.7     // o pé da torre: à direita da placa, se ela for larga, sem sair da tela
+	if b[2] > 0 {
+		lx = min(max(lx, float64(b[0]+b[2])+23*kl), fw-18*kl)
+	}
+	ly := float64(hz) - 30*kl // a lanterna
+
+	a := math.Floor(t*lighthouseSteps) / lighthouseSteps * 2 * math.Pi / lighthouseTurn
+	ca, sa := math.Cos(a), math.Sin(a)
+	reach, dir := 20+160*math.Abs(ca), math.Copysign(1, ca) // o facho encurta quando aponta para quem olha
+	beam := func(x, y int) float64 {
+		d, dy := (float64(x)-lx)/kl, (float64(y)-ly)/kl
+		v := 0.0
+		if d*dir > 0 && math.Abs(d) < reach { // a luz cai suave dos lados e some aos poucos na neblina
+			spread := 2.7 + math.Abs(d)*0.2
+			v = math.Pow(1-math.Abs(d)/reach, 1.5) * math.Exp(-2*(dy/spread)*(dy/spread)) * 0.85
+			v *= 0.8 + 0.2*math.Sin(float64(x)*0.05/k+float64(y)*0.21/k) // a neblina, mais grossa aqui e ali
+		}
+		dist := math.Hypot(d, dy*1.3) // e a lanterna brilha mais
+		return min(1, v+max(0, sa)*max(0, 1-dist/20)*0.7+0.25*max(0, 1-dist/10))
+	}
+	sky := []uint8{232, 233, 234, 235, 60, 103, 146}
+	for y := range hz {
+		g := 0.14 + math.Pow(float64(y)/float64(hz), 2)*0.24 // a neblina clareia o horizonte
+		for x := range W {
+			if v := beam(x, y); v > 0.04 {
+				p.set(x, y, shade(sky, g+v*0.6, x, y))
+			} else {
+				p.set(x, y, shade(sky, g, 0, 0))
+			}
+		}
+	}
+	for i := range W * hz / 120 { // as estrelas, que o facho apaga quando passa
+		x, y := int(hash(i, 1, 71)*fw), int(hash(i, 2, 71)*float64(hz)*0.6)
+		if beam(x, y) < 0.05 {
+			p.set(x, y, 243)
+		}
+	}
+
+	sea, glow := []uint8{232, 233, 234, 235, 23, 24}, []uint8{94, 137, 179, 222}
+	tide := math.Floor(t)     // as cristas andam uma vez por segundo: andar a cada quadro reescrevia o mar todo (83 KB/s)
+	for y := hz; y < H; y++ { // devagar, uma linha para cada lado
+		r := float64(y - hz)
+		step, drift := 2+r*0.25, tide*(0.4+r*0.05)
+		if (y-hz)%2 == 0 {
+			drift = -drift
+		}
+		for x := range W {
+			crest := hash(int(math.Floor((float64(x)+drift)/step)), y, 3) < 0.22
+			if crest && math.Abs(float64(x)-lx) < 2*kl+r*0.15 { // o reflexo da lanterna
+				p.set(x, y, shade(glow, 0.3+max(0, sa)*0.6-r/k*0.012, x, y))
+				continue
+			}
+			v := 0.3 - r/k*0.006
+			if crest {
+				v += 0.26
+			}
+			p.set(x, y, shade(sea, v, 0, 0))
+		}
+	}
+
+	uv := func(x, y int) (float64, float64) {
+		return (float64(x) + 0.5 - lx) / kl, (float64(y) + 0.5 - float64(hz)) / kl
+	}
+	foam := hz + int(2*kl)
+	for x := int(lx - 22*kl); x <= int(lx+28*kl); x++ { // a ilha
+		u, _ := uv(x, 0)
+		top := -3 - 1.5*(1+math.Sin(u*0.5+1)) + max(0, math.Abs(u-4)-20)*0.6
+		if u > -13 && u < 22 {
+			top -= 4 + math.Sin(u*0.9)
+		}
+		for y := hz + int(top*kl); y <= foam; y++ {
+			_, v := uv(x, y)
+			col := shade([]uint8{233, 234, 236, 238, 240}, 0.6-(v-top)*0.07+(hash(x/2, y/2, 64)-0.5)*0.4-(u+22)/50*0.25, x, y)
+			if y == foam && hash(x, y, 63) < 0.5 {
+				col = 244 // a espuma
+			}
+			p.set(x, y, col)
+		}
+	}
+	for y := hz - int(38*kl); y < hz; y++ { // o farol e a cabana do faroleiro
+		for x := int(lx - 7*kl); x <= int(lx+20*kl); x++ {
+			u, v := uv(x, y)
+			p.set(x, y, lighthouseAt(u, v, x, y))
+		}
+	}
+
+	pier, end := lighthousePier(W, H), int(fw*0.34)
+	if b[2] > 0 {
+		end = max(end, b[0]+b[2]+4)
+	}
+	for x := range end { // o píer, com os pilares dentro da água
+		col := shade([]uint8{94, 137}, 0.7-float64(x)/fw, x, pier)
+		if int(float64(x)/k)%5 == 4 {
+			col = 233
+		}
+		p.set(x, pier, col)
+		p.set(x, pier+1, 94)
+	}
+	for _, u := range []float64{3, 14, 25, 33} {
+		for y := pier + 2; y < pier+int(8*k); y++ {
+			col := uint8(235)
+			if y > pier+int(5*k) {
+				col = 233
+			}
+			p.set(int(u*k), y, col)
+		}
+	}
+	if b[2] > 0 { // a placa, em dois postes fincados no píer
+		for y := 2 * (b[1] + b[3]); y < pier; y++ {
+			for _, x := range []int{b[0] + 3, b[0] + b[2] - 5} {
+				p.set(x, y, 94)
+				p.set(x+1, y, 58)
+			}
+		}
+		p.plank(b)
+	}
+	c.put(p)
+}
+
+// lighthouseAt: a cor do farol e da casa em (u, v), nas medidas da tela de 100×60; 0 é nada.
+func lighthouseAt(u, v float64, x, y int) uint8 {
+	au := math.Abs(u)
+	switch {
+	case au < 0.6 && v >= -37 && v < -35.4: // o para-raios
+		return 240
+	case math.Hypot(u/4.2, (v+33.4)/2.6) <= 1 && v < -33: // a cúpula
+		return shade([]uint8{52, 88, 131}, 0.6-u/4.2*0.4, x, y)
+	case v >= -33 && v < -28 && au < 3.5: // a lanterna, entre os montantes
+		switch r := v + 33; {
+		case au > 2.9 || au < 0.5:
+			return 238
+		case r < 1 || r >= 4:
+			return 179
+		case r >= 2 && r < 3:
+			return 230
+		}
+		return 222
+	case v >= -28 && v < -27 && au <= 6.5: // a varanda: o corrimão, os balaústres e o piso
+		return 239
+	case v >= -27 && v < -26 && au <= 6.5:
+		if int(math.Floor(u+7))%2 == 0 {
+			return 240
+		}
+		return 0
+	case v >= -26 && v < -25 && au <= 6.5:
+		if u < 0 {
+			return 239
+		}
+		return 237
+	case v >= -25 && v < -4 && au <= 3.8+(v+25)*0.11: // a torre listrada, com a lua pela esquerda
+		switch {
+		case au < 1.5 && v >= -9: // a porta
+			if v < -8 {
+				return 236
+			}
+			return 235
+		case au < 0.6 && v >= -20 && v < -18: // as janelinhas
+			if v < -19 {
+				return 179
+			}
+			return 137
+		case math.Abs(u+1) < 0.6 && v >= -14 && v < -12:
+			return 236
+		}
+		lit := 0.75 - u/(3.8+(v+25)*0.11)*0.45
+		if int(math.Floor((v+25)/5))%2 == 1 {
+			return shade([]uint8{52, 95, 131}, lit, x, y)
+		}
+		return shade([]uint8{240, 244, 248, 251}, lit, x, y)
+	case u >= 11.5 && u < 13 && v >= -5 && v < -3.5: // a cabana: a janela acesa, a parede e o telhado
+		return 179
+	case u >= 10 && u < 16 && v >= -6 && v < -2:
+		return shade([]uint8{239, 243, 246}, 0.65-(u-10)/6*0.5, x, y)
+	case v >= -10 && v < -6 && math.Abs(u-13) <= v+11.5:
+		return shade([]uint8{52, 95, 131}, 0.55-(u-13)/5*0.4, x, y)
+	}
+	return 0
+}
+
+// --- Gato e cachorro dormindo: no fim da tarde, com o sol entrando pela janela ---
+// O bicho respira (o corpo cresce e volta a cada 4,2 s); o gato mexe a ponta do rabo e o
+// cachorro, sonhando, a pata. Medidas de uma tela de 100×60 pixels,
+// multiplicadas por k, como no farol.
+
+type sleeper struct {
+	dog   bool
+	board [4]int // o calendário, em células (largura 0 = sem calendário)
+}
+
+// sleeperWindow: o tamanho k do desenho e as bordas da janela, em pixels.
+func sleeperWindow(W, H int) (k float64, x0, x1 int) {
+	k = min(float64(W)/100, float64(H)/60)
+	x0 = int(float64(W) * 0.06)
+	return k, x0, x0 + int(24*k)
+}
+
+// spot: o texto vai num calendário pendurado na parede, à direita da janela, escrito a caneta.
+func (s *sleeper) spot(w, h, tw, th int) (int, int, [3]string) {
+	k, _, x1 := sleeperWindow(w, h*2)
+	x, y := fitText(w, h, tw, th, max(x1+int(7*k)+7, min(w*72/100-tw/2, w-tw-7)), 4)
+	s.board = boardAt(x, y, tw, th)
+	return x, y, [3]string{"234", "234", "234"} // no papel liso, tudo escuro; o nome do wallpaper, no chão
+}
+
+func (s *sleeper) draw(c *canvas, t, dt float64) {
+	W, H := c.w, c.h*2
+	p := newPix(W, H)
+	fw := float64(W)
+	k, x0, x1 := sleeperWindow(W, H)
+	edge := H * 2 / 3 // onde o chão encosta na parede
+	y1 := int(5 * k)
+	y2 := max(y1+4, min(y1+int(25*k), edge-int(6*k)))
+	sun := func(x, y int) bool { // a mancha de sol no chão
+		r := float64(y - edge)
+		return y > edge && float64(x) >= float64(x1)-6*k+r*1.3 && float64(x) <= float64(x1)+22*k+r*1.7
+	}
+	for y := range edge {
+		for x := range W {
+			p.set(x, y, 138) // a parede rosada
+		}
+	}
+	for x := range W {
+		p.set(x, edge-2, 187) // o rodapé
+		p.set(x, edge-1, 144)
+	}
+	plank := max(8, int(24*k))
+	for y := edge; y < H; y++ { // o assoalho, em cor chapada: as tábuas do café e as emendas
+		n := int(math.Sqrt(float64(y-edge)) * 1.7)
+		seam := n != int(math.Sqrt(float64(y-edge+1))*1.7)
+		for x := range W {
+			joint, in, col := seam || (x+int(hash(n, 2, 5)*float64(plank)))%plank == 0, sun(x, y), uint8(137)
+			if in && !joint {
+				col = 180 // o sol no chão
+			}
+			if joint && !in {
+				col = 94
+			}
+			p.set(x, y, col)
+		}
+	}
+
+	wh := float64(y2 - y1) // a janela, com o pôr do sol, os morros longe e as cortinas
+	for y := y1; y < y2; y++ {
+		for x := x0; x < x1; x++ {
+			p.set(x, y, shade([]uint8{175, 181, 216, 223}, float64(y-y1)/wh, 0, 0))
+		}
+	}
+	p.oval(float64(x0)+16*k, float64(y2)-5*k, 4*k, 4*k, func(x, y int, d, dx, dy float64) uint8 {
+		if d < 0.7 {
+			return 230
+		}
+		return 229
+	})
+	cloud := func(x, y int, d, dx, dy float64) uint8 { return 224 }
+	p.oval(float64(x0)+6*k, float64(y1)+6*k, 5*k, 1.4*k, cloud)
+	p.oval(float64(x0)+19*k, float64(y1)+3*k, 4*k, 1.1*k, cloud)
+	for x := x0; x < x1; x++ {
+		for y := y2 - int((4+2*math.Sin(float64(x)/k*0.2))*k); y < y2; y++ {
+			p.set(x, y, 138)
+		}
+	}
+	mx, my := (x0+x1)/2, (y1+y2)/2
+	for y := y1 - 2; y < y2+2; y++ {
+		for x := x0 - 2; x < x1+2; x++ {
+			if y < y1 || y >= y2 || x < x0 || x >= x1 || x == mx || y == my {
+				col := uint8(144)
+				if x < mx {
+					col = 187
+				}
+				p.set(x, y, col)
+			}
+		}
+	}
+	for x := x0 - 4; x < x1+4; x++ {
+		p.set(x, y2+2, 230) // o peitoril
+		p.set(x, y2+3, 187)
+	}
+	for _, cx := range []int{x0 - 3 - int(4*k), x1 + 2} {
+		for y := int(2 * k); y < y2+int(6*k); y++ {
+			for x := cx; x <= cx+int(4*k); x++ {
+				p.set(x, y, shade([]uint8{65, 108, 151}, 0.55+0.3*math.Sin(float64(x)*1.6/k), x, y))
+			}
+		}
+	}
+	for x := x0 - 3 - int(4*k); x <= x1+2+int(4*k); x++ {
+		p.set(x, int(k), 137) // o varão
+	}
+
+	px, pb := fw-6*k, float64(edge)+1 // a costela-de-adão, no canto
+	for y := int(pb - 9*k); y <= int(pb); y++ {
+		r := (float64(y) - (pb - 9*k)) / k
+		for x := int(px - (4-r*0.2)*k); x <= int(px+(4-r*0.2)*k); x++ {
+			col := shade([]uint8{95, 131, 173}, 0.6-(float64(x)-px+4*k)/(8*k)*0.4, x, y)
+			if r < 1 {
+				col = 174
+			}
+			p.set(x, y, col)
+		}
+	}
+	for i := range 6 {
+		a, l := -math.Pi/2+(float64(i)-2.5)*0.5, (7+hash(i, 1, 99)*6)*k
+		sx, sy := px, pb-9*k
+		ex, ey := sx+math.Cos(a)*l, sy+math.Sin(a)*l
+		for j := 0.0; j <= 1; j += 0.5 / l {
+			p.set(int(sx+(ex-sx)*j), int(sy+(ey-sy)*j), 22)
+		}
+		p.oval(ex, ey, 3*k, 2.2*k, func(x, y int, d, dx, dy float64) uint8 {
+			if d > 0.8 {
+				return 22
+			}
+			v := 0.55 - dx*0.3
+			if x%3 == 0 && d > 0.4 {
+				v -= 0.3 // os recortes da folha
+			}
+			return shade([]uint8{28, 65, 71, 108}, v, x, y)
+		})
+	}
+
+	ax, ay := fw*0.44, float64(edge)+5*k // onde o bicho dorme
+	if s.dog {                           // o tapetinho branco
+		for y := int(ay + 2*k); y <= int(ay+12*k); y++ {
+			r := (float64(y) - ay - 2*k) / k
+			for x := int(ax + (r*0.4-24)*k); x <= int(ax+(32-r*0.7)*k); x++ {
+				col := uint8(252)
+				if hash(x/4, y/2, 7) < 0.18 {
+					col = 248 // as dobras
+				}
+				p.set(x, y, col)
+			}
+		}
+		p.oval(ax+2*k, ay+3.5*k, 18*k, 3.15*k, func(x, y int, d, dx, dy float64) uint8 { return 245 })
+	} else { // o tapete e a almofada
+		p.oval(ax+2*k, ay+7*k, 36*k, 7.5*k, func(x, y int, d, dx, dy float64) uint8 {
+			v := 0.4
+			if math.Sin(d*20) > 0.3 {
+				v = 0.75
+			}
+			return shade([]uint8{95, 131, 174}, v-dx*0.15-d*0.2, x, y)
+		})
+		p.oval(ax+2*k, ay+4.5*k, 21*k, 6.2*k, func(x, y int, d, dx, dy float64) uint8 { return shade([]uint8{23, 66}, 0.4-dx*0.3, x, y) })
+		p.oval(ax+2*k, ay+3*k, 21*k, 6*k, func(x, y int, d, dx, dy float64) uint8 {
+			v := 0.75 + dx*0.15 - dy*0.25
+			if d > 0.9 {
+				v -= 0.2
+			}
+			return shade([]uint8{23, 66, 109, 152}, v, x, y)
+		})
+		p.oval(ax+2*k, ay+2.2*k, 15.3*k, 2.88*k, func(x, y int, d, dx, dy float64) uint8 { return 66 }) // a marca do gato
+	}
+
+	breath := 1 + 0.035*math.Sin(t*2*math.Pi/4.2) // a respiração
+	if s.dog {
+		drawDog(p, ax, ay, k, t, breath)
+	} else {
+		drawCat(p, ax, ay, k, t, breath)
+	}
+	if b := s.board; b[2] > 0 { // o calendário, num prego: por cima do bicho, para o fundo do texto não mexer
+		s.board = [4]int{}
+		bx, by, bw, bh := b[0], 2*b[1], b[2], 2*b[3]
+		nx := bx + bw/2
+		p.set(nx, by-3, 247)
+		for i := range 13 {
+			f := float64(i) / 12
+			p.set(nx-int(f*float64(bw/2-2)), by-3+int(f*3), 95)
+			p.set(nx+int(f*float64(bw/2-2)), by-3+int(f*3), 95)
+		}
+		for y := by; y < by+bh; y++ {
+			for x := bx; x < bx+bw; x++ {
+				col := uint8(230) // o papel liso: a tarefa não some no pontilhado
+				if y < by+2 {
+					col = 131 // a espiral
+					if y == by && (x-bx-3)%5 == 0 {
+						col = 95
+					}
+				}
+				p.set(x, y, col)
+			}
+		}
+		for x := bx + 1; x <= bx+bw; x++ {
+			p.set(x, by+bh, 95) // a sombra
+		}
+		for y := by + 1; y <= by+bh; y++ {
+			p.set(bx+bw, y, 95)
+		}
+	}
+
+	c.put(p)
+}
+
+// drawCat: o gato tigrado de máscara, peito e patas brancos, enrolado e de cara para quem olha,
+// em tons chapados.
+func drawCat(p *pix, ax, ay, k, t, breath float64) {
+	tabby := func(v float64) uint8 {
+		switch {
+		case v > 0.72:
+			return 137
+		case v > 0.38:
+			return 95
+		}
+		return 237
+	}
+	white := func(v float64) uint8 {
+		if v > 0.55 {
+			return 252
+		}
+		return 247
+	}
+	p.oval(ax+4*k, ay-(breath-1)*7*k, 14.5*k*breath, 7.2*k*breath, func(x, y int, d, dx, dy float64) uint8 {
+		switch {
+		case dy > 0.5 && dx > -0.3 && dx < 0.55:
+			return white(0.9 - dy*0.4) // a barriga
+		case dy < 0.45 && d < 0.9 && math.Sin((float64(x)*0.8+float64(y)*0.55)/k) > 0.55:
+			return 236 // as listras
+		}
+		v := 0.62 - dx*0.25 - dy*0.35
+		if d > 0.9 {
+			v -= 0.3
+		}
+		return tabby(v)
+	})
+	p.oval(ax-4*k, ay+2.5*k, 5*k, 4.5*k, func(x, y int, d, dx, dy float64) uint8 { return white(0.9 - dx*0.2 - dy*0.3) }) // o peito
+	p.oval(ax-2.5*k, ay+5.8*k, 3*k, 1.5*k, func(x, y int, d, dx, dy float64) uint8 { return white(0.95 - dy*0.5) })       // a pata
+	flick := math.Mod(t, 9) < 0.7                                                                                         // a ponta do rabo mexe
+	for u := 0.0; u <= 1; u += 0.025 / k {
+		x, y := ax+(17-21*u)*k, ay+(5.4+1.1*math.Sin(u*math.Pi))*k
+		if flick && u > 0.88 {
+			y -= k
+		}
+		p.oval(x, y, 1.9*k, 1.5*k, func(_, _ int, d, dx, dy float64) uint8 {
+			switch {
+			case u > 0.93:
+				return 234 // a ponta escura
+			case int(u*10)%2 == 1:
+				return 236
+			case dy < -0.2:
+				return 137
+			}
+			return 95
+		})
+	}
+	hx, hy := ax-10*k, ay+0.5*k
+	catEar(p, hx-3.5*k, hy-9*k, k, 95)
+	catEar(p, hx+3.5*k, hy-9*k, k, 237)
+	p.oval(hx, hy, 6.6*k, 5.4*k, func(x, _ int, d, dx, dy float64) uint8 {
+		v := 0.85 - dx*0.25 - dy*0.2
+		if d > 0.92 {
+			v -= 0.3
+		}
+		switch {
+		case dy > 0.1 || math.Abs(dx) < 0.18 && dy > -0.8:
+			return white(v) // a máscara, subindo pela testa
+		case math.Abs(dx) > 0.3 && dy < -0.3 && x%2 == 0:
+			return 236
+		}
+		return tabby(v - 0.15)
+	})
+	for _, side := range []float64{-1, 1} { // os olhos fechados
+		for u := -1.0; u <= 1; u += 0.5 / k {
+			p.set(int(hx+(side*3+u)*k), int(hy+(1-math.Abs(u))*k), 235)
+		}
+	}
+	p.set(int(hx), int(hy+2*k), 174) // o nariz
+}
+
+// catEar: a orelha, um triângulo de 4k pixels de altura com o rosa por dentro.
+func catEar(p *pix, ax, ay, k float64, col uint8) {
+	for j := 0.0; j <= 4*k; j++ {
+		hw := j * 0.6
+		for i := math.Ceil(-hw); i <= math.Floor(hw); i++ {
+			c := col
+			if j >= 2*k && math.Abs(i) < hw-0.9 {
+				c = 138
+			}
+			p.set(int(ax+i), int(ay+j), c)
+		}
+	}
+}
+
+// drawDog: o cachorro amarelo de focinho branco, deitado com a cabeça nas patas, virado para a
+// esquerda.
+func drawDog(p *pix, ax, ay, k, t, breath float64) {
+	coat := func(v float64) uint8 { // em tons chapados, como o gato
+		switch {
+		case v > 0.78:
+			return 223
+		case v > 0.45:
+			return 180
+		case v > 0.2:
+			return 137
+		}
+		return 94
+	}
+	for u := 0.0; u <= 1; u += 0.05 / k { // o rabo
+		p.oval(ax+(19+5*u)*k, ay+(3+3*u)*k, 1.5*k, 1.5*k, func(x, y int, d, dx, dy float64) uint8 {
+			return coat(0.6 - dy*0.2 + u*0.2)
+		})
+	}
+	p.oval(ax+4*k, ay-((breath-1)*6.5-0.5)*k, 16*k*breath, 6.6*k*breath, func(x, y int, d, dx, dy float64) uint8 {
+		v := 0.68 - dx*0.2 - dy*0.35
+		if d > 0.9 {
+			v -= 0.2
+		}
+		if dy > 0.55 {
+			v += 0.15 // a barriga, mais clara
+		}
+		return coat(v)
+	})
+	p.oval(ax+12*k, ay+2*k, 5.5*k, 4*k, func(x, y int, d, dx, dy float64) uint8 { // a coxa
+		v := 0.62 - dx*0.25 - dy*0.3
+		if d > 0.85 {
+			v -= 0.25
+		}
+		return coat(v)
+	})
+	twitch, droop := 0.0, 0.0
+	if math.Mod(t, 11) < 0.5 {
+		twitch = math.Round(math.Sin(t * 25)) // sonhando: a pata mexe
+	}
+	if math.Mod(t, 8) < 0.3 {
+		droop = -1 // e a orelha
+	}
+	p.oval(ax-8*k, ay+5.9*k, 3.4*k, 1.4*k, func(x, y int, d, dx, dy float64) uint8 { return coat(0.8 - dy*0.2) })
+	p.oval(ax-14*k+twitch, ay+5.6*k, 3.6*k, 1.4*k, func(x, y int, d, dx, dy float64) uint8 { return coat(0.85 - dy*0.2) })
+	p.oval(ax-11*k, ay, 6*k, 4.8*k, func(x, y int, d, dx, dy float64) uint8 { // a cabeça
+		v := 0.72 - dx*0.25 - dy*0.3
+		if d > 0.92 {
+			v -= 0.2
+		}
+		return coat(v)
+	})
+	p.oval(ax-17*k, ay+2.2*k, 4.2*k, 2.6*k, func(x, y int, d, dx, dy float64) uint8 { // o focinho branco
+		v := 0.85 - dy*0.4
+		if dx < -0.85 {
+			v -= 0.3
+		}
+		if v > 0.6 {
+			return 253
+		}
+		return 247
+	})
+	for y := int(ay + k); y <= int(ay+2*k); y++ {
+		for x := int(ax - 21*k); x <= int(ax-20*k); x++ {
+			p.set(x, y, 233) // o nariz
+		}
+	}
+	for x := int(ax - 14*k); x <= int(ax-13*k); x++ {
+		p.set(x, int(ay-k), 236) // o olho fechado
+	}
+	p.oval(ax-8*k, ay+1.5*k+droop, 2.8*k, 4.8*k, func(x, y int, d, dx, dy float64) uint8 { // a orelha caída
+		v := 0.15 - dy*0.1
+		if dx < -0.5 {
+			v += 0.1
+		}
+		return coat(v)
+	})
 }
