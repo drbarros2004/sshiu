@@ -285,6 +285,7 @@ func (g *garden) render(m model) {
 	c.lang = m.lang
 	if g.bare {
 		g.scene.draw(c, t, dt)
+		c.drawOver()
 		g.frame = c.String()
 		return
 	}
@@ -375,6 +376,7 @@ func (g *garden) render(m model) {
 		}
 	}
 	put(lines, cx, y0, wd, func(i int) string { return ink[roles[i]] })
+	c.drawOver()
 	if g.mode == gardenEditor {
 		var protected image.Rectangle
 		if len(lines) > 0 {
@@ -422,6 +424,14 @@ type canvas struct {
 	cells []cell
 	raw   map[int][]rawSeg // por linha: trechos já em ANSI (os vídeos), que cobrem as células de baixo
 	lang  lang             // o idioma do pouco texto que as cenas escrevem (o hodômetro, um crédito)
+	over  []func()         // o que a cena pinta por cima do texto do relógio (a aura do brainrot)
+}
+
+// drawOver pinta, depois do texto, o que a cena deixou para ir por cima dele.
+func (c *canvas) drawOver() {
+	for _, f := range c.over {
+		f()
+	}
 }
 
 type rawSeg struct {
