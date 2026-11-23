@@ -25,12 +25,14 @@ func drawPress(c *canvas, b toyBox, t float64) {
 	ph := math.Mod(t, pressCycle) / pressCycle // de 0 a 1 no ciclo
 	baseY := h - 3                             // a mesa de baixo ocupa as últimas 3 linhas
 	topY := 3                                  // a viga de cima
-	objH0, objW0 := min(h/2, 14), min(w/3, 14) // o objeto inteiro
 	flat := 2                                  // a panqueca
 	plateH := 3
+	// o objeto inteiro cabe entre a viga e a mesa, com a placa em cima dele: numa tela baixa ele
+	// encolhe, e a placa sai já encostada nele, em vez de começar no meio do objeto e subir
+	objH0, objW0 := max(flat, min(h/2, 14, baseY-topY-plateH)), min(w/3, 14)
 	// a altura do objeto agora: inteira até a placa encostar, depois esmagada
-	free := float64(topY + plateH)           // a placa lá em cima
 	touch := float64(baseY - objH0 - plateH) // a placa encostando no objeto
+	free := min(float64(topY+plateH), touch) // a placa lá em cima
 	bottom := float64(baseY - flat - plateH) // a placa no fim do esmagamento
 	var plateY float64
 	switch {
@@ -217,7 +219,7 @@ func drawSoap(c *canvas, b toyBox, t float64) {
 	kx := (w-fullW-sliceW-bh)/2 + fullW // a linha da faca: o sabão à esquerda, a pilha à direita
 	px := kx + sliceW                   // onde a pilha começa
 	// face: a cor de um pixel da fatia em pé; lx é a coluna a partir da direita, ly a linha a partir de baixo
-	face := func(c [3]uint8, lx, ly, bh int) uint8 {
+	face := func(c [3]uint8, lx, ly int) uint8 {
 		switch {
 		case ly >= bh-2:
 			return c[0] // o topo, mais claro
@@ -229,7 +231,7 @@ func drawSoap(c *canvas, b toyBox, t float64) {
 	block := func(c [3]uint8, x0, bw int) { // em pé na tábua
 		for y := top; y < tableY; y++ {
 			for x := x0; x < x0+bw; x++ {
-				p.set(x, y, face(c, x0+bw-1-x, tableY-1-y, bh))
+				p.set(x, y, face(c, x0+bw-1-x, tableY-1-y))
 			}
 		}
 	}
@@ -243,7 +245,7 @@ func drawSoap(c *canvas, b toyBox, t float64) {
 				rx, ry := float64(x)+0.5-float64(ox), float64(y)+0.5-float64(oy)
 				u, v := -(rx*cs + ry*sn), rx*sn-ry*cs // em coordenadas da fatia em pé
 				if u >= 0 && u < float64(sliceW) && v >= 0 && v < float64(bh) {
-					p.set(x, y, face(c, int(u), int(v), bh))
+					p.set(x, y, face(c, int(u), int(v)))
 				}
 			}
 		}
@@ -260,7 +262,9 @@ func drawSoap(c *canvas, b toyBox, t float64) {
 	end := kx + int(float64(sliceW)*push) // a ponta direita do sabão
 	if done == 0 {
 		end = int(float64(kx+sliceW) * push)
-		pile(soapColors[(bar+len(soapColors)-1)%len(soapColors)], soapSlices, int(push*float64(w))) // a pilha do sabão anterior sai
+		if bar > 0 { // a pilha do sabão anterior sai; no primeiro sabão, desde que o jardim abriu, não há pilha
+			pile(soapColors[(bar+len(soapColors)-1)%len(soapColors)], soapSlices, int(push*float64(w)))
+		}
 	} else {
 		pile(col, done, 0)
 	}

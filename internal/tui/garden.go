@@ -424,13 +424,13 @@ type canvas struct {
 	cells []cell
 	raw   map[int][]rawSeg // por linha: trechos já em ANSI (os vídeos), que cobrem as células de baixo
 	lang  lang             // o idioma do pouco texto que as cenas escrevem (o hodômetro, um crédito)
-	over  []func()         // o que a cena pinta por cima do texto do relógio (a aura do brainrot)
+	over  func()           // o que a cena pinta por cima do texto do relógio (a aura do brainrot)
 }
 
 // drawOver pinta, depois do texto, o que a cena deixou para ir por cima dele.
 func (c *canvas) drawOver() {
-	for _, f := range c.over {
-		f()
+	if c.over != nil {
+		c.over()
 	}
 }
 
