@@ -25,12 +25,14 @@ func drawPress(c *canvas, b toyBox, t float64) {
 	ph := math.Mod(t, pressCycle) / pressCycle // de 0 a 1 no ciclo
 	baseY := h - 3                             // a mesa de baixo ocupa as últimas 3 linhas
 	topY := 3                                  // a viga de cima
-	objH0, objW0 := min(h/2, 14), min(w/3, 14) // o objeto inteiro
 	flat := 2                                  // a panqueca
 	plateH := 3
+	// o objeto inteiro cabe entre a viga e a mesa, com a placa em cima dele: numa tela baixa ele
+	// encolhe, e a placa sai já encostada nele, em vez de começar no meio do objeto e subir
+	objH0, objW0 := max(flat, min(h/2, 14, baseY-topY-plateH)), min(w/3, 14)
 	// a altura do objeto agora: inteira até a placa encostar, depois esmagada
-	free := float64(topY + plateH)           // a placa lá em cima
 	touch := float64(baseY - objH0 - plateH) // a placa encostando no objeto
+	free := min(float64(topY+plateH), touch) // a placa lá em cima
 	bottom := float64(baseY - flat - plateH) // a placa no fim do esmagamento
 	var plateY float64
 	switch {
@@ -47,7 +49,7 @@ func drawPress(c *canvas, b toyBox, t float64) {
 	switch {
 	case ph >= 0.75: // depois de esmagado, fica achatado até o próximo ciclo
 		objH = flat
-	case ph >= 0.3:
+	case ph >= 0.3: // colado na placa: o topo do objeto é a linha logo abaixo dela
 		objH = max(flat, min(objH0, baseY-int(plateY)-plateH))
 	}
 	// a coluna e a viga
@@ -90,7 +92,7 @@ func drawPress(c *canvas, b toyBox, t float64) {
 	}
 	// o objeto, esticado para os lados conforme achata
 	objW := min(w-8, objW0*objH0/max(objH, 1))
-	drawObject(p, pressObjects[n%len(pressObjects)], w/2-objW/2, baseY-objH, objW, objH, objH < objH0)
+	drawObject(p, pressObjects[n%len(pressObjects)], w/2-objW/2, baseY-objH, objW, objH, objH*5 < objH0*3)
 	// os respingos, logo depois do esmagamento
 	if ph > 0.5 && ph < 0.8 {
 		k := (ph - 0.5) / 0.3
@@ -122,13 +124,21 @@ func objectColor(kind string) uint8 {
 	return 213
 }
 
-// drawObject: o objeto em ow × oh pixels com o canto em (x, y). Esmagado, ele perde os detalhes.
+// drawObject: o objeto em ow × oh pixels com o canto em (x, y). Esmagado, ele perde os detalhes e
+// o corpo ocupa a caixa toda, para encostar na placa (senão sobra uma faixa preta entre os dois).
 func drawObject(p *pix, kind string, x, y, ow, oh int, squashed bool) {
 	cx, cy := float64(x)+float64(ow)/2, float64(y)+float64(oh)/2
 	rx, ry := float64(ow)/2, float64(oh)/2
+	body := func(k float64) (float64, float64) { // o centro e o raio do corpo: embaixo, ou a caixa toda
+		if squashed {
+			return cy, ry
+		}
+		return cy + ry*(1-k), ry * k
+	}
 	switch kind {
 	case "duck": // o pato de borracha: corpo, cabeça e bico
-		p.oval(cx, cy+ry*0.25, rx, ry*0.75, func(x, y int, d, dx, dy float64) uint8 { return shade([]uint8{226, 220, 214}, 0.3+dy*0.4+d*0.3, x, y) })
+		by, bry := body(0.75)
+		p.oval(cx, by, rx, bry, func(x, y int, d, dx, dy float64) uint8 { return shade([]uint8{226, 220, 214}, 0.3+dy*0.4+d*0.3, x, y) })
 		if !squashed {
 			p.oval(cx+rx*0.35, cy-ry*0.45, rx*0.42, ry*0.45, func(x, y int, d, dx, dy float64) uint8 { return shade([]uint8{226, 220}, 0.3+dy*0.5, x, y) })
 			p.set(int(cx+rx*0.5), int(cy-ry*0.55), 16)
@@ -162,7 +172,12 @@ func drawObject(p *pix, kind string, x, y, ow, oh int, squashed bool) {
 			return 34
 		})
 	default: // o ursinho de goma, translúcido
-		p.oval(cx, cy+ry*0.3, rx*0.7, ry*0.7, func(xx, yy int, d, dx, dy float64) uint8 { return shade([]uint8{219, 213, 207}, d, xx, yy) })
+		by, bry := body(0.7)
+		brx := rx * 0.7
+		if squashed {
+			brx = rx
+		}
+		p.oval(cx, by, brx, bry, func(xx, yy int, d, dx, dy float64) uint8 { return shade([]uint8{219, 213, 207}, d, xx, yy) })
 		if !squashed {
 			p.oval(cx, cy-ry*0.5, rx*0.5, ry*0.4, func(xx, yy int, d, dx, dy float64) uint8 { return shade([]uint8{219, 213}, d, xx, yy) })
 			p.oval(cx-rx*0.4, cy-ry*0.8, rx*0.2, ry*0.2, func(int, int, float64, float64, float64) uint8 { return 213 })
@@ -180,8 +195,10 @@ const (
 	soapSlices = 8
 )
 
-// drawSoap: o sabão numa caixa de b.w × 2·b.h pixels. A faca desce na ponta do sabão, a fatia
-// tomba para a direita e cai na pilha; quando o sabão acaba, vem outro de outra cor.
+// drawSoap: o sabão numa caixa de b.w × 2·b.h pixels, como num fatiador: o sabão é empurrado até
+// passar da faca, a faca desce, a fatia tomba girando por cima da quina e cai deitada na pilha, e
+// as lascas voam e caem na tábua. Quando o sabão acaba, a pilha sai pela direita e entra outro,
+// de outra cor, pela esquerda.
 func drawSoap(c *canvas, b toyBox, t float64) {
 	p := newPix(b.w, 2*b.h)
 	w, h := p.w, p.h
@@ -189,7 +206,7 @@ func drawSoap(c *canvas, b toyBox, t float64) {
 	bar, done := cut/soapSlices, cut%soapSlices // qual sabão, quantas fatias já saíram
 	ph := math.Mod(t, soapCut) / soapCut
 	col := soapColors[bar%len(soapColors)]
-	tableY := h - 2
+	tableY := h - 2 // a primeira linha da tábua
 	for y := tableY; y < h; y++ {
 		for x := range w {
 			p.set(x, y, []uint8{137, 94}[y-tableY]) // a tábua de madeira
@@ -197,63 +214,98 @@ func drawSoap(c *canvas, b toyBox, t float64) {
 	}
 	sliceW := max(2, w/24)
 	fullW := soapSlices * sliceW
-	bx := w/2 - fullW/2 - w/8
 	bh := min(h-6, 12)
 	top := tableY - bh
-	left := fullW - done*sliceW // o que sobra do sabão
-	soap := func(x0, y0, sw, sh int) {
-		for y := y0; y < y0+sh; y++ {
-			for x := x0; x < x0+sw; x++ {
-				v := col[1]
-				switch {
-				case y < y0+2:
-					v = col[0] // o topo, mais claro
-				case x == x0+sw-1:
-					v = col[2] // a face cortada
-				}
-				p.set(x, y, v)
+	kx := (w-fullW-sliceW-bh)/2 + fullW // a linha da faca: o sabão à esquerda, a pilha à direita
+	px := kx + sliceW                   // onde a pilha começa
+	// face: a cor de um pixel da fatia em pé; lx é a coluna a partir da direita, ly a linha a partir de baixo
+	face := func(c [3]uint8, lx, ly int) uint8 {
+		switch {
+		case ly >= bh-2:
+			return c[0] // o topo, mais claro
+		case lx == 0:
+			return c[2] // a face cortada, à direita
+		}
+		return c[1]
+	}
+	block := func(c [3]uint8, x0, bw int) { // em pé na tábua
+		for y := top; y < tableY; y++ {
+			for x := x0; x < x0+bw; x++ {
+				p.set(x, y, face(c, x0+bw-1-x, tableY-1-y))
 			}
 		}
 	}
-	soap(bx, top, left, bh)
-	// a fatia que está saindo: em pé até a faca passar, depois tomba deitada para a direita
-	sx := bx + left - sliceW
-	if ph > 0.55 {
-		k := min((ph-0.55)/0.35, 1)
-		lean := int(k * float64(bh-sliceW))
-		soap(sx+sliceW+lean/2, top+lean, sliceW+lean, max(sliceW, bh-lean))
+	// slab: uma fatia girada ang (0 = em pé, π/2 = deitada) em volta da quina de baixo, à direita,
+	// que fica em (ox, oy). Tomba para a direita: o topo vira a ponta direita e a face cortada, a
+	// linha de baixo, que separa as fatias na pilha.
+	slab := func(c [3]uint8, ox, oy int, ang float64) {
+		sn, cs := math.Sin(ang), math.Cos(ang)
+		for y := oy - bh - 1; y <= oy; y++ {
+			for x := ox - sliceW - 1; x <= ox+bh; x++ {
+				rx, ry := float64(x)+0.5-float64(ox), float64(y)+0.5-float64(oy)
+				u, v := -(rx*cs + ry*sn), rx*sn-ry*cs // em coordenadas da fatia em pé
+				if u >= 0 && u < float64(sliceW) && v >= 0 && v < float64(bh) {
+					p.set(x, y, face(c, int(u), int(v)))
+				}
+			}
+		}
 	}
-	// a pilha de fatias, deitadas ao lado
-	pileX := bx + fullW + 3
-	for i := range done {
-		y := tableY - (i+1)*sliceW/2 - 1
-		soap(pileX+int(hash(i, bar, 4)*3), y, bh, max(1, sliceW/2))
+	jitter := func(i int) int { return int(hash(i, bar, 4) * 2) } // a pilha não sai certinha
+	pile := func(c [3]uint8, n, dx int) {                         // n fatias deitadas, uma em cima da outra
+		for i := range n {
+			slab(c, px+dx+jitter(i), tableY-i*sliceW, math.Pi/2)
+		}
 	}
-	// a faca: lâmina prateada que desce até a tábua e volta
-	kx := bx + left - sliceW - 1
+	// o sabão, empurrado até passar da faca o tamanho de uma fatia; o primeiro entra pela esquerda
+	left := fullW - done*sliceW
+	push := ease(min(ph/0.2, 1))
+	end := kx + int(float64(sliceW)*push) // a ponta direita do sabão
+	if done == 0 {
+		end = int(float64(kx+sliceW) * push)
+		if bar > 0 { // a pilha do sabão anterior sai; no primeiro sabão, desde que o jardim abriu, não há pilha
+			pile(soapColors[(bar+len(soapColors)-1)%len(soapColors)], soapSlices, int(push*float64(w)))
+		}
+	} else {
+		pile(col, done, 0)
+	}
+	if ph < 0.45 { // inteiro, com a fatia ainda presa
+		block(col, end-left, left)
+	} else { // a fatia tomba acelerando, como quem cai, e pousa em cima da pilha
+		block(col, kx-left+sliceW, left-sliceW)
+		k := min((ph-0.45)/0.35, 1)
+		ang := k * k * math.Pi / 2
+		slab(col, px+int(float64(jitter(done))*k), tableY-int(math.Round(float64(done*sliceW)*math.Sin(ang))), ang)
+	}
+	// a faca: desce rápido até a tábua, espera a fatia soltar e volta
 	depth := 0.0
 	switch {
-	case ph < 0.45:
-		depth = ph / 0.45
-	case ph < 0.55:
+	case ph < 0.2:
+	case ph < 0.4:
+		depth = ease((ph - 0.2) / 0.2)
+	case ph < 0.5:
 		depth = 1
 	default:
-		depth = 1 - (ph-0.55)/0.45
+		depth = 1 - ease(min((ph-0.5)/0.4, 1))
 	}
-	tip := top - 4 + int(depth*float64(bh+4))
-	for y := max(0, tip-12); y <= tip; y++ {
-		p.set(kx, y, 252)
-		p.set(kx+1, y, 248)
+	tip := top - 5 + int(depth*float64(bh+5)) // a ponta encosta na tábua
+	for y := max(0, tip-bh-2); y < tip; y++ {
+		p.set(kx-1, y, 252) // a lâmina
+		p.set(kx, y, 248)
 	}
-	for y := max(0, tip-18); y < max(0, tip-12); y++ { // o cabo
-		p.set(kx, y, 94)
-		p.set(kx+1, y, 130)
+	for y := max(0, tip-bh-6); y < max(0, tip-bh-2); y++ { // o cabo
+		p.set(kx-1, y, 94)
+		p.set(kx, y, 130)
 	}
-	// as lascas que voam no corte
-	if ph > 0.2 && ph < 0.6 {
-		for i := range 4 {
-			k := (ph - 0.2) / 0.4
-			p.set(kx+2+int(k*6*hash(i, cut, 7)), top+int(k*float64(bh)*hash(i, cut, 8)), col[0])
+	// as lascas: saem do corte, sobem um pouco e caem na tábua, onde ficam até o próximo corte
+	if ph > 0.3 {
+		k := (ph - 0.3) / 0.7
+		for i := range 5 {
+			vx := (hash(i, cut, 7) - 0.3) * 10
+			vy := -2 - 4*hash(i, cut, 8)
+			y0 := float64(top) + float64(bh)*hash(i, cut, 9)
+			x := float64(kx) + vx*k
+			y := min(y0+vy*k+30*k*k, float64(tableY-1))
+			p.set(int(x), int(y), col[0])
 		}
 	}
 	c.putAt(p, b.x, b.y)

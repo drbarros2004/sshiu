@@ -245,3 +245,28 @@ func TestCanvasWideText(t *testing.T) {
 		t.Errorf("na borda: got %q", got)
 	}
 }
+
+// A aura do brainrot sobe por cima do quadro do relógio: em algum quadro, ela cobre a linha de
+// quem mais está focando.
+func TestBrainrotAuraOverText(t *testing.T) {
+	t0 := time.Now()
+	foc := func(id, nick string) rooms.Member {
+		return rooms.Member{ID: id, Nick: nick, Status: rooms.Focusing, Focus: rooms.Focus{Task: "teste", Start: t0, Ends: t0.Add(20 * time.Minute)}}
+	}
+	me := foc("a", "eu")
+	m := model{id: "a", now: t0, width: 160, height: 48, w: rooms.World{
+		Users: map[string]rooms.Member{"a": me},
+		Rooms: map[string]rooms.Snapshot{"R": {Members: []rooms.Member{me, foc("b", "ana-bot"), foc("c", "bruno-bot"), foc("d", "duda-bot")}}},
+	}}
+	m.vis = store.Garden{Wallpaper: "brainrot", Joke: true, Clock: 1, Task: true, Room: true}
+	m, _ = m.openGarden(gardenFocus)
+	line := focusingLine(m.lang, []string{"ana-bot", "bruno-bot", "duda-bot"}, 154)
+	for i := range 200 {
+		m.now = t0.Add(time.Duration(i) * 125 * time.Millisecond)
+		m.garden.render(m)
+		if s := ansi.Strip(m.garden.frame); strings.Contains(s, "focando") && !strings.Contains(s, line) {
+			return
+		}
+	}
+	t.Errorf("em 25 s, a aura nunca passou por cima de %q", line)
+}
