@@ -127,6 +127,36 @@ func TestProfileFitsHeight(t *testing.T) {
 	}
 }
 
+// Os painéis empilhados ganham uma linha vazia entre eles só quando cabe tudo assim: o espaço
+// nunca esconde um painel, e com altura de sobra ele aparece.
+func TestProfilePanelsSpacing(t *testing.T) {
+	m := model{nick: "ana", now: time.Now(), st: newStyles(themes[0]), days: map[string]float64{},
+		pet: pet.Pet{LastActive: time.Now(), Energy: 50}, totals: store.Totals{Tasks: 3, Done: 3, Bands: [3][2]int{{3, 3}}}}
+	m.hours[9] = 60
+	for range 8 {
+		m.tasks = append(m.tasks, store.TaskRow{Start: m.now, Task: "lista 3", Result: pet.Done})
+	}
+	spaced := false
+	for h := 30; h <= 70; h++ {
+		lines := strings.Split(ansi.Strip(m.profileView(114, h)), "\n")
+		i := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "quando você foca") })
+		if i < 1 {
+			continue
+		}
+		col := len([]rune(lines[i][:strings.Index(lines[i], "╭─ quando")]))
+		if above := []rune(lines[i-1]); col < len(above) && above[col] == '╰' {
+			continue // encostado no painel de cima
+		}
+		spaced = true
+		if view := strings.Join(lines, "\n"); !strings.Contains(view, "o que você cumpre") || strings.Count(view, "lista 3") != len(m.tasks) {
+			t.Fatalf("114x%d: com espaço, mas sem todos os painéis e todas as tarefas:\n%s", h, view)
+		}
+	}
+	if !spaced {
+		t.Fatal("em 114x70 os painéis ainda estão encostados")
+	}
+}
+
 // O primeiro acesso diz que a cor é o último passo, e o enter leva para a sala.
 func TestFirstAccessEndsInRoom(t *testing.T) {
 	if err := store.Open(":memory:"); err != nil {

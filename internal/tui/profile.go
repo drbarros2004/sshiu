@@ -4,6 +4,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"sshiu/internal/pet"
 	"sshiu/internal/rooms"
 	"sshiu/internal/store"
@@ -128,7 +129,7 @@ func (m model) profileView(w, h int) string {
 			return title + "\n" + body
 		}
 		info := stack(h, "\n\n", []string{
-			titleNick + "\n" + gap + humor + fmt.Sprintf("%-9s", m.t("streak")) + m.streakText() + "\n" + m.colorRow(),
+			titleNick + "\n" + gap + humor + fmt.Sprintf("%-9s", m.t("streak")) + m.streakText() + "\n\n" + m.colorRow(),
 			monthSec, numsSec, sec(hoursT, hours), sec(bandsT, bands),
 		}, func(k int) string { return bold.Render(m.t("últimas tarefas")) + "\n" + strings.Join(tasks[:k], "\n") }, len(tasks))
 		return lipgloss.JoinHorizontal(lipgloss.Top, d, "    ", info)
@@ -153,21 +154,29 @@ func (m model) profileView(w, h int) string {
 	// o mês ao lado do calendário só com largura para os números inteiros, sem o "…" do box
 	beside := calCols + 4 + 1 + lipgloss.Width(nums) + 4
 
-	// largo e alto: o pet grande à esquerda, e à direita o mês, a hora e as faixas
+	// largo e alto: o pet grande à esquerda, e à direita o mês, a hora e as faixas. Os painéis
+	// empilhados levam uma linha vazia entre eles, como a coluna vazia entre os lado a lado, só
+	// quando cabe tudo assim; senão voltam a encostar, para o espaço não esconder painel.
 	l := left(true)
 	if rw := w - lipgloss.Width(l) - 1; rw >= calCols+4+1+30 {
-		calRow := lipgloss.JoinHorizontal(lipgloss.Top, calB, " ", m.box(monthT, nums, rw-calCols-5, lipgloss.Height(calB)-2))
-		if rw < beside { // os números não cabem inteiros ao lado: descem para baixo do calendário
-			calRow = m.box(title, calBody, rw, 0) + "\n" + m.box(monthT, nums, rw, 0)
+		recentW := func(k int) string {
+			return m.box(m.st.title.Render(m.t("últimas tarefas")), strings.Join(tasks[:k], "\n"), rw, 0)
 		}
-		right := lipgloss.JoinVertical(lipgloss.Left, calRow, m.box(hoursT, hours, rw, 0), m.box(bandsT, bands, rw, 0))
+		column := func(sep string) string {
+			calRow := lipgloss.JoinHorizontal(lipgloss.Top, calB, " ", m.box(monthT, nums, rw-calCols-5, lipgloss.Height(calB)-2))
+			if rw < beside { // os números não cabem inteiros ao lado: descem para baixo do calendário
+				calRow = m.box(title, calBody, rw, 0) + sep + m.box(monthT, nums, rw, 0)
+			}
+			return panels(sep, calRow, m.box(hoursT, hours, rw, 0), m.box(bandsT, bands, rw, 0))
+		}
+		if all := lipgloss.JoinHorizontal(lipgloss.Top, l, " ", panels("\n\n", column("\n\n"), recentW(len(tasks)))); lipgloss.Height(all) <= h {
+			return all
+		}
+		right := column("\n")
 		if top := lipgloss.JoinHorizontal(lipgloss.Top, l, " ", right); lipgloss.Height(top) <= h {
-			if len(tasks) > 0 {
-				for k := len(tasks); k > 0; k-- {
-					withTasks := right + "\n" + m.box(m.st.title.Render(m.t("últimas tarefas")), strings.Join(tasks[:k], "\n"), rw, 0)
-					if lipgloss.Height(withTasks) <= h {
-						return lipgloss.JoinHorizontal(lipgloss.Top, l, " ", withTasks)
-					}
+			for k := len(tasks); k > 0; k-- {
+				if withTasks := right + "\n" + recentW(k); lipgloss.Height(withTasks) <= h {
+					return lipgloss.JoinHorizontal(lipgloss.Top, l, " ", withTasks)
 				}
 			}
 			return top
@@ -186,7 +195,16 @@ func (m model) profileView(w, h int) string {
 			m.box(monthT, nums, w, 0)}
 	}
 	secs = append(secs, m.box(hoursT, hours, w, 0), m.box(bandsT, bands, w, 0))
+	if all := panels("\n\n", append(secs, recent(len(tasks)))...); lipgloss.Height(all) <= h {
+		return all
+	}
 	return stack(h, "\n", secs, recent, len(tasks))
+}
+
+// panels: os painéis um embaixo do outro, separados por sep; o painel vazio (o box sem conteúdo,
+// antes da primeira tarefa) some sem deixar linha.
+func panels(sep string, ps ...string) string {
+	return strings.Join(slices.DeleteFunc(slices.Clone(ps), func(s string) bool { return s == "" }), sep)
 }
 
 // Ajuste o respiro da imagem sem alterar seus quadros ou sua posição do chapéu.
