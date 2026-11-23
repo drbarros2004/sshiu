@@ -145,8 +145,8 @@ func (m model) profileView(w, h int) string {
 		in := max(lipgloss.Width(d), lipgloss.Width(state), lipgloss.Width(first))
 		return m.box(titleNick, first+lipgloss.PlaceHorizontal(in, lipgloss.Center, d)+"\n\n"+state, in+4, 0)
 	}
-	recent := func(k int) string {
-		return m.box(m.st.title.Render(m.t("últimas tarefas")), strings.Join(tasks[:k], "\n"), w, 0)
+	tasksBox := func(k, width int) string {
+		return m.box(m.st.title.Render(m.t("últimas tarefas")), strings.Join(tasks[:k], "\n"), width, 0)
 	}
 	calBody := calG + "\n\n" + legend
 	calB := m.box(title, calBody, calCols+4, 0)
@@ -159,23 +159,18 @@ func (m model) profileView(w, h int) string {
 	// quando cabe tudo assim; senão voltam a encostar, para o espaço não esconder painel.
 	l := left(true)
 	if rw := w - lipgloss.Width(l) - 1; rw >= calCols+4+1+30 {
-		recentW := func(k int) string {
-			return m.box(m.st.title.Render(m.t("últimas tarefas")), strings.Join(tasks[:k], "\n"), rw, 0)
+		col := []string{lipgloss.JoinHorizontal(lipgloss.Top, calB, " ", m.box(monthT, nums, rw-calCols-5, lipgloss.Height(calB)-2))}
+		if rw < beside { // os números não cabem inteiros ao lado: descem para baixo do calendário
+			col = []string{m.box(title, calBody, rw, 0), m.box(monthT, nums, rw, 0)}
 		}
-		column := func(sep string) string {
-			calRow := lipgloss.JoinHorizontal(lipgloss.Top, calB, " ", m.box(monthT, nums, rw-calCols-5, lipgloss.Height(calB)-2))
-			if rw < beside { // os números não cabem inteiros ao lado: descem para baixo do calendário
-				calRow = m.box(title, calBody, rw, 0) + sep + m.box(monthT, nums, rw, 0)
-			}
-			return panels(sep, calRow, m.box(hoursT, hours, rw, 0), m.box(bandsT, bands, rw, 0))
-		}
-		if all := lipgloss.JoinHorizontal(lipgloss.Top, l, " ", panels("\n\n", column("\n\n"), recentW(len(tasks)))); lipgloss.Height(all) <= h {
+		col = append(col, m.box(hoursT, hours, rw, 0), m.box(bandsT, bands, rw, 0))
+		if all := lipgloss.JoinHorizontal(lipgloss.Top, l, " ", panels("\n\n", append(col, tasksBox(len(tasks), rw))...)); lipgloss.Height(all) <= h {
 			return all
 		}
-		right := column("\n")
+		right := panels("\n", col...)
 		if top := lipgloss.JoinHorizontal(lipgloss.Top, l, " ", right); lipgloss.Height(top) <= h {
 			for k := len(tasks); k > 0; k-- {
-				if withTasks := right + "\n" + recentW(k); lipgloss.Height(withTasks) <= h {
+				if withTasks := right + "\n" + tasksBox(k, rw); lipgloss.Height(withTasks) <= h {
 					return lipgloss.JoinHorizontal(lipgloss.Top, l, " ", withTasks)
 				}
 			}
@@ -195,10 +190,16 @@ func (m model) profileView(w, h int) string {
 			m.box(monthT, nums, w, 0)}
 	}
 	secs = append(secs, m.box(hoursT, hours, w, 0), m.box(bandsT, bands, w, 0))
-	if all := panels("\n\n", append(secs, recent(len(tasks)))...); lipgloss.Height(all) <= h {
+	return stackSpaced(h, "\n\n", "\n", secs, func(k int) string { return tasksBox(k, w) }, len(tasks))
+}
+
+// stackSpaced: as seções com o espaço wide entre elas quando cabem todas, com todas as tarefas;
+// senão, o stack com o sep de sempre, que tira de baixo o que não cabe. O espaço nunca esconde nada.
+func stackSpaced(h int, wide, sep string, secs []string, tasks func(k int) string, n int) string {
+	if all := panels(wide, append(secs, tasks(n))...); lipgloss.Height(all) <= h {
 		return all
 	}
-	return stack(h, "\n", secs, recent, len(tasks))
+	return stack(h, sep, secs, tasks, n)
 }
 
 // panels: os painéis um embaixo do outro, separados por sep; o painel vazio (o box sem conteúdo,

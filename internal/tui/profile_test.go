@@ -139,11 +139,11 @@ func TestProfilePanelsSpacing(t *testing.T) {
 	spaced := false
 	for h := 30; h <= 70; h++ {
 		lines := strings.Split(ansi.Strip(m.profileView(114, h)), "\n")
-		i := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "quando você foca") })
+		i := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "╭─ quando você foca") })
 		if i < 1 {
 			continue
 		}
-		col := len([]rune(lines[i][:strings.Index(lines[i], "╭─ quando")]))
+		col := len([]rune(lines[i][:strings.Index(lines[i], "╭─ quando você foca")]))
 		if above := []rune(lines[i-1]); col < len(above) && above[col] == '╰' {
 			continue // encostado no painel de cima
 		}
