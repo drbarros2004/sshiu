@@ -70,6 +70,7 @@ func dynamicTexts() []string {
 	}
 	s = append(s, weekdays[:]...)
 	s = append(s, periods...)   // os períodos da tabela de foco
+	s = append(s, auraText...)  // o que sobe no brainrot
 	for _, c := range devCols { // as colunas da aba dev
 		s = append(s, c.name)
 	}

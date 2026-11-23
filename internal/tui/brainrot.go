@@ -155,6 +155,27 @@ type brainrot struct{ l, r *clip }
 func (d brainrot) draw(c *canvas, t, dt float64) {
 	maxW := (c.w-48)/2 - 2 // 48 colunas no meio para o relógio, a tarefa e quem mais está focando
 	l, r := d.l.size(maxW, c.h-2), d.r.size(maxW, c.h-2)
-	c.text(2, l.put(c, t, 2), c.lang.t("vídeo de orbital (CC BY)"), "240") // o crédito que o CC BY pede
+	credit := l.put(c, t, 2)
 	r.put(c, t, c.w-2-r.w)
+	// o crédito que o CC BY pede vai por último: nada do que se mexe pode passar por cima dele
+	defer c.text(2, credit, c.lang.t("vídeo de orbital (CC BY)"), "240")
+	// o vão entre os vídeos, em cima e embaixo do relógio, que fica no meio com ~7 linhas para
+	// cada lado: a prensa em cima e o sabão embaixo (#79)
+	x0, x1 := 2+l.w+2, c.w-2-r.w-2
+	gw := min(x1-x0, 32)
+	if gw < 16 {
+		return
+	}
+	gx := x0 + (x1-x0-gw)/2
+	if rows := c.h/2 - 7 - 1; rows >= 5 {
+		rows = min(rows, 14)
+		drawPress(c, toyBox{gx, c.h/2 - 7 - rows, gw, rows}, t)
+	}
+	if rows := c.h - 5 - (c.h/2 + 7); rows >= 4 { // 5: o rodapé da prévia e a linha em volta dele
+		rows = min(rows, 10)
+		drawSoap(c, toyBox{gx, c.h/2 + 7, gw, rows}, t)
+	}
+	// e, nos vãos dos lados, a aura subindo
+	drawAura(c, toyBox{x0, 1, gx - 1 - x0, c.h - 5}, t, 0)
+	drawAura(c, toyBox{gx + gw + 1, 1, x1 - gx - gw - 1, c.h - 5}, t, 1)
 }

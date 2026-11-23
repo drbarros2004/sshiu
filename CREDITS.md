@@ -4,7 +4,7 @@ Arte e animações de terceiros, ou inspiradas em terceiros, só com licença pe
 
 ## Wallpapers do modo jardim
 
-Todos foram escritos do zero em Go, em [`internal/tui/garden.go`](internal/tui/garden.go) e, os de pixel art, em [`internal/tui/garden_pixels.go`](internal/tui/garden_pixels.go). Nenhum código ou arte foi copiado; os projetos abaixo serviram de inspiração e ficam creditados.
+Todos foram escritos do zero em Go, em [`internal/tui/garden.go`](internal/tui/garden.go) e, os de pixel art, em [`internal/tui/garden_pixels.go`](internal/tui/garden_pixels.go) (os brinquedos do brainrot, em [`internal/tui/brainrot_toys.go`](internal/tui/brainrot_toys.go)). Nenhum código ou arte foi copiado; os projetos abaixo serviram de inspiração e ficam creditados.
 
 | Wallpaper | Inspirado em | Licença |
 |---|---|---|
@@ -12,6 +12,7 @@ Todos foram escritos do zero em Go, em [`internal/tui/garden.go`](internal/tui/g
 | chuva lenta | [Terminal Rain](https://github.com/rmaake1/terminal-rain-lightning) | MIT |
 | lâmpada de lava | [lavat](https://github.com/AngelJumbo/lavat) | MIT |
 | café, árvore, estrada à noite, farol, gato dormindo, cachorro dormindo | desenhos nossos | — |
+| a prensa hidráulica, o sabão e a aura do brainrot | desenhos nossos, na ideia dos vídeos de prensa e de corte de sabão | — |
 
 ## Vídeos do wallpaper brainrot
 
