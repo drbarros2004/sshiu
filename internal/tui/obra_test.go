@@ -399,46 +399,40 @@ func TestApelidoEmbaixoDaPeca(t *testing.T) {
 	}
 }
 
-// A tela abre mão das coisas na ordem certa quando falta altura: a obra encolhe antes de sair,
-// e sai por último, porque sair primeiro era o mesmo que nunca aparecer (ADR 0008).
+// A tela abre mão das coisas na ordem certa quando falta altura (ADR 0012): a faixa encolhe com os
+// cards cheios, os cards viram médios antes de a faixa sair, e os pets só viram ponto com a faixa
+// já fora da tela.
 func TestFitSteps(t *testing.T) {
 	sala := rooms.Snapshot{Obra: "cidade", Meta: 60, Max: rooms.MaxMembers, Members: []rooms.Member{
 		{ID: "eu", Nick: "eu"}, {ID: "a", Nick: "ana"}, {ID: "b", Nick: "bruno"},
 	}}
 	m := model{id: "eu", room: "s", w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": sala}}}
-	steps := m.fitSteps(sala, 120)
-	if len(steps) < 4 {
-		t.Fatalf("passos de menos: %d", len(steps))
+	steps := m.fitSteps(sala)
+	if steps[0] != (fitStep{cardFull, bandArranjo}) || steps[len(steps)-1] != (fitStep{cardDot, bandFora}) {
+		t.Fatalf("a escada tem que ir da tela cheia aos pontos sem a faixa: %v", steps)
 	}
-	if steps[0].ob == "" || steps[0].compact {
-		t.Error("o primeiro passo tem que ser a tela cheia, com a obra")
+	medio, fora := slices.IndexFunc(steps, func(s fitStep) bool { return s.card == cardMid }),
+		slices.IndexFunc(steps, func(s fitStep) bool { return s.band == bandFora })
+	if medio < 0 || fora < medio {
+		t.Errorf("a faixa saiu antes de os cards virarem médios: médio=%d, fora=%d", medio, fora)
 	}
-	if steps[len(steps)-1].ob != "" {
-		t.Error("o último passo tem que ser sem obra")
-	}
-	// a obra tem que encolher antes de os pets virarem ponto, e sumir depois deles
-	var achatou, pontinho, saiu int
-	for i, st := range steps {
-		switch {
-		case st.ob != "" && st.ob != steps[0].ob && !st.compact:
-			achatou = i
-		case st.ob != "" && st.compact:
-			pontinho = i
-		case st.ob == "" && saiu == 0:
-			saiu = i
+	for _, st := range steps {
+		if st.card == cardDot && st.band != bandFora {
+			t.Errorf("os pets viraram ponto com a faixa ainda na tela: %v", steps)
 		}
-	}
-	if !(achatou < pontinho && pontinho < saiu) {
-		t.Errorf("ordem errada: achatou=%d pontinho=%d saiu=%d", achatou, pontinho, saiu)
+		if st.card == cardFull && st.band == bandFora {
+			t.Errorf("a faixa saiu com os cards ainda cheios: %v", steps)
+		}
 	}
 }
 
-// A sala sem obra não ganha passos a mais: a escada continua a de antes.
+// A sala sem obra e sem tabela aberta só encolhe os cards: não há faixa para tirar.
 func TestFitStepsSemObra(t *testing.T) {
 	sala := rooms.Snapshot{Max: rooms.MaxMembers, Members: []rooms.Member{{ID: "eu"}}}
 	m := model{id: "eu", room: "s", w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": sala}}}
-	if got := m.fitSteps(sala, 120); len(got) != 2 || got[0].ob != "" {
-		t.Errorf("passos %v", got)
+	want := []fitStep{{cardFull, bandFora}, {cardMid, bandFora}, {cardDot, bandFora}}
+	if got := m.fitSteps(sala); !slices.Equal(got, want) {
+		t.Errorf("passos %v, want %v", got, want)
 	}
 }
 
