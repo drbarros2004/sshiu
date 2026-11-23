@@ -387,13 +387,28 @@ func (m model) roomView(w, h int) string {
 	if m.solo() { // a sala solo tem uma pessoa e nenhum card: ela já cabe
 		return title + "\n\n" + m.soloView()
 	}
+	// os cards e a faixa de cada tamanho são desenhados uma vez só: a escada passa pelo mesmo
+	// tamanho várias vezes, e o pixel art dos cards é a parte cara do tick
+	cards, bands := map[int]string{}, map[int]string{}
+	cardsOf := func(size int) string {
+		if _, ok := cards[size]; !ok {
+			cards[size] = m.cards(s, w, size, 0)
+		}
+		return cards[size]
+	}
+	bandOf := func(mode int) string {
+		if _, ok := bands[mode]; !ok {
+			bands[mode] = m.roomBand(s, w, mode)
+		}
+		return bands[mode]
+	}
 	var out string
 	for _, st := range m.fitSteps(s) {
-		band := m.roomBand(s, w, st.band)
+		band := bandOf(st.band)
 		// sem eventos só sem a faixa, e com os pets já encolhidos: com a obra ou a tabela na tela
 		// ficam pelo menos dois (ADR 0010)
 		for n := shownEvents; n >= 0 && (n > 0 || band == "" && st.card != cardFull); n -= 2 {
-			if out = m.roomBody(s, title, w, n, st.card, st.band, band, 0); lipgloss.Height(out) <= h {
+			if out = m.roomBody(s, title, w, n, cardsOf(st.card), st.band, band); lipgloss.Height(out) <= h {
 				return out
 			}
 		}
@@ -403,7 +418,7 @@ func (m model) roomView(w, h int) string {
 	}
 	per := m.cardsPer(s, w)
 	for r := (len(s.Members)+per-1)/per - 1; r >= 1; r-- {
-		if out = m.roomBody(s, title, w, 0, cardDot, bandFora, "", r); lipgloss.Height(out) <= h {
+		if out = m.roomBody(s, title, w, 0, m.cards(s, w, cardDot, r), bandFora, ""); lipgloss.Height(out) <= h {
 			break
 		}
 	}
@@ -482,33 +497,36 @@ func (m model) roomBand(s rooms.Snapshot, w, mode int) string {
 	return ob + "\n\n" + bd
 }
 
-// roomBody: a tela montada com n eventos, os cards no tamanho card e a faixa band (do passo mode).
+// roomBody: a tela montada com n eventos, os cards já desenhados e a faixa band (do passo mode).
 // Com largura, os eventos entram na faixa, à esquerda, só na largura que usam: a faixa encosta na
-// esquerda e a sobra fica à direita. Sem a faixa, uma linha diz onde estão a obra e a tabela. Com
-// rows > 0, só essa quantidade de fileiras de cards.
-func (m model) roomBody(s rooms.Snapshot, title string, w, n, card, mode int, band string, rows int) string {
+// esquerda e a sobra fica à direita. Sem a faixa, uma linha diz onde estão a obra e a tabela.
+func (m model) roomBody(s rooms.Snapshot, title string, w, n int, cards string, mode int, band string) string {
 	// o painel tem sempre a altura do relógio: parado ele tem duas linhas, e a linha a mais ao
 	// começar uma tarefa trocava o arranjo da tela inteira (a obra saía e o feed voltava)
 	panel := lipgloss.NewStyle().Height(clockRows).Render(m.focusPanel(w))
-	out := title + "\n\n" + panel + "\n\n" + m.cards(s, w, card, rows)
+	out := title + "\n\n" + panel + "\n\n" + cards
 	if m.alone() { // o convite vale mais que o feed vazio, e não encolhe
 		if band != "" {
 			out += "\n\n" + band
 		}
 		return out + "\n\n" + m.invitePanel(s)
 	}
-	var log string
+	var log, beside string
 	if n > 0 {
 		log = m.feed(n, w) + "\n\n" + m.legend()
+	}
+	if fw := min(w-lipgloss.Width(band)-obraGap, feedMax); log != "" && band != "" && fw >= feedMin {
+		// a legenda das reações não encolhe com fw: os eventos só entram se couberem de verdade
+		if l := cropRight(m.feed(n, fw) + "\n\n" + m.legend()); lipgloss.Width(l)+obraGap+lipgloss.Width(band) <= w {
+			beside = l
+		}
 	}
 	switch {
 	case band == "" && mode == bandFora && (m.obraOf(s) != nil || m.boardInRoom(s)):
 		out += "\n\n" + m.st.muted.Render(m.bandAway(s))
 	case band == "":
-	case log != "" && w-lipgloss.Width(band)-obraGap >= feedMin:
-		fw := min(w-lipgloss.Width(band)-obraGap, feedMax)
-		log = cropRight(m.feed(n, fw) + "\n\n" + m.legend())
-		out += "\n\n" + lipgloss.JoinHorizontal(lipgloss.Top, log, strings.Repeat(" ", obraGap), band)
+	case beside != "":
+		out += "\n\n" + lipgloss.JoinHorizontal(lipgloss.Top, beside, strings.Repeat(" ", obraGap), band)
 		log = ""
 	default:
 		out += "\n\n" + band
