@@ -93,6 +93,17 @@ func TestRoomBand(t *testing.T) {
 	if m.roomBand(s, 200, bandFora) != "" {
 		t.Fatal("a faixa fora da tela desenhou alguma coisa")
 	}
+	// estreita, a locomotiva não cabe ao lado da tabela: a tabela desce inteira, sem cortar ninguém
+	s.Obra = "trem"
+	stacked := ansi.Strip(m.roomBand(s, 50, bandApertada))
+	if n := strings.Count(stacked, "0:00:00"); n != len(s.Members) || strings.Contains(stacked, "no o") {
+		t.Fatalf("empilhada embaixo da obra, a tabela foi cortada (%d de %d):\n%s", n, len(s.Members), stacked)
+	}
+	for _, l := range strings.Split(stacked, "\n") {
+		if ansi.StringWidth(l) > 50 {
+			t.Fatalf("empilhada, a faixa passou das 50 colunas: %q", l)
+		}
+	}
 }
 
 // Fechada, a tabela de foco é só do dono; aberto, a sala toda vê; a sala solo não tem.

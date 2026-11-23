@@ -321,8 +321,8 @@ func (m model) oScreen() bool {
 }
 
 // obraHint: a tecla da obra, que só existe onde há obra ou tabela de foco para ver. Com as duas,
-// a dica fica só "obra": a tabela compacta já diz "no o", e o rodapé do dono não cabe em 120
-// colunas com as duas palavras.
+// a dica fica só "obra": a faixa, quando sai ou aperta, já diz "no o", e o rodapé do dono não
+// cabe em 120 colunas com as duas palavras.
 func (m model) obraHint() string {
 	s := m.w.Rooms[m.room]
 	switch {
@@ -474,27 +474,28 @@ func (m model) roomBand(s rooms.Snapshot, w, mode int) string {
 	if m.boardInRoom(s) {
 		bd = title + "\n" + m.board(s, true, 0)
 	}
-	ob := ""
-	if m.obraOf(s) != nil {
-		cols := w
-		if bd != "" {
-			cols = w - lipgloss.Width(bd) - obraGap
-		}
-		ob = cropRight(m.obraBlock(s, cols, mode != bandArranjo))
-	}
-	// apertada, a tabela fica na altura da obra (com o título) e o resto vai para a tecla o
-	if limit := max(3, lipgloss.Height(ob)-1); bd != "" && ob != "" && mode == bandApertada && limit < len(s.Members) {
-		bd = title + m.st.muted.Render(m.tf(" · +%d no o", len(s.Members)-limit)) + "\n" + m.board(s, true, limit)
-	}
+	flat := mode != bandArranjo
 	switch {
-	case ob == "":
+	case m.obraOf(s) == nil:
 		return bd
 	case bd == "":
-		return ob
-	case lipgloss.Width(ob)+obraGap+lipgloss.Width(bd) <= w:
-		return lipgloss.JoinHorizontal(lipgloss.Top, ob, strings.Repeat(" ", obraGap), bd)
+		return cropRight(m.obraBlock(s, w, flat))
 	}
-	return ob + "\n\n" + bd
+	ob := cropRight(m.obraBlock(s, w-lipgloss.Width(bd)-obraGap, flat))
+	if lipgloss.Width(ob)+obraGap+lipgloss.Width(bd) > w {
+		// não cabem lado a lado (a locomotiva sozinha numa fileira, por exemplo): a obra volta à
+		// largura toda e a tabela desce inteira, que cortar só serve para alinhar as duas
+		return cropRight(m.obraBlock(s, w, flat)) + "\n\n" + bd
+	}
+	// apertada, a tabela fica na altura da obra (com o título) e o resto vai para a tecla o; o
+	// título com o "+N" é mais largo, e só fica se ainda couber ao lado
+	if limit := max(3, lipgloss.Height(ob)-1); mode == bandApertada && limit < len(s.Members) {
+		short := title + m.st.muted.Render(m.tf(" · +%d no o", len(s.Members)-limit)) + "\n" + m.board(s, true, limit)
+		if lipgloss.Width(ob)+obraGap+lipgloss.Width(short) <= w {
+			bd = short
+		}
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, ob, strings.Repeat(" ", obraGap), bd)
 }
 
 // roomBody: a tela montada com n eventos, os cards já desenhados e a faixa band (do passo mode).
@@ -792,13 +793,14 @@ func (m model) cardsPer(s rooms.Snapshot, w int) int {
 
 // cards: quantos couberem em w por fileira, no tamanho size (cardFull, cardMid ou cardDot). Quando
 // não cabem numa fileira, elas ficam do mesmo tamanho: nove em fileiras de oito viram 5 e 4, não
-// 8 e 1. Com rows > 0, só as primeiras rows fileiras, e uma linha com quantos ficaram de fora.
+// 8 e 1. Com rows > 0, só as primeiras rows fileiras, cheias, e uma linha com quantos ficaram de
+// fora; aí e na rolagem do modo dev não há equilíbrio, para nenhuma fileira esconder quem cabe.
 func (m model) cards(s rooms.Snapshot, w int, size int, rows int) string {
 	ms := orderedMembers(m.id, s)
 	got := received(s)
 	inner := m.cardInner(ms)
 	per := m.cardsPer(s, w)
-	if lines := (len(ms) + per - 1) / per; lines > 1 {
+	if lines := (len(ms) + per - 1) / per; lines > 1 && rows == 0 && m.inline() == nil {
 		per = (len(ms) + lines - 1) / lines
 	}
 	var more string

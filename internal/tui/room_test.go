@@ -220,6 +220,10 @@ func TestCardsEquilibrados(t *testing.T) {
 	if !slices.Equal(per, []int{5, 4}) {
 		t.Errorf("fileiras %v, queria [5 4]", per)
 	}
+	// no "+N" do fim, a fileira que aparece vem cheia: 8 e "+1", não 5 e "+4"
+	if out := ansi.Strip(m.cards(s, w, cardDot, 1)); strings.Count(out, "╭") != 8 || !strings.Contains(out, "+1:") {
+		t.Errorf("com uma fileira só, o \"+N\" escondeu quem cabia:\n%s", out)
+	}
 }
 
 // A prévia de entrar e o menu de salas dizem o que a sala aceita antes do enter.
