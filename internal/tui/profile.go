@@ -128,7 +128,8 @@ func (m model) profileView(w, h int) string {
 			}
 			return title + "\n" + body
 		}
-		info := stack(h, "\n\n", []string{
+		// sem borda separando as partes, elas levam duas linhas vazias entre si quando cabe tudo assim
+		info := stackSpaced(h, "\n\n\n", "\n\n", []string{
 			titleNick + "\n" + gap + humor + fmt.Sprintf("%-9s", m.t("streak")) + m.streakText() + "\n\n" + m.colorRow(),
 			monthSec, numsSec, sec(hoursT, hours), sec(bandsT, bands),
 		}, func(k int) string { return bold.Render(m.t("últimas tarefas")) + "\n" + strings.Join(tasks[:k], "\n") }, len(tasks))

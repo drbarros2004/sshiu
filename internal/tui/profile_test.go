@@ -2,6 +2,7 @@ package tui
 
 import (
 	"encoding/json"
+	"regexp"
 	"slices"
 	"sshiu/internal/pet"
 	"sshiu/internal/store"
@@ -154,6 +155,21 @@ func TestProfilePanelsSpacing(t *testing.T) {
 	}
 	if !spaced {
 		t.Fatal("em 114x70 os painéis ainda estão encostados")
+	}
+	// na lista, sem borda, as partes levam duas linhas vazias, com a mesma regra
+	m.statsList, spaced = true, false
+	for h := 30; h <= 80; h++ {
+		view := ansi.Strip(m.profileView(114, h))
+		if !regexp.MustCompile(`\n *\n *\n *quando você foca`).MatchString(view) {
+			continue
+		}
+		spaced = true
+		if strings.Count(view, "lista 3") != len(m.tasks) {
+			t.Fatalf("lista 114x%d: com espaço, mas sem todas as tarefas:\n%s", h, view)
+		}
+	}
+	if !spaced {
+		t.Fatal("lista em 114x80: as partes sem as duas linhas vazias")
 	}
 }
 
