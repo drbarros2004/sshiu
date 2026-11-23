@@ -368,6 +368,8 @@ var en = map[string]string{
 	"← → troca · qualquer tecla volta": "← → switch · any key goes back",
 	"um lugar quieto para focar junto": "a quiet place to focus together",
 	"viagem":                           "trip",
+	"+1000 de aura":                    "+1000 aura",
+	"-500 de aura":                     "-500 aura",
 	"vídeo de orbital (CC BY)":         "video by orbital (CC BY)",
 	"visual":                           "look",
 	"você":                             "you",
