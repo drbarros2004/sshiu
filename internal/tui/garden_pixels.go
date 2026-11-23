@@ -1270,8 +1270,8 @@ func drawCat(p *pix, ax, ay, k, t, breath float64) {
 		})
 	}
 	hx, hy := ax-10*k, ay+0.5*k
-	catEar(p, hx-3.5*k, hy-9*k, k, 95)
-	catEar(p, hx+3.5*k, hy-9*k, k, 237)
+	catEar(p, hx-3*k, hy-7.6*k, k, 95) // a base fica dentro da cabeça, que vem por cima
+	catEar(p, hx+3*k, hy-7.6*k, k, 237)
 	p.oval(hx, hy, 6.6*k, 5.4*k, func(x, _ int, d, dx, dy float64) uint8 {
 		v := 0.85 - dx*0.25 - dy*0.2
 		if d > 0.92 {
@@ -1299,8 +1299,8 @@ func catEar(p *pix, ax, ay, k float64, col uint8) {
 		hw := j * 0.6
 		for i := math.Ceil(-hw); i <= math.Floor(hw); i++ {
 			c := col
-			if j >= 2*k && math.Abs(i) < hw-0.9 {
-				c = 138
+			if j >= 1.5*k && math.Abs(i) < hw-0.9 {
+				c = 174 // o rosa do nariz: o 138 é a parede, e a orelha parecia vazada
 			}
 			p.set(int(ax+i), int(ay+j), c)
 		}
