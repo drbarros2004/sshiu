@@ -158,8 +158,10 @@ func (m model) boardName(x rooms.Member) string { return ansi.Truncate(m.obraNam
 
 // board: a tabela, na ordem em que os membros entraram para as linhas não pularem a cada tick, ou
 // o ranking, do mais focado para o menos. Com mini, a versão compacta da sala: sem cabeçalho nem o
-// que cada um faz agora (os cards já dizem), a barra pela metade e até sideRows pessoas.
-func (m model) board(s rooms.Snapshot, mini bool) string {
+// que cada um faz agora (os cards já dizem), a barra pela metade e até sideRows pessoas. Com
+// limit > 0, a tabela inteira ocupa no máximo limit linhas: quem não cabe vira um "+N" na última,
+// em vez de ser cortado sem aviso no pé da tela (#119).
+func (m model) board(s rooms.Snapshot, mini bool, limit int) string {
 	ms := slices.Clone(s.Members)
 	if s.BoardRank { // pelos minutos inteiros, como a posição: quem empata fica na ordem de entrada
 		slices.SortStableFunc(ms, func(a, b rooms.Member) int { return cmp.Compare(int(m.boardMin(b)), int(m.boardMin(a))) })
@@ -180,20 +182,24 @@ func (m model) board(s rooms.Snapshot, mini bool) string {
 		name, cols = name.Width(w+2), barCols/2
 	}
 	var lines []string
-	if !s.BoardRank {
-		if !mini {
-			lines = append(lines, m.st.muted.Render(name.Render(m.t("apelido"))+fmt.Sprintf("%-11s", m.t("tempo"))+m.t("agora")))
-		}
-		for i, x := range ms {
-			t := hms(mins[i])
-			if !mini {
-				t = fmt.Sprintf("%-11s", t) + m.status(x)
-			}
-			lines = append(lines, name.Render(m.boardName(x))+t)
-		}
-		return strings.Join(lines, "\n")
+	if !s.BoardRank && !mini {
+		lines = append(lines, m.st.muted.Render(name.Render(m.t("apelido"))+fmt.Sprintf("%-11s", m.t("tempo"))+m.t("agora")))
+	}
+	var more string
+	if rows := limit - len(lines); limit > 0 && rows < len(ms) { // a última linha diz quantos faltam
+		rows = max(rows-1, 1)
+		more = m.st.muted.Render(m.tf("+%d: aumente a janela para ver todo mundo", len(ms)-rows))
+		ms, mins, pl = ms[:rows], mins[:rows], pl[:rows]
 	}
 	for i, p := range pl {
+		if !s.BoardRank {
+			t := hms(mins[i])
+			if !mini {
+				t = fmt.Sprintf("%-11s", t) + m.status(ms[i])
+			}
+			lines = append(lines, name.Render(m.boardName(ms[i]))+t)
+			continue
+		}
 		pos, n := "", 0
 		if p > 0 {
 			pos, n = m.tf("%dº", p), int(float64(cols)*mins[i]/mins[0])
@@ -204,18 +210,21 @@ func (m model) board(s rooms.Snapshot, mini bool) string {
 		}
 		lines = append(lines, line+m.bar(n, cols)+m.st.muted.Render(fmt.Sprintf("%9s", dur(mins[i]))))
 	}
+	if more != "" {
+		lines = append(lines, more)
+	}
 	return strings.Join(lines, "\n")
 }
 
 // boardBlock: a tabela como ela aparece na tecla o, com o período que quem olha escolhe. Com tight,
 // o título e o período dividem uma linha e a nota sai: são quatro linhas a menos, o que faz uma
-// sala de 10 pessoas caber em 80×24.
-func (m model) boardBlock(s rooms.Snapshot, reset, tight bool) string {
+// sala de 10 pessoas caber em 80×24. Com h > 0, a tight ocupa no máximo h linhas.
+func (m model) boardBlock(s rooms.Snapshot, reset, tight bool, h int) string {
 	if tight {
-		return m.boardTitle(s) + "  " + m.periodArrows(true) + "\n" + m.board(s, false)
+		return m.boardTitle(s) + "  " + m.periodArrows(true) + "\n" + m.board(s, false, max(h-1, 0))
 	}
 	return m.boardTitle(s) + "\n" + m.boardNote(reset) + "\n\n" +
-		cfgRow(m, false, m.t("período"), m.periodArrows(true)) + "\n\n" + m.board(s, false)
+		cfgRow(m, false, m.t("período"), m.periodArrows(true)) + "\n\n" + m.board(s, false, 0)
 }
 
 // boardSide: a tabela compacta da sala, ao lado do painel de foco, só quando o dono a abriu para
@@ -228,11 +237,12 @@ func (m model) boardSide(s rooms.Snapshot) string {
 	if rest := len(s.Members) - sideRows; rest > 0 { // o resto, na tecla o
 		title += m.st.muted.Render(m.tf(" · +%d no o", rest))
 	}
-	return title + "\n" + m.board(s, true)
+	return title + "\n" + m.board(s, true, 0)
 }
 
 // boardPage: a página da tabela no menu do dono: quem vê, o formato e o período, com a tabela
-// embaixo. Se não cabe em h linhas, a nota e as linhas em branco saem, como na tecla o.
+// embaixo. Se não cabe em h linhas, a nota e as linhas em branco saem, como na tecla o, e depois
+// quem não cabe vira um "+N".
 func (m model) boardPage(s rooms.Snapshot, h int) string {
 	format := m.t("tabela")
 	if s.BoardRank {
@@ -241,8 +251,8 @@ func (m model) boardPage(s rooms.Snapshot, h int) string {
 	rows := cfgRow(m, m.brow == 0, m.t("quem vê"), m.arrows(m.brow == 0, m.boardWho(s.BoardOpen), s.BoardOpen, !s.BoardOpen)) + "\n" +
 		cfgRow(m, m.brow == 1, m.t("formato"), m.arrows(m.brow == 1, format, s.BoardRank, !s.BoardRank)) + "\n" +
 		cfgRow(m, m.brow == 2, m.t("período"), m.periodArrows(m.brow == 2))
-	if out := m.boardTitle(s) + "\n" + m.boardNote(true) + "\n\n" + rows + "\n\n" + m.board(s, false); lipgloss.Height(out) <= h {
+	if out := m.boardTitle(s) + "\n" + m.boardNote(true) + "\n\n" + rows + "\n\n" + m.board(s, false, 0); lipgloss.Height(out) <= h {
 		return out
 	}
-	return m.boardTitle(s) + "\n" + rows + "\n" + m.board(s, false)
+	return m.boardTitle(s) + "\n" + rows + "\n" + m.board(s, false, h-4) // 4: o título e as três linhas
 }

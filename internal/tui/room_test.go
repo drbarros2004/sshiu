@@ -189,7 +189,7 @@ func TestCardsAlinhados(t *testing.T) {
 					lipgloss.Width(cards[0]), lipgloss.Height(cards[0]), c)
 			}
 		}
-		for _, l := range strings.Split(m.cards(s, w, false), "\n") {
+		for _, l := range strings.Split(m.cards(s, w, false, 0), "\n") {
 			if lipgloss.Width(l) > max(w, lipgloss.Width(cards[0])) {
 				t.Fatalf("%d colunas: linha de %d", w, lipgloss.Width(l))
 			}
@@ -211,5 +211,20 @@ func TestJoinBlockedAndSummary(t *testing.T) {
 	solo := rooms.Snapshot{Max: rooms.MinMembers, Members: []rooms.Member{{ID: "a", Status: rooms.Focusing}}}
 	if got := m.roomSummary(solo); got != "sala solo · focando" {
 		t.Fatalf("resumo da sala solo: %q", got)
+	}
+}
+
+// Uma sala de 10 em 80×24 não cabe: as fileiras de cards que sobram viram um "+N", e a tela não
+// passa da altura (#119).
+func TestRoomViewCheiaCabe(t *testing.T) {
+	s := rooms.Snapshot{Code: "abc", Name: "turma", Owner: "eu", Max: 10}
+	for _, n := range []string{"eu", "ana", "bia", "caio", "davi", "eva", "fabio", "gil", "heitor", "iris"} {
+		s.Members = append(s.Members, rooms.Member{ID: n, Nick: n, Status: rooms.Idle})
+	}
+	m := model{id: "eu", nick: "eu", room: "abc", st: newStyles(themes[0]), now: time.Now(),
+		w: rooms.World{Rooms: map[string]rooms.Snapshot{"abc": s}, Users: map[string]rooms.Member{"eu": s.Members[0]}}}
+	out := ansi.Strip(m.roomView(76, 20))
+	if h := strings.Count(out, "\n") + 1; h > 20 || !strings.Contains(out, "aumente a janela") {
+		t.Fatalf("a sala cheia passou da altura (%d linhas) ou não disse quem ficou de fora:\n%s", h, out)
 	}
 }

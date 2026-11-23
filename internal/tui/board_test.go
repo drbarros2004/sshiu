@@ -202,16 +202,16 @@ func TestBoardAoLadoDoPainel(t *testing.T) {
 	m := model{id: "eu", room: "s", now: now, w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": s},
 		Users: map[string]rooms.Member{"eu": me}}}
 	bd := m.boardSide(s)
-	if out := ansi.Strip(m.roomBody(s, "sala", 96, 0, true, "", bd)); !strings.Contains(out, "tabela de foco") {
+	if out := ansi.Strip(m.roomBody(s, "sala", 96, 0, true, "", bd, 0)); !strings.Contains(out, "tabela de foco") {
 		t.Fatalf("focando a 100 colunas, a tabela saiu:\n%s", out)
 	}
 	m.entering, m.in = true, newInput("tarefa", 80)
-	if out := ansi.Strip(m.roomBody(s, "sala", 96, 0, true, "", bd)); strings.Contains(out, "tabela de foco") {
+	if out := ansi.Strip(m.roomBody(s, "sala", 96, 0, true, "", bd, 0)); strings.Contains(out, "tabela de foco") {
 		t.Fatalf("escrevendo a tarefa, a tabela espremeu o campo:\n%s", out)
 	}
 	m.entering, me.Status = false, rooms.Idle
 	m.w.Users["eu"] = me
-	if out := ansi.Strip(m.roomBody(s, "sala", 76, 0, true, "", bd)); strings.Contains(out, "tabela de foco") {
+	if out := ansi.Strip(m.roomBody(s, "sala", 76, 0, true, "", bd, 0)); strings.Contains(out, "tabela de foco") {
 		t.Fatalf("a 80 colunas, a tabela apareceu com a sala parada e sumiria ao focar:\n%s", out)
 	}
 }
@@ -222,9 +222,29 @@ func TestBoardSideLargura(t *testing.T) {
 	s := rooms.Snapshot{Max: 10, BoardOpen: true, Members: []rooms.Member{
 		{ID: "a", Nick: "ana"}, {ID: "b", Nick: "bia"}, {ID: "c", Nick: "caio"}, {ID: "j", Nick: "joaquim_silveira"}}}
 	m := model{id: "eu"}
-	for _, l := range strings.Split(ansi.Strip(m.board(s, true)), "\n") {
+	for _, l := range strings.Split(ansi.Strip(m.board(s, true, 0)), "\n") {
 		if w := ansi.StringWidth(strings.TrimRight(l, " ")); w > len("caio")+2+len("0:00:00") {
 			t.Fatalf("a coluna mediu quem não aparece: %q (%d colunas)", l, w)
+		}
+	}
+}
+
+// Numa sala cheia e num terminal baixo, quem não cabe vira um "+N" na última linha, em vez de ser
+// cortado sem aviso no pé da tela (#119).
+func TestBoardLimit(t *testing.T) {
+	s := rooms.Snapshot{Max: 10, BoardRank: true}
+	for _, n := range []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"} {
+		s.Members = append(s.Members, rooms.Member{ID: n, Nick: n})
+	}
+	m := model{id: "eu"}
+	for _, rank := range []bool{true, false} {
+		s.BoardRank = rank
+		out := ansi.Strip(m.board(s, false, 5))
+		if lines := strings.Split(out, "\n"); len(lines) != 5 || !strings.HasPrefix(lines[4], "+") {
+			t.Fatalf("rank=%v: queria 5 linhas com o \"+N\" na última:\n%s", rank, out)
+		}
+		if out := m.board(s, false, 20); strings.Contains(out, "+") {
+			t.Fatalf("rank=%v: com espaço, apareceu o \"+N\":\n%s", rank, out)
 		}
 	}
 }
