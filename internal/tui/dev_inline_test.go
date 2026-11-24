@@ -229,6 +229,24 @@ func TestInlineExactEnergyNumber(t *testing.T) {
 	}
 }
 
+func TestInlineCoinsStartFromCurrentBalance(t *testing.T) {
+	m := inlineModel(t, "ui-wallet-start")
+	m.tab = tabProfile
+	m.economy.Balance = 87
+	m.economyReady = true
+	m = openInline(t, m)
+	m, _ = pressInline(m, 'm', true)
+	if m.profileDev.number != 87 {
+		t.Fatalf("editor começou em %g, esperado o saldo 87", m.profileDev.number)
+	}
+	m, _ = pressInline(m, 'l', false)
+	m, _ = pressInline(m, tea.KeyEnter, false)
+	m, _ = pressInline(m, 'm', true)
+	if m.profileDev.number != 97 {
+		t.Fatalf("reabrir perdeu o rascunho: %g, esperado 97", m.profileDev.number)
+	}
+}
+
 func TestInlineQuitAlsoChecksDraftsInOtherTabs(t *testing.T) {
 	m := openInline(t, inlineModel(t, "ui-quit"))
 	_, cmd := pressInline(m, 'c', true)

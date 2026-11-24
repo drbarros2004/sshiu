@@ -188,8 +188,8 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	if d.field == "" && k == "ctrl+m" {
-		d.field = "coins"
 		d.number = float64(m.walletBalance())
+		d.field = "coins"
 		return m, nil
 	}
 	if d.field == "" && k == "ctrl+f" && m.tab == tabRoom {
