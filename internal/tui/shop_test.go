@@ -63,6 +63,22 @@ func TestShopCancelDoesNotPurchase(t *testing.T) {
 	}
 }
 
+func TestShopResetRestoresCurrentMoodAndAppearance(t *testing.T) {
+	now := time.Now()
+	look := pet.Appearance{Character: "fruit", Variant: "blue"}
+	m := model{lang: "en", tab: tabShop, now: now, economyReady: true,
+		pet: pet.Pet{Appearance: look, Energy: 65, LastActive: now, DirectEnergy: true}}
+	m.shop.Editor = newAppearanceEditor(pet.Appearance{Character: "claude", Variant: "normal"})
+	m.shop.Mood = pet.Sleeping
+	m, cmd := pressInline(m, 'r', true)
+	if m.shop.Editor.Choice != look || m.shop.Mood != pet.Good {
+		t.Fatal("ctrl+r deve restaurar a aparência equipada e o humor da energia atual")
+	}
+	if cmd != nil || m.pet.Energy != 65 {
+		t.Fatal("restaurar a prévia não deve alterar o pet nem iniciar um salvamento")
+	}
+}
+
 func TestShopDescriptionsFollowSelectedCategory(t *testing.T) {
 	for _, height := range []int{24, 50} {
 		m := model{lang: "en", economyReady: true}

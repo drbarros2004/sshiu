@@ -348,6 +348,7 @@ func (m model) shopKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "ctrl+r":
 			m.shop.Editor = newAppearanceEditor(m.pet.Look())
+			m.shop.Mood = pet.MoodOf(m.pet.EnergyAt(m.now))
 			return m, nil
 		case "enter", "ctrl+b":
 			if m.shop.Editor.rows(true)[m.shop.Editor.Row] == "mood" && k == "enter" {
