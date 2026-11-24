@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -23,8 +24,9 @@ var faqs = []struct{ flag, q, a string }{
 	{"--vibe-coding", "funciona para vibe-coders?", "funciona. a tarefa pode ser \"esperar o Claude terminar\". o pet não julga."},
 	{"--pet", "o que move o pet?", "minutos focados e tarefas cumpridas enchem a energia, e cada dia parado tira um pouco. o humor sai da energia."},
 	{"--o-pet-morre", "o pet morre?", "não. ele só fica murcho e te olha. o que é pior."},
-	{"--chat", "por que não tem chat?", "aqui é uma biblioteca. dá para reagir a quem começou ou cumpriu uma tarefa, e só."},
+	{"--chat", "por que não tem chat?", "aqui é tipo uma biblioteca. dá para reagir quando alguém começa ou termina uma tarefa. mas conversar... sshhh."},
 	{"--conexao", "e se a conexão cair?", "a tarefa espera %d minutos você voltar. se não voltar, ela fica interrompida, o que não é castigo: é o mesmo que parar."},
+	{"--loja", "pra que servem as moedas?", "tarefas cumpridas rendem moedas pelo tempo focado. na loja, você troca moedas por personagens, cores, chapéus e seus modelos. seu foco agora rende."},
 	{"--dados", "que dados vocês guardam?", "o seu apelido, a impressão digital da sua chave SSH, as suas tarefas e os minutos. nada de senha, e-mail ou nome. a chave privada nunca sai do seu computador."},
 	{"--rende-mais", "focar pelo terminal rende mais?", "fonte monoespaçada, fundo escuro, zero notificação. não temos dados, mas temos convicção."},
 	{"--modo-escuro", "tem modo escuro?", "é um terminal."},
@@ -44,6 +46,7 @@ func (m model) aboutKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // tela estreita ela ocupa a largura toda, embaixo da flag. Se não cabe tudo, a lista rola até a
 // resposta aberta.
 func (m model) aboutView(w, h int) string {
+	answerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("248")) // cinza xterm #a8a8a8
 	invite := m.invite
 	if invite == "" {
 		invite = "ssh sshiu"
@@ -64,6 +67,7 @@ func (m model) aboutView(w, h int) string {
 			lines = append(lines, ansi.Truncate(m.st.muted.Render(flag)+m.t(f.q), w, "…"))
 			continue
 		}
+		lines = append(lines, "")
 		a := m.t(f.a)
 		if strings.Contains(a, "%d") {
 			a = fmt.Sprintf(a, int(rooms.ReconnectGrace.Minutes()))
@@ -75,9 +79,12 @@ func (m model) aboutView(w, h int) string {
 			lines = append(lines, m.st.title.Render(flag)+bold.Render(m.t(f.q)))
 		}
 		for _, l := range strings.Split(ansi.Wrap(a, w-pad, ""), "\n") {
-			lines = append(lines, strings.Repeat(" ", pad)+l)
+			lines = append(lines, strings.Repeat(" ", pad)+answerStyle.Render(l))
 		}
 		end = len(lines) - 1
+		if i < len(faqs)-1 {
+			lines = append(lines, "")
+		}
 	}
 	lines = append(lines, "", m.st.muted.Render(m.t("feito com café e pouco silêncio")))
 	if len(lines) > h {

@@ -19,7 +19,7 @@ func TestAboutAndDevTabs(t *testing.T) {
 	t.Cleanup(func() { Dev = previous })
 	for _, enabled := range []bool{false, true} {
 		Dev = enabled
-		want := "sala,perfil,visual,sobre"
+		want := "sala,perfil,loja,visual,sobre"
 		if enabled {
 			want += ",dev"
 		}

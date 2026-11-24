@@ -3,7 +3,9 @@ package tui
 // Edição na própria tela: base é o retrato salvo; changes é o rascunho, nunca o banco.
 import (
 	"slices"
+	"sshiu/internal/pet"
 	"sshiu/internal/rooms"
+	"sshiu/internal/store"
 	"strconv"
 	"strings"
 	"time"
@@ -145,6 +147,64 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	d.help = false
+	if d.field == "coins" {
+		if k == "esc" {
+			d.field = ""
+			return m, nil
+		}
+		delta := map[string]int{"left": -1, "right": 1, "j": -50, "l": 50}[k]
+		d.number = float64(max(0, min(pet.Coins.Maximum, int(d.number)+delta)))
+		if k == "enter" || k == "x" || k == "ctrl+s" {
+			v := int(d.number)
+			d.change(m.id).Coins = &v
+			d.field = ""
+		}
+		if k != "x" && k != "ctrl+s" {
+			return m, nil
+		}
+		// Os atalhos seguem para o salvamento comum, incluindo os demais rascunhos.
+	}
+	if d.field == "history" {
+		if k == "esc" {
+			d.field = ""
+			return m, nil
+		}
+		if k == "enter" {
+			parts := strings.Split(m.in.Value(), "|")
+			if len(parts) != 3 {
+				m.err = m.shopText("dev_history_error")
+				return m, nil
+			}
+			start, e1 := time.ParseInLocation("2006-01-02 15:04:05", strings.TrimSpace(parts[1]), time.Local)
+			end, e2 := time.ParseInLocation("2006-01-02 15:04:05", strings.TrimSpace(parts[2]), time.Local)
+			if e1 != nil || e2 != nil || !end.After(start) || end.After(m.now) || strings.TrimSpace(parts[0]) == "" {
+				m.err = m.shopText("dev_history_error")
+				return m, nil
+			}
+			row := store.TaskRow{Start: start, End: end, Task: strings.TrimSpace(parts[0]), DeclaredMin: int(end.Sub(start).Minutes()), Focused: end.Sub(start), Result: pet.Done, Room: m.room}
+			d.change(d.value).History = &row
+			d.field = ""
+			return m, nil
+		}
+		var cmd tea.Cmd
+		m.in, cmd = m.in.Update(msg)
+		return m, cmd
+	}
+	if d.field == "" && k == "ctrl+m" {
+		d.number = float64(m.walletBalance())
+		d.field = "coins"
+		return m, nil
+	}
+	if d.field == "" && k == "ctrl+f" && m.tab == tabRoom {
+		d.field = "history"
+		d.value = m.id
+		if d.locked {
+			d.value = p.ID
+		}
+		m.in = newInput(m.shopText("dev_history_prompt"), 180)
+		m.in.SetValue(" | " + m.now.Add(-time.Minute).Format("2006-01-02 15:04:05") + " | " + m.now.Format("2006-01-02 15:04:05"))
+		return m, nil
+	}
 	if d.field != "" {
 		if k == "esc" {
 			d.field = ""
@@ -545,6 +605,10 @@ func (m model) inlinePanel(w int) string {
 	switch d.field {
 	case "name", "new", "taskText":
 		body = m.in.View()
+	case "coins":
+		body = m.coinDisplay(int(d.number)) + "\n" + m.shopText("dev_wallet_help")
+	case "history":
+		body = m.shopText("dev_history_prompt") + "\n" + m.in.View()
 	case "energy":
 		body = m.tf("energia: %g · ←/→ ou ↑/↓ ajusta · digite o valor", d.number)
 	case "taskMinutes":
@@ -583,15 +647,21 @@ func (m model) inlineHelp() string {
 		return ""
 	}
 	if d.field != "" {
+		if d.field == "coins" {
+			return m.shopText("dev_wallet_help")
+		}
 		if d.field == "appearance" {
 			return m.t("↑/↓ opção · ←/→ altera · enter confirma prévia · esc volta")
 		}
 		return m.t("enter confirma prévia · esc cancela campo")
 	}
 	if m.tab == tabRoom && (m.width < 100 || m.height < 30) {
-		return m.t("enter edita · ←/→ membro · ? atalhos · ctrl+s salva · x salva e sai · esc volta")
+		return m.t("enter edita · ←/→ membro · ? atalhos · ctrl+s salva · x salva e sai · esc volta") + " · ctrl+m " + m.shopText("dev_wallet_label") + " · ctrl+f " + m.shopText("dev_history_label")
 	}
-	base := m.t("ctrl+s salva · x salva e sai · esc volta · ctrl+r volta a você")
+	base := m.t("ctrl+s salva · x salva e sai · esc volta · ctrl+r volta a você") + " · ctrl+m " + m.shopText("dev_wallet_label")
+	if m.tab == tabRoom {
+		base += " · ctrl+f " + m.shopText("dev_history_label")
+	}
 	if m.tab == tabProfile {
 		actions := m.t("ctrl+n nome") + " · " + m.t("ctrl+e energia")
 		if m.custom {

@@ -29,6 +29,7 @@ type devState struct {
 var devSaved = devState{Presence: map[string]bool{}, Progress: map[string]map[string]devOffset{}}
 
 type DevPerson struct {
+	Coins    int
 	ID, Nick string
 	Pet      pet.Pet
 	Online   bool
@@ -41,6 +42,8 @@ type DevScene struct {
 	Token   string
 }
 type DevChange struct {
+	Coins          *int
+	History        *store.TaskRow
 	ID             string
 	Create         bool
 	Nick           *string
@@ -93,6 +96,11 @@ func devScene(code string) (DevScene, error) {
 			f := *u.focus
 			p.Focus = &f
 		}
+		economy, e := store.ReadEconomy(r.ID)
+		if e != nil {
+			return s, e
+		}
+		p.Coins = economy.Balance
 		s.People = append(s.People, p)
 	}
 	if r := rooms[code]; r != nil {
@@ -152,6 +160,18 @@ func DevPreview(base DevScene, changes []DevChange, obra *string, now time.Time)
 				return s, err
 			}
 			p.Nick = *c.Nick
+		}
+		if c.Coins != nil {
+			if *c.Coins < 0 || *c.Coins > pet.Coins.Maximum {
+				return s, errors.New("saldo inválido")
+			}
+			p.Coins = *c.Coins
+		}
+		if c.History != nil {
+			h := c.History
+			if h.Task == "" || len([]rune(h.Task)) > MaxTaskLength || !h.End.After(h.Start) || h.End.After(now) {
+				return s, errors.New("tarefa histórica inválida")
+			}
 		}
 		if c.Energy != nil {
 			if math.IsNaN(*c.Energy) || math.IsInf(*c.Energy, 0) || *c.Energy < 0 || *c.Energy > 100 {
@@ -363,7 +383,7 @@ func DevSaveAs(base DevScene, changes []DevChange, obra *string, now time.Time, 
 	var writes []store.DevWrite
 	for _, c := range changes {
 		p := next.People[slices.IndexFunc(next.People, func(p DevPerson) bool { return p.ID == c.ID })]
-		w := store.DevWrite{ID: p.ID, Nick: p.Nick, Pet: p.Pet, New: c.Create}
+		w := store.DevWrite{ID: p.ID, Nick: p.Nick, Pet: p.Pet, New: c.Create, Coins: c.Coins, History: c.History}
 		if c.Action == "done" || c.Action == "stop" {
 			old := current.People[slices.IndexFunc(current.People, func(p DevPerson) bool { return p.ID == c.ID })]
 			f := old.Focus
@@ -431,12 +451,15 @@ func DevSaveAs(base DevScene, changes []DevChange, obra *string, now time.Time, 
 		}
 	}
 	for _, c := range changes {
+		if c.History != nil {
+			eventReceipt(load(c.ID), *c.History)
+		}
 		if c.Action == "start" {
 			event(load(c.ID), "começou", c.Task)
 		}
 		if c.Action == "done" {
 			old := current.People[slices.IndexFunc(current.People, func(p DevPerson) bool { return p.ID == c.ID })]
-			event(load(c.ID), "cumpriu", old.Focus.Task)
+			eventReceipt(load(c.ID), store.TaskRow{Start: old.Focus.Start, End: now, Task: old.Focus.Task})
 		}
 	}
 	return devScene(code)

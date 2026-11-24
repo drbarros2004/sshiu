@@ -59,4 +59,16 @@ CREATE TABLE IF NOT EXISTS open_tasks ( -- a tarefa em andamento, uma por usuár
 );
 
 -- Metadados exclusivos do ambiente -dev.
+CREATE TABLE IF NOT EXISTS wallets (
+ user_id TEXT PRIMARY KEY REFERENCES users(id), balance INTEGER NOT NULL, remainder_sec INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS inventory (
+ user_id TEXT NOT NULL REFERENCES users(id), item TEXT NOT NULL, state TEXT NOT NULL,
+ PRIMARY KEY(user_id,item)
+);
+CREATE TABLE IF NOT EXISTS coin_receipts (
+ task_id INTEGER PRIMARY KEY REFERENCES tasks(id), user_id TEXT NOT NULL, coins INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS shop_prices (item TEXT PRIMARY KEY, price INTEGER NOT NULL);
+
 CREATE TABLE IF NOT EXISTS dev_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);

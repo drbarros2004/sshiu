@@ -1,0 +1,8 @@
+{
+  "secondsPerReward": 60,
+  "coinsPerReward": 1,
+  "maximum": 9999,
+  "initialBalance": 0,
+  "sprite": "coins/coin.png",
+  "color": "#FFD75F"
+}

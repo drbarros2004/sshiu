@@ -10,6 +10,10 @@
         "pt": "fruta",
         "en": "fruit"
       },
+      "description": {
+        "pt": "é básico, mas funciona.",
+        "en": "pretty basic choice, but it works."
+      },
       "order": 0,
       "spriteLayout": "characters/00_fruit/sprite-layout.json",
       "moods": "characters/00_fruit/moods.json",
@@ -34,6 +38,10 @@
             "pt": "azul",
             "en": "blue"
           },
+          "description": {
+            "pt": "escolha meio básica essa também.",
+            "en": "that's a pretty basic choice too."
+          },
           "displayColor": "#87D7FF",
           "artworkColor": "blue",
           "spriteSheet": "characters/00_fruit/body/fruit_blue.png",
@@ -41,7 +49,8 @@
             "plant": "characters/00_fruit/other_assets/plant/fruit_plant_blue.png",
             "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_blue.png"
           },
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "green",
@@ -56,7 +65,8 @@
             "plant": "characters/00_fruit/other_assets/plant/fruit_plant_green.png",
             "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_green.png"
           },
-          "order": 1
+          "order": 1,
+          "price": 0
         },
         {
           "id": "yellow",
@@ -71,7 +81,8 @@
             "plant": "characters/00_fruit/other_assets/plant/fruit_plant_yellow.png",
             "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_yellow.png"
           },
-          "order": 2
+          "order": 2,
+          "price": 0
         },
         {
           "id": "coral",
@@ -86,7 +97,8 @@
             "plant": "characters/00_fruit/other_assets/plant/fruit_plant_coral.png",
             "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_coral.png"
           },
-          "order": 3
+          "order": 3,
+          "price": 0
         },
         {
           "id": "purple",
@@ -148,13 +160,19 @@
           },
           "order": 7
         }
-      ]
+      ],
+      "price": 0,
+      "defaultVariantPrice": 10
     },
     {
       "id": "bunny",
       "displayName": {
         "pt": "coelho",
         "en": "bunny"
+      },
+      "description": {
+        "pt": "pula distrações, não tarefas.",
+        "en": "hops over distractions, not tasks."
       },
       "order": 1,
       "spriteLayout": "characters/01_bunny/sprite-layout.json",
@@ -180,7 +198,8 @@
           "displayColor": "#87AFD7",
           "artworkColor": "blue",
           "spriteSheet": "characters/01_bunny/body/bunny_blue.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "green",
@@ -259,13 +278,19 @@
           "spriteSheet": "characters/01_bunny/body/bunny_pink.png",
           "order": 7
         }
-      ]
+      ],
+      "price": 120,
+      "defaultVariantPrice": 20
     },
     {
       "id": "claude",
       "displayName": {
         "pt": "claude",
         "en": "claude"
+      },
+      "description": {
+        "pt": "bom pra codar. bugs ainda podem ocorrer.",
+        "en": "good coding buddy. may not fix all bugs..."
       },
       "order": 2,
       "spriteLayout": "characters/02_claude/sprite-layout.json",
@@ -292,7 +317,8 @@
           "displayColor": "#D7875F",
           "artworkColor": "coral",
           "spriteSheet": "characters/02_claude/body/claude_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "blue",
@@ -371,7 +397,9 @@
           "spriteSheet": "characters/02_claude/body/claude_pink.png",
           "order": 7
         }
-      ]
+      ],
+      "price": 120,
+      "defaultVariantPrice": 20
     }
   ]
 }

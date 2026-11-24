@@ -32,6 +32,13 @@ func (m model) profileView(w, h int) string {
 	if m.notice != "" {
 		titleNick += " · " + m.noticeStyle().Render(m.notice)
 	}
+	// O saldo usa a largura interna do painel, sem herdar o recuo do desenho.
+	profileBox := func(title, body string, width, height int) string {
+		if m.economyReady {
+			body = lipgloss.PlaceHorizontal(max(1, width-4), lipgloss.Right, m.coinDisplay(m.walletBalance())) + "\n" + body
+		}
+		return m.box(title, body, width, height)
+	}
 	e := m.pet.EnergyAt(m.now)
 	mood := pet.MoodOf(e)
 	moodSt := lipgloss.NewStyle().Foreground(energyColors.barColor(mood))
@@ -92,27 +99,33 @@ func (m model) profileView(w, h int) string {
 		}
 		body := lipgloss.JoinHorizontal(lipgloss.Top, drawing(false), " ", side)
 		if lipgloss.Height(body)+2 > h {
+			if m.economyReady {
+				body = lipgloss.PlaceHorizontal(w, lipgloss.Right, m.coinDisplay(m.walletBalance())) + "\n" + body
+			}
 			return body
 		}
-		return m.box(titleNick, body, w, 0)
+		return profileBox(titleNick, body, w, 0)
 	}
 	if h < 26 && w >= 70 {
 		if m.custom {
 			body := lipgloss.JoinHorizontal(lipgloss.Top, drawing(false), "  ", m.colorRow())
-			return m.box(titleNick, first+body+"\n"+humor, w, 0)
+			return profileBox(titleNick, first+body+"\n"+humor, w, 0)
 		}
 		leftWidth := max(40, lipgloss.Width(m.colorRow())+4)
 		if leftWidth+1+calCols > w {
 			body := lipgloss.JoinHorizontal(lipgloss.Top, drawing(false), " ", humor+"\n"+m.colorRow())
-			return m.box(titleNick, body, w, 0)
+			return profileBox(titleNick, body, w, 0)
 		}
-		left := m.box(titleNick, drawing(false)+"\n"+m.colorRow(), leftWidth, 0)
+		left := profileBox(titleNick, drawing(false)+"\n"+m.colorRow(), leftWidth, 0)
 		right := strings.ReplaceAll(humor, "\n"+strings.Repeat(" ", 9), "\n") + m.t("streak") + "  " + m.streakDays() + "\n" + m.t("recorde") + "  " + m.recordText() + "\n\n" + title + "\n" + calG + "\n" + legend
 		return lipgloss.JoinHorizontal(lipgloss.Top, left, " ", right)
 	}
 
 	if m.statsList {
 		d := drawing(h >= 23) // baixo (80×24): o pet menor, para o calendário caber embaixo do estado
+		if m.economyReady {
+			d = lipgloss.PlaceHorizontal(lipgloss.Width(d), lipgloss.Right, m.coinDisplay(m.walletBalance())) + "\n" + d
+		}
 		iw := w - lipgloss.Width(d) - 4
 		cal := title + "\n" + calG + "\n" + legend
 		monthSec, numsSec := cal, nums // estreito: os números descem para depois do calendário, e saem antes dele
@@ -144,7 +157,7 @@ func (m model) profileView(w, h int) string {
 	left := func(big bool) string {
 		d := drawing(big)
 		in := max(lipgloss.Width(d), lipgloss.Width(state), lipgloss.Width(first))
-		return m.box(titleNick, first+lipgloss.PlaceHorizontal(in, lipgloss.Center, d)+"\n\n"+state, in+4, 0)
+		return profileBox(titleNick, first+lipgloss.PlaceHorizontal(in, lipgloss.Center, d)+"\n\n"+state, in+4, 0)
 	}
 	tasksBox := func(k, width int) string {
 		return m.box(m.st.title.Render(m.t("últimas tarefas")), strings.Join(tasks[:k], "\n"), width, 0)
@@ -275,7 +288,7 @@ func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		revision := m.appearanceRevision
 		m.custom, m.notice, m.appearanceEdit = false, m.t("salvando…"), nil
 		save := func() tea.Msg {
-			err := store.SetAppearance(id, a)
+			err := rooms.EquipOwned(id, a)
 			if err != nil {
 				return appearanceSavedMsg{id: id, revision: revision, err: err}
 			}
@@ -290,6 +303,9 @@ func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, save
 	default:
+		if m.inline() == nil && m.economyReady {
+			m.appearanceEdit.Owned = m.economy.States
+		}
 		m.appearanceEdit.key(k, true, &m.previewMood)
 	}
 	return m, nil

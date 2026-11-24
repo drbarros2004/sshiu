@@ -84,6 +84,15 @@ _Evite_: screensaver, modo zen
 
 ### O pet
 
+**Moedas**:
+Saldo individual ganho ao marcar tarefas como feito, com base no tempo realmente focado. O resto de segundos passa entre tarefas cumpridas. Não há dinheiro real.
+
+**Loja**:
+Aba para visualizar e comprar personagens, cores, chapéus e modelos. Disponível permite comprar, bloqueado impede e possuído permite equipar. Comprar uma base inclui sua primeira variante.
+
+**Inventário**:
+Itens possuídos por um usuário. O saldo e os recibos de moedas só aparecem para a própria identidade; a aparência equipada continua visível na sala.
+
 **Pet**:
 A criatura de cada usuário, cujo humor reflete o foco recente dele.
 _Evite_: Broto, bonequinho, criatura, mascote

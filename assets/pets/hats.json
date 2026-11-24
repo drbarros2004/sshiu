@@ -1,12 +1,22 @@
 {
   "width": 16,
   "height": 6,
+  "noHat": {
+    "description": {
+      "pt": "o vento sopra sobre sua careca, sem um chapéu para cobri-la",
+      "en": "i wouldn't say 'owned' for this, but you do have 'no hat' on"
+    }
+  },
   "hats": [
     {
       "id": "top_hat",
       "displayName": {
         "pt": "cartola",
         "en": "top hat"
+      },
+      "description": {
+        "pt": "pra focar com muita classe.",
+        "en": "for a very classy focus session."
       },
       "order": 0,
       "variants": [
@@ -17,7 +27,8 @@
             "en": "normal"
           },
           "image": "hats/top_hat/top_hat_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "normal_detailed",
@@ -82,13 +93,19 @@
           "image": "hats/top_hat/top_hat_blue_band.png",
           "order": 7
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "cowboy",
       "displayName": {
         "pt": "cowboy",
         "en": "cowboy"
+      },
+      "description": {
+        "pt": "as tarefas não vão se concluir sozinhas, xerife.",
+        "en": "tasks won't finish themselves, sheriff."
       },
       "order": 1,
       "variants": [
@@ -99,7 +116,8 @@
             "en": "normal"
           },
           "image": "hats/cowboy/cowboy_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "normal_detailed",
@@ -155,13 +173,19 @@
           "image": "hats/cowboy/cowboy_navy.png",
           "order": 6
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "xmas_hat",
       "displayName": {
         "pt": "gorro de natal",
         "en": "xmas hat"
+      },
+      "description": {
+        "pt": "hora de distribuir os presentes.",
+        "en": "time to go deliver some presents."
       },
       "order": 2,
       "variants": [
@@ -172,7 +196,8 @@
             "en": "normal"
           },
           "image": "hats/xmas_hat/xmas_hat_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "green",
@@ -219,13 +244,19 @@
           "image": "hats/xmas_hat/xmas_hat_black.png",
           "order": 5
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "cap",
       "displayName": {
         "pt": "boné",
         "en": "cap"
+      },
+      "description": {
+        "pt": "só gente radical usa boné.",
+        "en": "only the cool kids wear caps."
       },
       "order": 3,
       "variants": [
@@ -236,7 +267,8 @@
             "en": "blue"
           },
           "image": "hats/cap/cap_blue.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "blue_backwards",
@@ -382,13 +414,19 @@
           "image": "hats/cap/cap_reference.png",
           "order": 16
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "crown",
       "displayName": {
         "pt": "coroa",
         "en": "crown"
+      },
+      "description": {
+        "pt": "realeza também trabalha.",
+        "en": "even royalty has deadlines."
       },
       "order": 4,
       "variants": [
@@ -399,7 +437,8 @@
             "en": "normal"
           },
           "image": "hats/crown/crown_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "rgb",
@@ -446,13 +485,19 @@
           "image": "hats/crown/crown_amethyst.png",
           "order": 5
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "little_hair",
       "displayName": {
-        "pt": "topete",
+        "pt": "cabelinho",
         "en": "little hair"
+      },
+      "description": {
+        "pt": "bom, pelo menos você não é careca.",
+        "en": "i mean, at least you are not bald."
       },
       "order": 5,
       "variants": [
@@ -463,7 +508,8 @@
             "en": "normal"
           },
           "image": "hats/little_hair/little_hair_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "dark",
@@ -479,6 +525,10 @@
           "displayName": {
             "pt": "arco-íris",
             "en": "rainbow"
+          },
+          "description": {
+            "pt": "que que era pra ser isso?",
+            "en": "what even is this?"
           },
           "image": "hats/little_hair/little_hair_rainbow.png",
           "order": 2
@@ -537,13 +587,19 @@
           "image": "hats/little_hair/little_hair_white.png",
           "order": 8
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "pirate",
       "displayName": {
         "pt": "chapéu de pirata",
         "en": "pirate"
+      },
+      "description": {
+        "pt": "em busca do tesouro e de uma tarefa concluída.",
+        "en": "on a quest for treasure and a finished task."
       },
       "order": 6,
       "variants": [
@@ -554,7 +610,8 @@
             "en": "normal"
           },
           "image": "hats/pirate/pirate_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "red",
@@ -610,13 +667,19 @@
           "image": "hats/pirate/pirate_ivory.png",
           "order": 6
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "firefighter_helmet",
       "displayName": {
         "pt": "bombeiro",
         "en": "firefighter"
+      },
+      "description": {
+        "pt": "pra apagar incêndios na lista de tarefas.",
+        "en": "for putting out fires on your task list."
       },
       "order": 7,
       "variants": [
@@ -627,7 +690,8 @@
             "en": "normal"
           },
           "image": "hats/firefighter_helmet/firefighter_helmet_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "yellow",
@@ -692,7 +756,9 @@
           "image": "hats/firefighter_helmet/firefighter_helmet_sunset.png",
           "order": 7
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     }
   ]
 }

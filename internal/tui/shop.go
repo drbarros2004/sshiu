@@ -1,0 +1,606 @@
+package tui
+
+import (
+	"errors"
+	"fmt"
+	"maps"
+	"slices"
+	"strconv"
+	"strings"
+
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"sshiu/internal/pet"
+	"sshiu/internal/rooms"
+	"sshiu/internal/store"
+)
+
+// Ajustes visuais da lista: todos os recuos e espaços entre categorias ficam aqui.
+const (
+	shopDescriptionIndent = 2
+	shopSectionGap        = 1
+	shopColumnGap         = 4
+	shopCompactColumnGap  = 1
+)
+
+type shopPanel struct {
+	DialogScroll       int
+	Editor             *appearanceEditor
+	Mood               pet.Mood
+	Confirm            *store.Purchase
+	Keys               []string
+	Batch, Busy, Equip bool
+	Purchased          pet.Appearance
+	PurchasedKind      string
+	Dev                bool
+	PriceEditing       bool
+	OriginalPrice      int
+	States             map[string]string
+	Prices             map[string]int
+	BaseStamp          string
+}
+type economyMsg struct {
+	ID       string
+	Revision int
+	Value    store.Economy
+	Err      error
+}
+type purchaseMsg struct {
+	ID     string
+	Value  store.Economy
+	Err    error
+	Batch  bool
+	Choice pet.Appearance
+	Kind   string
+}
+type shopSavedMsg struct {
+	ID   string
+	Err  error
+	Exit bool
+}
+
+func (m model) shopText(key string, args ...any) string {
+	text := pet.Shop.Texts[key].Text(string(m.lang))
+	if len(args) > 0 {
+		return fmt.Sprintf(text, args...)
+	}
+	return text
+}
+func shopStyle(key string) lipgloss.Style {
+	value := pet.Shop.Colors[key]
+	if key == "coin" && value == "" {
+		value = pet.Coins.Color
+	}
+	c, _ := pet.ParsePaletteColor(value)
+	return lipgloss.NewStyle().Foreground(c)
+}
+func (m model) coinDisplay(amount int) string {
+	bounds := pet.CoinImage.Bounds()
+	icon := pet.Pixels(pet.CoinImage, bounds.Min.X, bounds.Min.Y, bounds.Dx(), bounds.Dy(), 1, nil)
+	return lipgloss.JoinHorizontal(lipgloss.Center, icon, " ", shopStyle("coin").Render(strconv.Itoa(amount)))
+}
+func (m model) loadEconomy() tea.Cmd {
+	id, revision := m.id, m.economyRevision
+	if m.nick == "" {
+		return nil
+	}
+	return func() tea.Msg { e, err := rooms.ShopRead(id); return economyMsg{id, revision, e, err} }
+}
+func (m model) updateShop(msg tea.Msg) (model, tea.Cmd, bool) {
+	switch v := msg.(type) {
+	case economyMsg:
+		if v.ID != m.id || v.Revision != m.economyRevision {
+			return m, nil, true
+		}
+		if v.Err != nil {
+			m.err = v.Err.Error()
+			return m, nil, true
+		}
+		m.economy, m.economyReady = v.Value, true
+		if m.shop.BaseStamp == "reopen" {
+			m.startShopDev()
+		}
+		return m, nil, true
+	case purchaseMsg:
+		if v.ID != m.id {
+			return m, nil, true
+		}
+		m.shop.Busy = false
+		m.shop.Confirm = nil
+		if v.Err != nil {
+			m.err = m.shopError(v.Err, v.Batch)
+			return m, m.loadEconomy(), true
+		}
+		m.economyRevision++
+		m.economy = v.Value
+		m.economyReady = true
+		m.shop.Equip = true
+		m.shop.DialogScroll = 0
+		m.shop.Batch = v.Batch
+		m.shop.Purchased = v.Choice
+		m.shop.PurchasedKind = v.Kind
+		m.notice = m.shopText("bought")
+		return m, nil, true
+	case shopSavedMsg:
+		if v.ID != m.id {
+			return m, nil, true
+		}
+		m.shop.Busy = false
+		if v.Err != nil {
+			m.err = m.shopError(v.Err, false)
+			return m, nil, true
+		}
+		m.economyRevision++
+		m.shop.Dev = false
+		m.shop.PriceEditing = false
+		m.notice = m.shopText("dev_shop_saved")
+		if !v.Exit {
+			m.shop.BaseStamp = "reopen"
+		}
+		return m, m.loadEconomy(), true
+	}
+	return m, nil, false
+}
+func (m model) shopError(err error, batch bool) string {
+	var e *store.ShopError
+	if !errors.As(err, &e) {
+		return m.lang.errText(err)
+	}
+	item := pet.ShopItemByKey(e.Key)
+	category := ""
+	if item != nil {
+		category = m.shopText(item.Kind)
+	}
+	switch e.Kind {
+	case "insufficient":
+		if batch {
+			return m.shopText("batch_insufficient")
+		}
+		return m.shopText("insufficient", category)
+	case "missing_base":
+		base := pet.ShopItemByKey(item.Parent)
+		return m.shopText("missing_base", m.shopText(base.Kind), base.Name.Text(string(m.lang)), category)
+	case "included_error":
+		base := pet.ShopItemByKey(item.Parent)
+		return m.shopText("included_error", category, base.Name.Text(string(m.lang)))
+	case "locked_help":
+		if batch {
+			return m.shopText("batch_locked")
+		}
+		return m.shopText(e.Kind, category)
+	case "owned_help":
+		return m.shopText(e.Kind, category)
+	default:
+		return m.shopText(e.Kind)
+	}
+}
+func (m *model) ensureShop() {
+	if m.shop.Editor == nil {
+		m.shop.Editor = newAppearanceEditor(m.pet.Look())
+		m.shop.Mood = pet.MoodOf(m.pet.EnergyAt(m.now))
+	}
+	if m.shop.BaseStamp == "reopen" && m.economyReady {
+		m.startShopDev()
+	}
+}
+func (m *model) startShopDev() {
+	m.shop.Dev = true
+	m.shop.States = maps.Clone(m.economy.States)
+	m.shop.Prices = maps.Clone(m.economy.Prices)
+	m.shop.BaseStamp = store.EconomyStamp(m.economy)
+}
+func (m model) shopEconomy() store.Economy {
+	e := m.economy
+	if m.shop.Dev {
+		e.States = m.shop.States
+		e.Prices = m.shop.Prices
+	}
+	return e
+}
+func (m model) currentShopKey() string {
+	e := m.shop.Editor
+	a := e.Choice
+	switch e.rows(true)[e.Row] {
+	case "character":
+		return "character/" + a.Character
+	case "color":
+		return "color/" + a.Character + "/" + a.Variant
+	case "hat":
+		if a.Hat != "" {
+			return "hat/" + a.Hat
+		}
+	case "model":
+		return "model/" + a.Hat + "/" + a.HatVariant
+	}
+	return ""
+}
+func (m model) shopKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	m.ensureShop()
+	k := msg.String()
+	m.err = ""
+	if !m.economyReady || m.shop.Busy {
+		return m, nil
+	}
+	if (m.shop.Confirm != nil || m.shop.Equip) && (k == "up" || k == "down") {
+		inner := max(1, m.width-4)
+		height := max(1, m.height-2-lipgloss.Height(m.header())-2-lipgloss.Height(m.footer(m.shopHelp(), inner)))
+		_, limit := m.shopDialogView(inner, height-lipgloss.Height(m.errLine())+1)
+		delta := 1
+		if k == "up" {
+			delta = -1
+		}
+		m.shop.DialogScroll = max(0, min(limit, m.shop.DialogScroll+delta))
+		return m, nil
+	}
+	if m.shop.Equip {
+		if k == "n" || k == "esc" {
+			m.shop.Equip = false
+			return m, nil
+		}
+		if k != "y" {
+			return m, nil
+		}
+		a := m.shop.Purchased
+		if !m.shop.Batch {
+			a = m.pet.Look()
+			selected := m.shop.Purchased
+			switch m.shop.PurchasedKind {
+			case "character":
+				a.Character = selected.Character
+				a.Variant = pet.Pets.Character(a.Character).Variants[0].ID
+			case "color":
+				a.Character, a.Variant = selected.Character, selected.Variant
+			case "hat":
+				a.Hat = selected.Hat
+				a.HatVariant = pet.Pets.Hat(a.Hat).Variants[0].ID
+			case "model":
+				a.Hat, a.HatVariant = selected.Hat, selected.HatVariant
+			}
+		}
+		m.shop.Equip = false
+		id := m.id
+		return m, func() tea.Msg {
+			err := rooms.EquipOwned(id, a)
+			return appearanceSavedMsg{id: id, revision: m.appearanceRevision, err: err, world: rooms.SnapshotWorld()}
+		}
+	}
+	if m.shop.Confirm != nil {
+		if k == "n" || k == "esc" {
+			m.shop.Confirm = nil
+			return m, nil
+		}
+		if k != "y" {
+			return m, nil
+		}
+		id, keys, batch, stamp, choice := m.id, slices.Clone(m.shop.Keys), m.shop.Batch, m.shop.Confirm.Stamp, m.shop.Editor.Choice
+		kind := m.shop.Editor.rows(true)[m.shop.Editor.Row]
+		m.shop.Busy = true
+		return m, func() tea.Msg {
+			e, err := rooms.ShopBuy(id, keys, batch, stamp)
+			return purchaseMsg{id, e, err, batch, choice, kind}
+		}
+	}
+	if m.shop.Dev {
+		key := m.currentShopKey()
+		if m.shop.PriceEditing {
+			delta := map[string]int{"left": -1, "right": 1, "j": -10, "l": 10}[k]
+			if delta != 0 {
+				m.shop.Prices[key] = max(0, min(9999, m.shop.Prices[key]+delta))
+			}
+			if k == "esc" {
+				m.shop.Prices[key] = m.shop.OriginalPrice
+			}
+			if k == "enter" || k == "esc" {
+				m.shop.PriceEditing = false
+			}
+			return m, nil
+		}
+		switch k {
+		case "ctrl+p":
+			if key != "" {
+				m.shop.PriceEditing = true
+				m.shop.OriginalPrice = m.shop.Prices[key]
+			}
+			return m, nil
+		case "ctrl+o":
+			if key != "" {
+				for _, worn := range pet.AppearanceItems(m.pet.Look()) {
+					if worn == key {
+						m.err = m.shopText("dev_equipped_item_error")
+						return m, nil
+					}
+				}
+				state := m.shopEconomy().State(key)
+				next := map[string]string{store.ItemAvailable: store.ItemOwned, store.ItemOwned: store.ItemLocked, store.ItemLocked: store.ItemAvailable}[state]
+				item := pet.ShopItemByKey(key)
+				if item.Included && m.shopEconomy().State(item.Parent) == store.ItemOwned && next != store.ItemOwned {
+					m.err = m.shopText("dev_included_variant_error")
+					return m, nil
+				}
+				m.shop.States[key] = next
+				if next == store.ItemOwned {
+					for _, child := range pet.ShopItems {
+						if child.Parent == key && child.Included {
+							m.shop.States[child.Key] = store.ItemOwned
+						}
+					}
+				}
+			}
+			return m, nil
+		case "x", "ctrl+s":
+			id, states, prices, stamp := m.id, maps.Clone(m.shop.States), maps.Clone(m.shop.Prices), m.shop.BaseStamp
+			exit := k == "x"
+			m.shop.Busy = true
+			return m, func() tea.Msg { return shopSavedMsg{id, rooms.ShopDevSave(id, states, prices, stamp), exit} }
+		case "esc":
+			m.shop.Dev = false
+			m.shop.PriceEditing = false
+			return m, nil
+		case "enter", "ctrl+b":
+			return m, nil
+		}
+	} else {
+		switch k {
+		case "x":
+			if Dev && !m.hideDev {
+				m.startShopDev()
+			}
+			return m, nil
+		case "ctrl+r":
+			m.shop.Editor = newAppearanceEditor(m.pet.Look())
+			m.shop.Mood = pet.MoodOf(m.pet.EnergyAt(m.now))
+			return m, nil
+		case "enter", "ctrl+b":
+			if m.shop.Editor.rows(true)[m.shop.Editor.Row] == "mood" && k == "enter" {
+				return m, nil
+			}
+			keys := []string{m.currentShopKey()}
+			batch := k == "ctrl+b"
+			if batch {
+				keys = pet.AppearanceItems(m.shop.Editor.Choice)
+			}
+			p, err := store.Quote(m.economy, keys, batch)
+			if err != nil {
+				m.err = m.shopError(err, batch)
+				return m, nil
+			}
+			m.shop.Keys, m.shop.Batch, m.shop.Confirm = keys, batch, &p
+			m.shop.DialogScroll = 0
+			return m, nil
+		}
+	}
+	m.shop.Editor.key(k, true, &m.shop.Mood)
+	return m, nil
+}
+func (m model) shopHelp() string {
+	if m.shop.Confirm != nil || m.shop.Equip {
+		return m.shopText("yes_no")
+	}
+	if m.shop.PriceEditing {
+		return m.shopText("dev_price_help")
+	}
+	if m.shop.Dev {
+		return m.shopText("dev_help")
+	}
+	s := m.shopText("help")
+	if Dev && !m.hideDev {
+		s += m.shopText("dev_hint")
+	}
+	return s
+}
+func (m model) shopView(w, h int) string {
+	if !m.economyReady {
+		return m.st.muted.Render(m.t("carregando…"))
+	}
+	m.ensureShop()
+	e := m.shopEconomy()
+	a := m.shop.Editor.Choice
+	if m.shop.Confirm != nil || m.shop.Equip {
+		screen, _ := m.shopDialogView(w, h)
+		return screen
+	}
+	// A prévia ocupa metade da largura; a lista usa o restante.
+	rightWidth := max(26, (w-2)/2)
+	leftWidth := max(28, w-rightWidth-2)
+	previewHeight := max(8, h)
+	if w < 58 {
+		leftWidth, rightWidth = w, w
+		previewHeight = max(12, h/2)
+	}
+	rows := m.shop.Editor.rows(true)
+	type categoryRow struct {
+		label, selection, state, collection string
+		details                             []string
+	}
+	var categories []categoryRow
+	for i, kind := range rows {
+		if kind == "mood" {
+			row := categoryRow{label: m.shopText(kind), selection: "‹ " + pet.Pets.MoodName(a, m.shop.Mood, string(m.lang)) + " ›"}
+			if i == m.shop.Editor.Row {
+				row.details = []string{m.shopText("preview")}
+			}
+			categories = append(categories, row)
+			continue
+		}
+		var items []pet.ShopItem
+		for _, item := range pet.ShopItems {
+			if item.Kind == kind && (item.Parent == "" || kind == "color" && item.Parent == "character/"+a.Character || kind == "model" && item.Parent == "hat/"+a.Hat) {
+				items = append(items, item)
+			}
+		}
+		keys := pet.AppearanceItems(a)
+		key := ""
+		switch kind {
+		case "character":
+			key = keys[0]
+		case "color":
+			key = keys[1]
+		case "hat":
+			if a.Hat != "" {
+				key = keys[2]
+			}
+		case "model":
+			key = keys[3]
+		}
+		owned, index, total := 0, 0, len(items)
+		for j, item := range items {
+			if e.State(item.Key) == store.ItemOwned {
+				owned++
+			}
+			if item.Key == key {
+				index = j
+			}
+		}
+		name, state, info := m.shopText("no_hat"), shopStyle("owned").Render(m.shopText("owned")), pet.Pets.NoHat.Description.Text(string(m.lang))
+		if info == "" {
+			info = m.shopText("description_owned")
+		}
+		if kind == "hat" {
+			owned++
+			total++
+			if key != "" {
+				index++
+			}
+		}
+		if item := pet.ShopItemByKey(key); item != nil {
+			name = item.Name.Text(string(m.lang))
+			st := e.State(key)
+			switch {
+			case st == store.ItemOwned:
+				info = m.shopText("description_owned")
+			case item.Included:
+				base := pet.ShopItemByKey(item.Parent).Name.Text(string(m.lang))
+				state = m.st.muted.Render(m.shopText("comes", base))
+				info = m.shopText("description_included")
+			case st == store.ItemLocked:
+				state = shopStyle("locked").Render(m.shopText("locked"))
+				info = m.shopText("description_locked")
+			default:
+				state = m.coinDisplay(e.Prices[key])
+				info = m.shopText("description_available")
+				if e.Prices[key] > e.Balance {
+					info = m.shopText("description_insufficient")
+				}
+			}
+			if description := item.Description.Text(string(m.lang)); description != "" {
+				info = description
+			}
+		}
+		if m.shop.PriceEditing && key == m.currentShopKey() {
+			state = m.coinDisplay(e.Prices[key])
+			info = m.shopText("dev_price_help")
+		}
+		row := categoryRow{
+			label:      m.shopText(kind),
+			selection:  fmt.Sprintf("‹ %s › %d/%d", name, index+1, total),
+			state:      state,
+			collection: m.st.muted.Render(m.shopText("collection", owned, total)),
+		}
+		if i == m.shop.Editor.Row {
+			row.details = []string{info}
+		}
+		categories = append(categories, row)
+	}
+	// O catálogo inteiro fixa as colunas; navegar não altera suas larguras.
+	widths := m.shopColumnWidths()
+	columnGap := shopColumnGap
+	// Só encurtar os intervalos quando as colunas ficariam pequenas demais.
+	minimumColumns := min(widths[0], 12) + min(widths[1], 10) + min(widths[2], 6) + min(widths[3], 10)
+	if leftWidth-4-2 < minimumColumns+3*columnGap {
+		columnGap = shopCompactColumnGap
+	}
+	available := max(4, leftWidth-4-2-3*columnGap)
+	for widths[0]+widths[1]+widths[2]+widths[3] > available {
+		widest := slices.Index(widths, slices.Max(widths))
+		widths[widest]--
+	}
+	// Distribuir a sobra entre as colunas sem depender do texto selecionado.
+	spare := max(0, leftWidth-4-2-widths[0]-widths[1]-widths[2]-widths[3]-3*columnGap)
+	gaps := [3]int{}
+	for i := range gaps {
+		gaps[i] = columnGap + spare/len(gaps)
+		if i < spare%len(gaps) {
+			gaps[i]++
+		}
+	}
+	var lines []string
+	for i, row := range categories {
+		if i > 0 {
+			for range shopSectionGap {
+				lines = append(lines, "")
+			}
+		}
+		lines = append(lines, m.shopRow(i, row.label, row.selection, row.state, row.collection, widths, gaps))
+		for _, detail := range row.details {
+			lines = append(lines, m.st.muted.Render(lipgloss.NewStyle().Width(max(1, leftWidth-4)).PaddingLeft(shopDescriptionIndent).Render(detail)))
+		}
+	}
+	title := m.shopText("shop")
+	if m.shop.Dev {
+		title += " · " + devAccent.Render(m.t("dev"))
+	}
+	left := m.box(title, strings.Join(lines, "\n"), leftWidth, 0)
+	innerWidth := max(1, rightWidth-4)
+	drawingHeight := max(1, previewHeight-3) // bordas e linha de saldo
+	scale := 1
+	pixelWidth, pixelHeight := pet.Pets.CanvasSize(a)
+	if pixelWidth*2 <= innerWidth && pixelHeight <= drawingHeight {
+		scale = 2
+	}
+	preview := pet.Pets.RenderTerminal(a, m.shop.Mood, m.tick, scale, 0, m.pixel)
+	balance := lipgloss.PlaceHorizontal(innerWidth, lipgloss.Right, m.coinDisplay(e.Balance))
+	centered := lipgloss.Place(innerWidth, drawingHeight, lipgloss.Center, lipgloss.Center, preview)
+	right := m.box(m.shopText("shop"), balance+"\n"+centered, rightWidth, 0)
+	if w < 58 {
+		return left + "\n" + right
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, left, "  ", right)
+}
+func (m model) shopColumnWidths() []int {
+	widths := []int{1, 1, 1, 1}
+	measure := func(column int, text string) {
+		widths[column] = max(widths[column], lipgloss.Width(text))
+	}
+	counts := map[string]int{"character": len(pet.Pets.Characters), "hat": len(pet.Pets.Hats) + 1}
+	for _, character := range pet.Pets.Characters {
+		counts["color"] = max(counts["color"], len(character.Variants))
+		for mood := pet.Wilted; mood <= pet.Sleeping; mood++ {
+			name := pet.Pets.MoodName(pet.Appearance{Character: character.ID}, mood, string(m.lang))
+			measure(1, "‹ "+name+" ›")
+		}
+	}
+	for _, hat := range pet.Pets.Hats {
+		counts["model"] = max(counts["model"], len(hat.Variants))
+	}
+	for kind, total := range counts {
+		measure(0, m.shopText(kind))
+		measure(3, m.shopText("collection", total, total))
+	}
+	measure(0, m.shopText("mood"))
+	measure(1, fmt.Sprintf("‹ %s › %d/%d", m.shopText("no_hat"), counts["hat"], counts["hat"]))
+	for _, item := range pet.ShopItems {
+		name := item.Name.Text(string(m.lang))
+		total := counts[item.Kind]
+		measure(1, fmt.Sprintf("‹ %s › %d/%d", name, total, total))
+		if item.Parent == "" {
+			measure(2, m.shopText("comes", name))
+		}
+	}
+	measure(2, m.shopText("owned"))
+	measure(2, m.shopText("locked"))
+	measure(2, m.coinDisplay(9999)) // maior preço permitido, inclusive no dev
+	return widths
+}
+
+func (m model) shopRow(i int, label, selection, state, collection string, widths []int, gaps [3]int) string {
+	prefix := "  "
+	if i == m.shop.Editor.Row {
+		prefix = m.st.sel.Render("▸ ")
+		label = m.st.sel.Render(label)
+	}
+	category := lipgloss.NewStyle().Width(widths[0]).Render(label)
+	option := lipgloss.NewStyle().Width(widths[1]).Align(lipgloss.Center).Render(selection)
+	status := lipgloss.NewStyle().Width(widths[2]).Align(lipgloss.Center).Render(state)
+	owned := lipgloss.NewStyle().Width(widths[3]).Align(lipgloss.Right).Render(collection)
+	return lipgloss.JoinHorizontal(lipgloss.Top, prefix, category, strings.Repeat(" ", gaps[0]), option, strings.Repeat(" ", gaps[1]), status, strings.Repeat(" ", gaps[2]), owned)
+}

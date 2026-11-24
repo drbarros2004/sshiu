@@ -368,6 +368,11 @@ func (m model) roomView(w, h int) string {
 			title += m.st.muted.Render(m.t(" · y copia"))
 		}
 	}
+	if m.economyReady {
+		coins := m.coinDisplay(m.walletBalance())
+		gap := max(1, w-lipgloss.Width(title)-lipgloss.Width(coins))
+		title = lipgloss.JoinHorizontal(lipgloss.Center, title, strings.Repeat(" ", gap), coins)
+	}
 	if !m.solo() { // quanto a sala comporta, embaixo do nome; a solo é sempre uma pessoa
 		line := m.tf("%d/%d membros", len(s.Members), s.Max)
 		if s.Closed {
@@ -572,7 +577,7 @@ func (m model) soloLog() string {
 		if e.Verb == "cumpriu" {
 			verb = m.st.ok.Render(verb)
 		}
-		b.WriteString(m.st.muted.Render(e.At.Format("15:04")) + "  " + verb + " \"" + e.Task + "\"\n")
+		b.WriteString(m.st.muted.Render(e.At.Format("15:04")) + "  " + verb + " \"" + e.Task + "\"" + m.receiptSuffix(e) + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -620,7 +625,7 @@ func (m model) focusPanel(w int) string {
 		lines = append(lines, m.st.bad.Render(m.t("tempo esgotado")))
 	}
 	lines = append(lines, m.st.muted.Render(m.tf("%d de %d min focados",
-		int(f.Focused(m.now).Minutes()), f.Declared)))
+		int(f.Focused(m.now).Minutes()), f.Declared))+m.coinGain(f))
 	block := lipgloss.JoinHorizontal(lipgloss.Top, paintBlocks(bigText(mmss(f.Ends.Sub(m.now))), c), "   ",
 		strings.Join(lines, "\n"))
 	if f.Expired(m.now) { // as escolhas embaixo do relógio, onde cabem em qualquer largura
@@ -810,6 +815,9 @@ func (m model) feed(n, w int) string {
 		line := m.st.muted.Render(e.At.Format("15:04")) + " " + bold.Render(nick) + " " + m.t(e.Verb)
 		if e.Task != "" { // entrar e sair não têm tarefa
 			line += " \"" + m.taskText(e.Who, e.Task) + "\""
+		}
+		if e.Who == m.id && e.Coins != nil {
+			line += " " + m.coinNumber("receipt", *e.Coins)
 		}
 		return line
 	}

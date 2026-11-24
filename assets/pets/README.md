@@ -23,6 +23,19 @@ artworkColors, em characters.json, aponta para ../artworks/colors.json, também 
 Os IDs e nomes de arquivos estão em inglês, em minúsculas.
 displayName contém os nomes por idioma, por exemplo {"pt": "azul", "en": "blue"}.
 Edite esses nomes em characters.json e hats.json. Os IDs identificam as opções independentemente do idioma.
+
+### Descrições na loja
+
+`description` é opcional e usa o mesmo formato por idioma de `displayName`:
+`"description": {"pt": "uma frase curta.", "en": "a short sentence."}`.
+Em `characters.json`, coloque ao lado de `displayName` do personagem ou dentro de uma
+entrada de `variants` para uma cor específica (veja fruta azul).
+Em `hats.json`, faça o mesmo no chapéu ou dentro de `variants` para um modelo.
+`noHat.description`, no mesmo arquivo, contém a frase de sem chapéu, sem criar um item comprável.
+Uma descrição personalizada independe de preço, posse e bloqueio. Sem descrição, a loja usa
+os textos `description_*` de `../shop/shop.json` conforme o estado do item.
+Só a categoria selecionada mostra sua descrição, em qualquer tamanho de janela.
+
 Novos idiomas podem ser acrescentados como outras chaves no mesmo objeto.
 O carregador exige um nome em en e usá-lo quando faltar a tradução escolhida.
 O campo order define a ordem de personagens, chapéus e variantes dentro de cada personagem ou chapéu.

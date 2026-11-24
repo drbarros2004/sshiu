@@ -38,7 +38,7 @@ func (m model) tabs() tab {
 }
 
 func (m model) canHideDev() bool {
-	return Dev && !m.hideDev && m.nick != "" && !m.typing() && m.roomDev == nil && m.profileDev == nil
+	return Dev && !m.hideDev && m.nick != "" && !m.typing() && m.roomDev == nil && m.profileDev == nil && !m.shop.Dev && !m.shop.Equip && m.shop.Confirm == nil
 }
 
 type devPanel struct {

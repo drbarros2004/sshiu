@@ -119,6 +119,7 @@ func (u *user) status() Status {
 }
 
 type Event struct {
+	Coins                 *int
 	ID                    int
 	Who, Nick, Verb, Task string
 	At                    time.Time
@@ -315,18 +316,18 @@ func Finish(id string, r pet.Result) {
 // finish grava a tarefa e atualiza o pet na hora. Chame com mu travado.
 func finish(u *user, r pet.Result, at time.Time) {
 	f := u.focus
-	u.focus = nil
 	p, err := store.RecordTask(u.id, store.TaskRow{Start: f.Start, End: at, Task: f.Task,
 		DeclaredMin: f.Declared, Focused: f.Focused(at), Result: r, Room: f.Room})
 	if err != nil {
 		log.Error("recordTask", "err", err)
 		return
 	}
+	u.focus = nil
 	u.energy, u.today, u.todayMin = p.EnergyAt(at), p.Today, p.TodayMin
 	u.color = p.Color
 	u.appearance = p.Look()
 	if r == pet.Done {
-		event(u, "cumpriu", f.Task)
+		eventReceipt(u, store.TaskRow{Start: f.Start, End: at, Task: f.Task})
 	}
 }
 

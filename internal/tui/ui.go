@@ -75,12 +75,13 @@ type tab int
 const (
 	tabRoom tab = iota
 	tabProfile
+	tabShop
 	tabVisual
 	tabAbout
 	tabDev // só com a flag -dev (dev.go)
 )
 
-var tabNames = [...]string{"sala", "perfil", "visual", "sobre", "dev"}
+var tabNames = [...]string{"sala", "perfil", "loja", "visual", "sobre", "dev"}
 
 // Mensagens: o único jeito de o mundo de fora mudar o modelo.
 type (
@@ -122,6 +123,10 @@ func act(f func()) tea.Cmd {
 }
 
 type model struct {
+	shop                shopPanel
+	economy             store.Economy
+	economyReady        bool
+	economyRevision     int
 	original            string // identidade SSH original, preservada ao assumir alguém no dev
 	roomDev, profileDev *inlineDev
 	hideDev             bool // só desta conexão: interface normal para capturas, cenário dev preservado
@@ -280,9 +285,9 @@ func newInput(placeholder string, limit int) textinput.Model {
 
 func (m model) Init() tea.Cmd {
 	if m.pending != "" && m.nick != "" { // "ssh -t <servidor> <código>": entra sem passar pelo menu
-		return tea.Batch(doTick(), m.loadProfile(), m.join(m.pending))
+		return tea.Batch(doTick(), m.loadProfile(), m.loadEconomy(), m.join(m.pending))
 	}
-	return tea.Batch(doTick(), m.loadProfile())
+	return tea.Batch(doTick(), m.loadProfile(), m.loadEconomy())
 }
 
 // active: tarefa em andamento e dentro do tempo declarado.
@@ -347,6 +352,9 @@ func (m model) loadProfile() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if next, cmd, ok := m.updateShop(msg); ok {
+		return next, cmd
+	}
 	if next, cmd, ok := m.updateInline(msg); ok {
 		return next, cmd
 	}
@@ -377,7 +385,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(doTick(), cmd)
 		}
 		m = m.syncSide()
-		next := doTick()
+		next := tea.Batch(doTick(), m.loadEconomy())
 		if m.boardStale() { // virou o dia: ontem saiu do retrato e entra pelo banco
 			m.bday = dayKey(m.now) // uma leitura só, até a resposta chegar
 			next = tea.Batch(next, m.loadBoard())
@@ -436,7 +444,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.tab, m.custom, m.first = tabProfile, true, true
 			m.previewMood = pet.MoodOf(pet.EnergyStart)
 			m.appearanceEdit = newAppearanceEditor(m.pet.Look())
-			cmds := []tea.Cmd{m.loadProfile()}
+			cmds := []tea.Cmd{m.loadProfile(), m.loadEconomy()}
 			if m.pending != "" { // o código do comando esperava o apelido do primeiro acesso
 				code := m.pending
 				m.pending = ""
@@ -534,8 +542,12 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.garden = nil
 		return m, nil
 	}
+	dialogNavigation := (m.shop.Confirm != nil || m.shop.Equip) && !m.shop.Busy && (k == "a" || k == "d" || k == "tab" || k == "shift+tab" || k == "q")
+	if m.tab == tabShop && (m.shop.Confirm != nil || m.shop.Equip || m.shop.PriceEditing || m.shop.Busy) && k != "ctrl+c" && !dialogNavigation {
+		return m.shopKey(msg)
+	}
 	if k == "ctrl+c" || k == "q" && m.nick != "" && !m.typing() {
-		dirty := Dev && (m.roomDev != nil && m.roomDev.dirty() || m.profileDev != nil && m.profileDev.dirty())
+		dirty := Dev && (m.roomDev != nil && m.roomDev.dirty() || m.profileDev != nil && m.profileDev.dirty() || m.shop.Dev)
 		if dirty && !m.quitArmed {
 			m.quitArmed = true
 			m.err = m.t("há alterações por salvar; repita para sair sem salvar")
@@ -588,6 +600,8 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.roomKey(msg)
 	case tabProfile:
 		return m.profileKey(msg)
+	case tabShop:
+		return m.shopKey(msg)
 	case tabVisual:
 		return m.visualKey(msg)
 	case tabAbout:
@@ -610,6 +624,10 @@ func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 	if t == tabProfile {
 		m.smonth = time.Time{} // o perfil abre no mês de agora
 		return m, m.loadProfile()
+	}
+	if t == tabShop {
+		m.ensureShop()
+		return m, m.loadEconomy()
 	}
 	if t == tabDev {
 		m.dev.input = ""
@@ -679,6 +697,8 @@ func (m model) View() tea.View {
 			help = m.roomHelp()
 		case tabProfile:
 			content, help = m.profileView, m.profileHelp()
+		case tabShop:
+			content, help = m.shopView, m.shopHelp()
 		case tabVisual:
 			content, help = func(int, int) string { return m.visualView() }, m.t("↑/↓ escolhe · ←/→ muda · j prévia · v editar no jardim · enter salva")
 		case tabAbout:
@@ -704,19 +724,7 @@ func (m model) View() tea.View {
 			help += m.t(" · h oculta opções dev")
 		}
 		inner := max(m.width-4, 1)
-		footer := func(help string) string {
-			nav := m.t("a/d troca de aba · q sai")
-			if m.typing() {
-				nav = m.t("tab troca de aba · ctrl+c sai")
-			}
-			if help != "" {
-				nav = help + " · " + nav
-			}
-			// o rodapé quebra entre um atalho e outro, nunca no meio de um ("q" numa linha, "sai" na outra)
-			nbsp := string(rune(0xa0)) // o espaço que não quebra
-			nav = strings.ReplaceAll(strings.ReplaceAll(nav, " ", nbsp), nbsp+"·"+nbsp, nbsp+"· ")
-			return m.st.muted.Width(inner).Render(nav)
-		}
+		footer := func(help string) string { return m.footer(help, inner) }
 		// cabeçalho em cima, rodapé preso na última linha e o conteúdo no espaço do meio
 		top, foot := m.header(), footer(help)
 		h := max(1, m.height-2-lipgloss.Height(top)-2-lipgloss.Height(foot))
@@ -734,6 +742,20 @@ func (m model) View() tea.View {
 	v := tea.NewView(lipgloss.NewStyle().Padding(1, 2).Render(body))
 	v.AltScreen = true
 	return v
+}
+
+func (m model) footer(help string, inner int) string {
+	nav := m.t("a/d troca de aba · q sai")
+	if m.typing() {
+		nav = m.t("tab troca de aba · ctrl+c sai")
+	}
+	if help != "" {
+		nav = help + " · " + nav
+	}
+	// o rodapé quebra entre um atalho e outro, nunca no meio de um ("q" numa linha, "sai" na outra)
+	nbsp := string(rune(0xa0)) // o espaço que não quebra
+	nav = strings.ReplaceAll(strings.ReplaceAll(nav, " ", nbsp), nbsp+"·"+nbsp, nbsp+"· ")
+	return m.st.muted.Width(inner).Render(nav)
 }
 
 // fit deixa s com exatamente h linhas de no máximo w colunas: corta o que passa (com "…" na

@@ -227,15 +227,35 @@ func recordTask(tx *sql.Tx, id string, t TaskRow) (pet.Pet, error) {
 	if err != nil {
 		return pet.Pet{}, err
 	}
+	// Repetir a mesma conclusão não deve pagar nem somar foco novamente.
+	var existing int
+	if t.Result == pet.Done {
+		if err = tx.QueryRow(`SELECT COUNT(*) FROM tasks t JOIN coin_receipts r ON r.task_id=t.id WHERE t.user_id=? AND t.started_at=? AND t.ended_at=? AND t.task=?`, id, t.Start.Unix(), t.End.Unix(), t.Task).Scan(&existing); err != nil {
+			return pet.Pet{}, err
+		}
+		if existing > 0 {
+			return p, nil
+		}
+	}
 	p.Focus(t.Focused.Minutes(), t.Result == pet.Done, t.End)
 	if _, err = tx.Exec(`UPDATE users SET energy = ?, last_active = ?, streak = ?, streak_day = ?, today = ?, today_min = ?, dev_energy = ? WHERE id = ?`,
 		p.Energy, p.LastActive.Unix(), p.Streak, p.StreakDay, p.Today, p.TodayMin, p.DirectEnergy, id); err != nil {
 		return pet.Pet{}, err
 	}
-	if _, err = tx.Exec(`INSERT INTO tasks (user_id, started_at, ended_at, task, declared_min, focused_sec, result, room_code)
+	result, err := tx.Exec(`INSERT INTO tasks (user_id, started_at, ended_at, task, declared_min, focused_sec, result, room_code)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, t.Start.Unix(), t.End.Unix(), t.Task, t.DeclaredMin, int(t.Focused.Seconds()), t.Result, t.Room); err != nil {
+		id, t.Start.Unix(), t.End.Unix(), t.Task, t.DeclaredMin, int(t.Focused.Seconds()), t.Result, t.Room)
+	if err != nil {
 		return pet.Pet{}, err
+	}
+	if t.Result == pet.Done {
+		taskID, e := result.LastInsertId()
+		if e != nil {
+			return pet.Pet{}, e
+		}
+		if _, e = settleCoins(tx, id, taskID, int(t.Focused.Seconds()), false); e != nil {
+			return pet.Pet{}, e
+		}
 	}
 	if _, err = tx.Exec(`DELETE FROM open_tasks WHERE user_id = ?`, id); err != nil {
 		return pet.Pet{}, err

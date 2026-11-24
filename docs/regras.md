@@ -4,6 +4,21 @@ Todo número que decide como o app se comporta fica listado aqui, com o porquê 
 
 Ao mudar um número no código, mude aqui também.
 
+## Moedas e loja
+
+As regras editáveis ficam em [coins.json](../assets/coins/coins.json); o cálculo está em [shop.go](../internal/pet/shop.go). Controles e configuração: [guia da loja](../assets/shop/README.md).
+
+| Regra | Valor inicial | Comportamento |
+|---|---|---|
+| Recompensa | 1 moeda por 60 s | Só tarefas marcadas feito; parar, trocar e interromper não dão moedas nem guardam o tempo dessas tarefas. |
+| Saldo | 0 a 9999 | Excedentes são perdidos; a prévia mostra o ganho já limitado. Sem conversão de histórico antigo. |
+| Resto de segundos | abaixo do intervalo | Soma entre tarefas cumpridas e sobrevive ao restart. Mudar a taxa reduz o resto por módulo do novo intervalo, sem criar moedas. |
+| Preços | inteiros de 0 a 9999 | Bases a 120 (personagens) e 60 (chapéus), provisoriamente. Cores a 10 (fruta) ou 20 (outros); modelos a 15. Cada base tem seu padrão editável. |
+| Itens incluídos | 0 moedas | Comprar base inclui sua primeira cor/modelo. Fruta e suas primeiras quatro cores começam possuídas e com preço zero. |
+| Tarefa histórica dev | início/fim com segundos | Intervalos sobrepostos são permitidos. Paga sua duração isoladamente, descartando seu resto sem consumir o resto normal. |
+
+Uma compra confirma valores antes de descontar e conceder itens na mesma transação. Equipar é uma segunda pergunta. A loja permite prévia de todos os itens; o perfil normal só permite usar os possuídos. Preços dev são globais ao banco dev; inventário e saldo são individuais.
+
 ## Energia e humor do pet
 
 As regras da energia estão em [`internal/pet/mood.go`](../internal/pet/mood.go). A energia vem dos minutos focados de verdade, não do tempo declarado: declarar 60 min e marcar "feito" no minuto 1 não rende.

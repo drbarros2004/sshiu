@@ -229,6 +229,66 @@ func TestInlineExactEnergyNumber(t *testing.T) {
 	}
 }
 
+func TestInlineCoinsStartFromCurrentBalance(t *testing.T) {
+	m := inlineModel(t, "ui-wallet-start")
+	m.tab = tabProfile
+	m.economy.Balance = 87
+	m.economyReady = true
+	m = openInline(t, m)
+	m, _ = pressInline(m, 'm', true)
+	if m.profileDev.number != 87 {
+		t.Fatalf("editor começou em %g, esperado o saldo 87", m.profileDev.number)
+	}
+	m, _ = pressInline(m, 'l', false)
+	m, _ = pressInline(m, tea.KeyEnter, false)
+	m, _ = pressInline(m, 'm', true)
+	if m.profileDev.number != 137 {
+		t.Fatalf("reabrir perdeu o rascunho: %g, esperado 137", m.profileDev.number)
+	}
+}
+
+func TestInlineCoinsSaveDirectlyFromField(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		tab        tab
+		key        rune
+		ctrl, exit bool
+	}{
+		{"p-x", tabProfile, 'x', false, true},
+		{"p-s", tabProfile, 's', true, false},
+		{"r-x", tabRoom, 'x', false, true},
+		{"r-s", tabRoom, 's', true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := inlineModel(t, "coin-"+tc.name)
+			m.tab = tc.tab
+			m = openInline(t, m)
+			m, _ = pressInline(m, 'm', true)
+			m, _ = pressInline(m, 'l', false)
+			before, err := store.ReadEconomy(m.id)
+			if err != nil || before.Balance != 0 {
+				t.Fatalf("edição gravou antes de salvar: %+v %v", before, err)
+			}
+			m, cmd := pressInline(m, tc.key, tc.ctrl)
+			if cmd == nil {
+				t.Fatal("atalho não iniciou o salvamento direto do campo")
+			}
+			next, _ := m.Update(cmd())
+			m = next.(model)
+			after, err := store.ReadEconomy(m.id)
+			if err != nil || after.Balance != 50 {
+				t.Fatalf("saldo não foi salvo: %+v %v", after, err)
+			}
+			if tc.exit && m.inline() != nil {
+				t.Fatal("x não saiu do editor")
+			}
+			if !tc.exit && (m.inline() == nil || m.inline().field != "") {
+				t.Fatal("ctrl+s não permaneceu no editor com o campo confirmado")
+			}
+		})
+	}
+}
+
 func TestInlineQuitAlsoChecksDraftsInOtherTabs(t *testing.T) {
 	m := openInline(t, inlineModel(t, "ui-quit"))
 	_, cmd := pressInline(m, 'c', true)

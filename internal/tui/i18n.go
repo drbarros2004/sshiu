@@ -108,6 +108,14 @@ var enErrors = []struct {
 
 // en: português → inglês. Em minúsculas, como todo texto da interface.
 var en = map[string]string{
+	"saldo inválido":            "invalid coin balance",
+	"preço inválido":            "invalid price",
+	"tarefa histórica inválida": "invalid historical task",
+	"aparência não possuída":    "appearance not owned",
+	"item/estado inválido":      "invalid item or state",
+	"usuário inexistente":       "unknown user",
+
+	"loja":              "shop",
 	"personagem":        "character",
 	"cor do personagem": "character color",
 	"chapéu":            "hat",
@@ -429,6 +437,7 @@ var en = map[string]string{
 	"--dados":                              "--data",
 	"--rende-mais":                         "--more-productive",
 	"--modo-escuro":                        "--dark-mode",
+	"--loja":                               "--shop",
 	"o que é isso?":                        "what is this?",
 	"por que sshiu?":                       "why sshiu?",
 	"por que SSH?":                         "why SSH?",
@@ -442,6 +451,8 @@ var en = map[string]string{
 	"que dados vocês guardam?":             "what data do you keep?",
 	"focar pelo terminal rende mais?":      "is focusing in the terminal more productive?",
 	"tem modo escuro?":                     "is there a dark mode?",
+	"pra que servem as moedas?":            "what are coins for?",
+	"tarefas cumpridas rendem moedas pelo tempo focado. na loja, você troca moedas por personagens, cores, chapéus e seus modelos. seu foco agora rende.":                                           "completed tasks earn coins based on time focused. in the shop, you spend coins on characters, colors, hats and hat models. your focus now has a wardrobe budget.",
 	"um lugar quieto para focar junto, pelo terminal. você diz a próxima coisa concreta que vai fazer, foca por um tempo e a sala vê. sem chat, sem notificação: só um pet que reflete o seu foco.": "a quiet place to focus together, from the terminal. you say the next concrete thing you'll do, focus for a while and the room sees it. no chat, no notifications: just a pet that reflects your focus.",
 	"é o ssh de quem pede silêncio. shhh.": "it's ssh with the \"shhh\" of a library inside. shhh.",
 	"porque o terminal já está aberto. e porque nenhum app de foco no navegador sobrevive à aba do lado.":                                                                     "because the terminal is already open. and because no focus app in the browser survives the tab next to it.",
@@ -450,7 +461,7 @@ var en = map[string]string{
 	"funciona. a tarefa pode ser \"esperar o Claude terminar\". o pet não julga.":                                                                                             "it does. the task can be \"wait for Claude to finish\". the pet doesn't judge.",
 	"minutos focados e tarefas cumpridas enchem a energia, e cada dia parado tira um pouco. o humor sai da energia.":                                                          "focused minutes and done tasks fill its energy, and each idle day takes a little away. its mood comes from the energy.",
 	"não. ele só fica murcho e te olha. o que é pior.":                                                                                                                        "no. it just wilts and stares at you. which is worse.",
-	"aqui é uma biblioteca. dá para reagir a quem começou ou cumpriu uma tarefa, e só.":                                                                                       "this is a library. you can react to whoever started or finished a task, and that's it.",
+	"aqui é tipo uma biblioteca. dá para reagir quando alguém começa ou termina uma tarefa. mas conversar... sshhh.":                                                          "this is like a library. you can react when someone starts or finishes a task. but talking... sshhh.",
 	"a tarefa espera %d minutos você voltar. se não voltar, ela fica interrompida, o que não é castigo: é o mesmo que parar.":                                                 "the task waits %d minutes for you to come back. if you don't, it's interrupted, which isn't a punishment: it's the same as stopping.",
 	"o seu apelido, a impressão digital da sua chave SSH, as suas tarefas e os minutos. nada de senha, e-mail ou nome. a chave privada nunca sai do seu computador.":          "your nickname, your SSH key's fingerprint, your tasks and minutes. no password, email or name. your private key never leaves your computer.",
 	"fonte monoespaçada, fundo escuro, zero notificação. não temos dados, mas temos convicção.":                                                                               "monospace font, dark background, zero notifications. we have no data, but we have conviction.",
