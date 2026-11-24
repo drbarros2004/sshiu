@@ -533,6 +533,15 @@ func (m model) shopView(w, h int) string {
 		widest := slices.Index(widths, slices.Max(widths))
 		widths[widest]--
 	}
+	// Distribuir a sobra entre as colunas sem depender do texto selecionado.
+	spare := max(0, leftWidth-4-2-widths[0]-widths[1]-widths[2]-widths[3]-3*columnGap)
+	gaps := [3]int{}
+	for i := range gaps {
+		gaps[i] = columnGap + spare/len(gaps)
+		if i < spare%len(gaps) {
+			gaps[i]++
+		}
+	}
 	var lines []string
 	for i, row := range categories {
 		if i > 0 {
@@ -540,7 +549,7 @@ func (m model) shopView(w, h int) string {
 				lines = append(lines, "")
 			}
 		}
-		lines = append(lines, m.shopRow(i, row.label, row.selection, row.state, row.collection, widths, columnGap))
+		lines = append(lines, m.shopRow(i, row.label, row.selection, row.state, row.collection, widths, gaps))
 		for _, detail := range row.details {
 			lines = append(lines, m.st.muted.Render(lipgloss.NewStyle().Width(max(1, leftWidth-4)).PaddingLeft(shopDescriptionIndent).Render(detail)))
 		}
@@ -602,15 +611,15 @@ func (m model) shopColumnWidths() []int {
 	return widths
 }
 
-func (m model) shopRow(i int, label, selection, state, collection string, widths []int, columnGap int) string {
+func (m model) shopRow(i int, label, selection, state, collection string, widths []int, gaps [3]int) string {
 	prefix := "  "
 	if i == m.shop.Editor.Row {
 		prefix = m.st.sel.Render("▸ ")
 		label = m.st.sel.Render(label)
 	}
-	gap := strings.Repeat(" ", columnGap)
 	category := lipgloss.NewStyle().Width(widths[0]).Render(label)
-	option := lipgloss.NewStyle().Width(widths[1]).Render(selection)
-	status := lipgloss.NewStyle().Width(widths[2]).Render(state)
-	return lipgloss.JoinHorizontal(lipgloss.Top, prefix, category, gap, option, gap, status, gap, lipgloss.NewStyle().Width(widths[3]).Render(collection))
+	option := lipgloss.NewStyle().Width(widths[1]).Align(lipgloss.Center).Render(selection)
+	status := lipgloss.NewStyle().Width(widths[2]).Align(lipgloss.Center).Render(state)
+	owned := lipgloss.NewStyle().Width(widths[3]).Align(lipgloss.Right).Render(collection)
+	return lipgloss.JoinHorizontal(lipgloss.Top, prefix, category, strings.Repeat(" ", gaps[0]), option, strings.Repeat(" ", gaps[1]), status, strings.Repeat(" ", gaps[2]), owned)
 }
