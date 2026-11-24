@@ -242,8 +242,8 @@ func TestInlineCoinsStartFromCurrentBalance(t *testing.T) {
 	m, _ = pressInline(m, 'l', false)
 	m, _ = pressInline(m, tea.KeyEnter, false)
 	m, _ = pressInline(m, 'm', true)
-	if m.profileDev.number != 97 {
-		t.Fatalf("reabrir perdeu o rascunho: %g, esperado 97", m.profileDev.number)
+	if m.profileDev.number != 137 {
+		t.Fatalf("reabrir perdeu o rascunho: %g, esperado 137", m.profileDev.number)
 	}
 }
 
@@ -276,7 +276,7 @@ func TestInlineCoinsSaveDirectlyFromField(t *testing.T) {
 			next, _ := m.Update(cmd())
 			m = next.(model)
 			after, err := store.ReadEconomy(m.id)
-			if err != nil || after.Balance != 10 {
+			if err != nil || after.Balance != 50 {
 				t.Fatalf("saldo não foi salvo: %+v %v", after, err)
 			}
 			if tc.exit && m.inline() != nil {

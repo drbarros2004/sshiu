@@ -251,8 +251,8 @@
       "en": "(+%d coin gained)"
     },
     "wallet_help": {
-      "pt": "←/→ ±1 · j/l ±10 · enter confirma prévia · x salva e sai · ctrl+s salva · esc cancela campo",
-      "en": "←/→ ±1 · j/l ±10 · enter confirm preview · x save and exit · ctrl+s save · esc cancel field"
+      "pt": "←/→ ±1 · j/l ±50 · enter confirma prévia · x salva e sai · ctrl+s salva · esc cancela campo",
+      "en": "←/→ ±1 · j/l ±50 · enter confirm preview · x save and exit · ctrl+s save · esc cancel field"
     }
   }
 }

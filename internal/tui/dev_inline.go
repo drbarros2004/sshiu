@@ -152,7 +152,7 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			d.field = ""
 			return m, nil
 		}
-		delta := map[string]int{"left": -1, "right": 1, "j": -10, "l": 10}[k]
+		delta := map[string]int{"left": -1, "right": 1, "j": -50, "l": 50}[k]
 		d.number = float64(max(0, min(pet.Coins.Maximum, int(d.number)+delta)))
 		if k == "enter" || k == "x" || k == "ctrl+s" {
 			v := int(d.number)
