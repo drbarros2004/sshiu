@@ -9,6 +9,8 @@ Os arquivos são embutidos no executável. Depois de editar um JSON ou PNG, comp
 
 Saldo inicial e inventário inicial só se aplicam ao criar a carteira. Reconectar não repõe itens removidos no dev. A primeira migração também preserva a aparência equipada e suas opções iniciais incluídas.
 
+A lista usa quatro colunas: categoria, seleção (`‹ item › X/Y`), estado/preço e coleção (`X/Y owned`). A prévia de humor não tem estado nem coleção. A explicação continua abaixo da categoria; as contagens não se repetem abaixo. As colunas reservam as maiores larguras do catálogo e só se comprimem quando a janela exige.
+
 ## controles da loja
 
 - `↑/↓`: categoria; `←/→`: escolher item ou humor.

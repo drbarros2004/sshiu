@@ -430,13 +430,13 @@ func (m model) shopView(w, h int) string {
 	}
 	rows := m.shop.Editor.rows(true)
 	type categoryRow struct {
-		label, name, state string
-		details            []string
+		label, selection, state, collection string
+		details                             []string
 	}
 	var categories []categoryRow
 	for i, kind := range rows {
 		if kind == "mood" {
-			row := categoryRow{label: m.shopText(kind), name: pet.Pets.MoodName(a, m.shop.Mood, string(m.lang))}
+			row := categoryRow{label: m.shopText(kind), selection: "‹ " + pet.Pets.MoodName(a, m.shop.Mood, string(m.lang)) + " ›"}
 			if i == m.shop.Editor.Row {
 				row.details = []string{m.shopText("preview")}
 			}
@@ -509,11 +509,14 @@ func (m model) shopView(w, h int) string {
 			state = m.coinDisplay(e.Prices[key])
 			info = m.shopText("number_help")
 		}
-		label := fmt.Sprintf("%s (%d/%d)", m.shopText(kind), index+1, total)
-		row := categoryRow{label: label, name: name, state: state}
-		plural := map[string]string{"character": "characters", "color": "colors", "hat": "hats", "model": "models"}[kind]
+		row := categoryRow{
+			label:      m.shopText(kind),
+			selection:  fmt.Sprintf("‹ %s › %d/%d", name, index+1, total),
+			state:      state,
+			collection: m.st.muted.Render(m.shopText("collection", owned, total)),
+		}
 		if i == m.shop.Editor.Row || h >= 38 {
-			row.details = []string{info, m.shopText("have", owned, total, m.shopText(plural))}
+			row.details = []string{info}
 		}
 		categories = append(categories, row)
 	}
@@ -521,12 +524,12 @@ func (m model) shopView(w, h int) string {
 	widths := m.shopColumnWidths()
 	columnGap := shopColumnGap
 	// Só encurtar os intervalos quando as colunas ficariam pequenas demais.
-	minimumColumns := min(widths[0], 12) + min(widths[1], 10) + min(widths[2], 6)
-	if leftWidth-4-2 < minimumColumns+2*columnGap {
+	minimumColumns := min(widths[0], 12) + min(widths[1], 10) + min(widths[2], 6) + min(widths[3], 10)
+	if leftWidth-4-2 < minimumColumns+3*columnGap {
 		columnGap = shopCompactColumnGap
 	}
-	available := max(3, leftWidth-4-2-2*columnGap)
-	for widths[0]+widths[1]+widths[2] > available {
+	available := max(4, leftWidth-4-2-3*columnGap)
+	for widths[0]+widths[1]+widths[2]+widths[3] > available {
 		widest := slices.Index(widths, slices.Max(widths))
 		widths[widest]--
 	}
@@ -537,7 +540,7 @@ func (m model) shopView(w, h int) string {
 				lines = append(lines, "")
 			}
 		}
-		lines = append(lines, m.shopRow(i, row.label, row.name, row.state, widths, columnGap))
+		lines = append(lines, m.shopRow(i, row.label, row.selection, row.state, row.collection, widths, columnGap))
 		for _, detail := range row.details {
 			lines = append(lines, m.st.muted.Render(lipgloss.NewStyle().Width(max(1, leftWidth-4)).PaddingLeft(shopDescriptionIndent).Render(detail)))
 		}
@@ -564,7 +567,7 @@ func (m model) shopView(w, h int) string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, left, "  ", right)
 }
 func (m model) shopColumnWidths() []int {
-	widths := []int{1, 1, 1}
+	widths := []int{1, 1, 1, 1}
 	measure := func(column int, text string) {
 		widths[column] = max(widths[column], lipgloss.Width(text))
 	}
@@ -580,13 +583,15 @@ func (m model) shopColumnWidths() []int {
 		counts["model"] = max(counts["model"], len(hat.Variants))
 	}
 	for kind, total := range counts {
-		measure(0, fmt.Sprintf("%s (%d/%d)", m.shopText(kind), total, total))
+		measure(0, m.shopText(kind))
+		measure(3, m.shopText("collection", total, total))
 	}
 	measure(0, m.shopText("mood"))
-	measure(1, "‹ "+m.shopText("no_hat")+" ›")
+	measure(1, fmt.Sprintf("‹ %s › %d/%d", m.shopText("no_hat"), counts["hat"], counts["hat"]))
 	for _, item := range pet.ShopItems {
 		name := item.Name.Text(string(m.lang))
-		measure(1, "‹ "+name+" ›")
+		total := counts[item.Kind]
+		measure(1, fmt.Sprintf("‹ %s › %d/%d", name, total, total))
 		if item.Parent == "" {
 			measure(2, m.shopText("comes", name))
 		}
@@ -597,7 +602,7 @@ func (m model) shopColumnWidths() []int {
 	return widths
 }
 
-func (m model) shopRow(i int, label, name, state string, widths []int, columnGap int) string {
+func (m model) shopRow(i int, label, selection, state, collection string, widths []int, columnGap int) string {
 	prefix := "  "
 	if i == m.shop.Editor.Row {
 		prefix = m.st.sel.Render("▸ ")
@@ -605,7 +610,7 @@ func (m model) shopRow(i int, label, name, state string, widths []int, columnGap
 	}
 	gap := strings.Repeat(" ", columnGap)
 	category := lipgloss.NewStyle().Width(widths[0]).Render(label)
-	option := lipgloss.NewStyle().Width(widths[1]).Render("‹ " + name + " ›")
+	option := lipgloss.NewStyle().Width(widths[1]).Render(selection)
 	status := lipgloss.NewStyle().Width(widths[2]).Render(state)
-	return lipgloss.JoinHorizontal(lipgloss.Top, prefix, category, gap, option, gap, status)
+	return lipgloss.JoinHorizontal(lipgloss.Top, prefix, category, gap, option, gap, status, gap, lipgloss.NewStyle().Width(widths[3]).Render(collection))
 }

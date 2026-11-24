@@ -122,10 +122,6 @@
       "pt": "apenas para visualização (não altera humor ou energia)",
       "en": "just a preview (doesn't change mood or energy)"
     },
-    "have": {
-      "pt": "você tem %d/%d %s",
-      "en": "you have %d/%d %s"
-    },
     "missing_base": {
       "pt": "você precisa possuir %s %s para comprar este item de %s. compre a base primeiro ou escolha 'comprar todos os itens selecionados'.",
       "en": "you need to own the %s %s to buy this %s. buy it first or choose 'buy all selected items'."
@@ -253,6 +249,10 @@
     "wallet_help": {
       "pt": "←/→ ±1 · j/l ±50 · enter confirma prévia · x salva e sai · ctrl+s salva · esc cancela campo",
       "en": "←/→ ±1 · j/l ±50 · enter confirm preview · x save and exit · ctrl+s save · esc cancel field"
+    },
+    "collection": {
+      "pt": "%d/%d possuídos",
+      "en": "%d/%d owned"
     }
   }
 }
