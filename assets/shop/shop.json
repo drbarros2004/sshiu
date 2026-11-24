@@ -126,7 +126,7 @@
     },
     "batch_insufficient": {
       "pt": "não tem como você comprar tudo isso, tá faltando moeda... ou compra menos ou foca mais",
-      "en": "you can't buy all selected items with that little money... either buy less or focus more"
+      "en": "you can't buy all selected items with such few coins... either buy less or focus more"
     },
     "confirm_one": {
       "pt": "comprar %s %s por %d moedas?",
