@@ -47,6 +47,7 @@ type SpriteLayout struct {
 }
 
 type CharacterVariant struct {
+	Description  DisplayName       `json:"description,omitempty"`
 	Price        *int              `json:"price,omitempty"`
 	ID           string            `json:"id"`
 	DisplayName  DisplayName       `json:"displayName"`
@@ -59,6 +60,7 @@ type CharacterVariant struct {
 }
 
 type Character struct {
+	Description         DisplayName `json:"description,omitempty"`
 	Price               int         `json:"price"`
 	DefaultVariantPrice int         `json:"defaultVariantPrice"`
 	ID                  string      `json:"id"`
@@ -77,6 +79,7 @@ type Character struct {
 }
 
 type HatVariant struct {
+	Description DisplayName `json:"description,omitempty"`
 	Price       *int        `json:"price,omitempty"`
 	ID          string      `json:"id"`
 	DisplayName DisplayName `json:"displayName"`
@@ -85,6 +88,7 @@ type HatVariant struct {
 }
 
 type Hat struct {
+	Description         DisplayName  `json:"description,omitempty"`
 	Price               int          `json:"price"`
 	DefaultVariantPrice int          `json:"defaultVariantPrice"`
 	ID                  string       `json:"id"`
@@ -103,6 +107,7 @@ type artworkColor struct {
 type Catalog struct {
 	Characters          []Character
 	Hats                []Hat
+	NoHat               Hat
 	HatWidth, HatHeight int
 	moodNames           map[string]DisplayName
 	artworks            map[string]artworkColor
@@ -157,6 +162,7 @@ func LoadCatalog(files fs.FS) (*Catalog, error) {
 		return nil, err
 	}
 	var hatFile struct {
+		NoHat  Hat   `json:"noHat"`
 		Width  int   `json:"width"`
 		Height int   `json:"height"`
 		Hats   []Hat `json:"hats"`
@@ -165,6 +171,7 @@ func LoadCatalog(files fs.FS) (*Catalog, error) {
 		return nil, err
 	}
 	c.Hats, c.HatWidth, c.HatHeight = hatFile.Hats, hatFile.Width, hatFile.Height
+	c.NoHat = hatFile.NoHat
 	if c.HatWidth <= 0 || c.HatHeight <= 0 {
 		return nil, fmt.Errorf("hats.json: width e height devem ser positivos")
 	}

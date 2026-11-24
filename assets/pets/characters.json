@@ -10,6 +10,10 @@
         "pt": "fruta",
         "en": "fruit"
       },
+      "description": {
+        "pt": "é básico, mas funciona.",
+        "en": "pretty basic choice, but it works."
+      },
       "order": 0,
       "spriteLayout": "characters/00_fruit/sprite-layout.json",
       "moods": "characters/00_fruit/moods.json",
@@ -33,6 +37,10 @@
           "displayName": {
             "pt": "azul",
             "en": "blue"
+          },
+          "description": {
+            "pt": "escolha meio básica essa também.",
+            "en": "that's a pretty basic choice too."
           },
           "displayColor": "#87D7FF",
           "artworkColor": "blue",
@@ -162,6 +170,10 @@
         "pt": "coelho",
         "en": "bunny"
       },
+      "description": {
+        "pt": "pula distrações, não tarefas.",
+        "en": "hops over distractions, not tasks."
+      },
       "order": 1,
       "spriteLayout": "characters/01_bunny/sprite-layout.json",
       "moods": "characters/01_bunny/moods.json",
@@ -275,6 +287,10 @@
       "displayName": {
         "pt": "claude",
         "en": "claude"
+      },
+      "description": {
+        "pt": "bom pra codar. bugs ainda podem ocorrer.",
+        "en": "good coding buddy. may not fix all bugs..."
       },
       "order": 2,
       "spriteLayout": "characters/02_claude/sprite-layout.json",

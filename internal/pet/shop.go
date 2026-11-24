@@ -35,6 +35,7 @@ type ShopConfig struct {
 type ShopItem struct {
 	Key, Kind, Parent string
 	Name              DisplayName
+	Description       DisplayName
 	Price             int
 	Included          bool
 }
@@ -104,7 +105,7 @@ func loadShop() []ShopItem {
 	var items []ShopItem
 	for _, c := range Pets.Characters {
 		key := "character/" + c.ID
-		items = append(items, ShopItem{Key: key, Kind: "character", Name: c.DisplayName, Price: c.Price})
+		items = append(items, ShopItem{Key: key, Kind: "character", Name: c.DisplayName, Description: c.Description, Price: c.Price})
 		for i, v := range c.Variants {
 			price := c.DefaultVariantPrice
 			if v.Price != nil {
@@ -113,12 +114,12 @@ func loadShop() []ShopItem {
 			if i == 0 {
 				price = 0
 			}
-			items = append(items, ShopItem{Key: "color/" + c.ID + "/" + v.ID, Kind: "color", Parent: key, Name: v.DisplayName, Price: price, Included: i == 0})
+			items = append(items, ShopItem{Key: "color/" + c.ID + "/" + v.ID, Kind: "color", Parent: key, Name: v.DisplayName, Description: v.Description, Price: price, Included: i == 0})
 		}
 	}
 	for _, h := range Pets.Hats {
 		key := "hat/" + h.ID
-		items = append(items, ShopItem{Key: key, Kind: "hat", Name: h.DisplayName, Price: h.Price})
+		items = append(items, ShopItem{Key: key, Kind: "hat", Name: h.DisplayName, Description: h.Description, Price: h.Price})
 		for i, v := range h.Variants {
 			price := h.DefaultVariantPrice
 			if v.Price != nil {
@@ -127,7 +128,7 @@ func loadShop() []ShopItem {
 			if i == 0 {
 				price = 0
 			}
-			items = append(items, ShopItem{Key: "model/" + h.ID + "/" + v.ID, Kind: "model", Parent: key, Name: v.DisplayName, Price: price, Included: i == 0})
+			items = append(items, ShopItem{Key: "model/" + h.ID + "/" + v.ID, Kind: "model", Parent: key, Name: v.DisplayName, Description: v.Description, Price: price, Included: i == 0})
 		}
 	}
 	seen := map[string]bool{}

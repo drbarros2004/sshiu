@@ -133,7 +133,7 @@ func (m model) updateShop(msg tea.Msg) (model, tea.Cmd, bool) {
 		m.economyRevision++
 		m.shop.Dev = false
 		m.shop.PriceEditing = false
-		m.notice = m.shopText("saved")
+		m.notice = m.shopText("dev_shop_saved")
 		if !v.Exit {
 			m.shop.BaseStamp = "reopen"
 		}
@@ -306,7 +306,7 @@ func (m model) shopKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if key != "" {
 				for _, worn := range pet.AppearanceItems(m.pet.Look()) {
 					if worn == key {
-						m.err = m.shopText("equipped_error")
+						m.err = m.shopText("dev_equipped_item_error")
 						return m, nil
 					}
 				}
@@ -314,7 +314,7 @@ func (m model) shopKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				next := map[string]string{store.ItemAvailable: store.ItemOwned, store.ItemOwned: store.ItemLocked, store.ItemLocked: store.ItemAvailable}[state]
 				item := pet.ShopItemByKey(key)
 				if item.Included && m.shopEconomy().State(item.Parent) == store.ItemOwned && next != store.ItemOwned {
-					m.err = m.shopText("dependency_error")
+					m.err = m.shopText("dev_included_variant_error")
 					return m, nil
 				}
 				m.shop.States[key] = next
@@ -376,7 +376,7 @@ func (m model) shopHelp() string {
 		return m.shopText("yes_no")
 	}
 	if m.shop.PriceEditing {
-		return m.shopText("number_help")
+		return m.shopText("dev_price_help")
 	}
 	if m.shop.Dev {
 		return m.shopText("dev_help")
@@ -450,7 +450,10 @@ func (m model) shopView(w, h int) string {
 				index = j
 			}
 		}
-		name, state, info := m.shopText("no_hat"), shopStyle("owned").Render(m.shopText("owned")), m.shopText("no_hat_help")
+		name, state, info := m.shopText("no_hat"), shopStyle("owned").Render(m.shopText("owned")), pet.Pets.NoHat.Description.Text(string(m.lang))
+		if info == "" {
+			info = m.shopText("description_owned")
+		}
 		if kind == "hat" {
 			owned++
 			total++
@@ -461,31 +464,30 @@ func (m model) shopView(w, h int) string {
 		if item := pet.ShopItemByKey(key); item != nil {
 			name = item.Name.Text(string(m.lang))
 			st := e.State(key)
-			category := m.shopText(kind)
 			switch {
 			case st == store.ItemOwned:
-				info = m.shopText("owned_help", category)
-				if item.Included {
-					info = m.shopText("included_owned", category, pet.ShopItemByKey(item.Parent).Name.Text(string(m.lang)))
-				}
+				info = m.shopText("description_owned")
 			case item.Included:
 				base := pet.ShopItemByKey(item.Parent).Name.Text(string(m.lang))
 				state = m.st.muted.Render(m.shopText("comes", base))
-				info = m.shopText("included_help", category, base)
+				info = m.shopText("description_included")
 			case st == store.ItemLocked:
 				state = shopStyle("locked").Render(m.shopText("locked"))
-				info = m.shopText("locked_help", category)
+				info = m.shopText("description_locked")
 			default:
 				state = m.coinDisplay(e.Prices[key])
-				info = m.shopText("can_buy", category, e.Prices[key])
+				info = m.shopText("description_available")
 				if e.Prices[key] > e.Balance {
-					info = m.shopText("need_money", category)
+					info = m.shopText("description_insufficient")
 				}
+			}
+			if description := item.Description.Text(string(m.lang)); description != "" {
+				info = description
 			}
 		}
 		if m.shop.PriceEditing && key == m.currentShopKey() {
 			state = m.coinDisplay(e.Prices[key])
-			info = m.shopText("number_help")
+			info = m.shopText("dev_price_help")
 		}
 		row := categoryRow{
 			label:      m.shopText(kind),
@@ -493,7 +495,7 @@ func (m model) shopView(w, h int) string {
 			state:      state,
 			collection: m.st.muted.Render(m.shopText("collection", owned, total)),
 		}
-		if i == m.shop.Editor.Row || h >= 38 {
+		if i == m.shop.Editor.Row {
 			row.details = []string{info}
 		}
 		categories = append(categories, row)

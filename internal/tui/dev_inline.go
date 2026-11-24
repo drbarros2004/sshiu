@@ -172,13 +172,13 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if k == "enter" {
 			parts := strings.Split(m.in.Value(), "|")
 			if len(parts) != 3 {
-				m.err = m.shopText("invalid_history")
+				m.err = m.shopText("dev_history_error")
 				return m, nil
 			}
 			start, e1 := time.ParseInLocation("2006-01-02 15:04:05", strings.TrimSpace(parts[1]), time.Local)
 			end, e2 := time.ParseInLocation("2006-01-02 15:04:05", strings.TrimSpace(parts[2]), time.Local)
 			if e1 != nil || e2 != nil || !end.After(start) || end.After(m.now) || strings.TrimSpace(parts[0]) == "" {
-				m.err = m.shopText("invalid_history")
+				m.err = m.shopText("dev_history_error")
 				return m, nil
 			}
 			row := store.TaskRow{Start: start, End: end, Task: strings.TrimSpace(parts[0]), DeclaredMin: int(end.Sub(start).Minutes()), Focused: end.Sub(start), Result: pet.Done, Room: m.room}
@@ -201,7 +201,7 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if d.locked {
 			d.value = p.ID
 		}
-		m.in = newInput(m.shopText("history_prompt"), 180)
+		m.in = newInput(m.shopText("dev_history_prompt"), 180)
 		m.in.SetValue(" | " + m.now.Add(-time.Minute).Format("2006-01-02 15:04:05") + " | " + m.now.Format("2006-01-02 15:04:05"))
 		return m, nil
 	}
@@ -606,9 +606,9 @@ func (m model) inlinePanel(w int) string {
 	case "name", "new", "taskText":
 		body = m.in.View()
 	case "coins":
-		body = m.coinDisplay(int(d.number)) + "\n" + m.shopText("wallet_help")
+		body = m.coinDisplay(int(d.number)) + "\n" + m.shopText("dev_wallet_help")
 	case "history":
-		body = m.shopText("history_prompt") + "\n" + m.in.View()
+		body = m.shopText("dev_history_prompt") + "\n" + m.in.View()
 	case "energy":
 		body = m.tf("energia: %g · ←/→ ou ↑/↓ ajusta · digite o valor", d.number)
 	case "taskMinutes":
@@ -648,7 +648,7 @@ func (m model) inlineHelp() string {
 	}
 	if d.field != "" {
 		if d.field == "coins" {
-			return m.shopText("wallet_help")
+			return m.shopText("dev_wallet_help")
 		}
 		if d.field == "appearance" {
 			return m.t("↑/↓ opção · ←/→ altera · enter confirma prévia · esc volta")
@@ -656,11 +656,11 @@ func (m model) inlineHelp() string {
 		return m.t("enter confirma prévia · esc cancela campo")
 	}
 	if m.tab == tabRoom && (m.width < 100 || m.height < 30) {
-		return m.t("enter edita · ←/→ membro · ? atalhos · ctrl+s salva · x salva e sai · esc volta") + " · ctrl+m " + m.shopText("wallet") + " · ctrl+f " + m.shopText("history")
+		return m.t("enter edita · ←/→ membro · ? atalhos · ctrl+s salva · x salva e sai · esc volta") + " · ctrl+m " + m.shopText("dev_wallet_label") + " · ctrl+f " + m.shopText("dev_history_label")
 	}
-	base := m.t("ctrl+s salva · x salva e sai · esc volta · ctrl+r volta a você") + " · ctrl+m " + m.shopText("wallet")
+	base := m.t("ctrl+s salva · x salva e sai · esc volta · ctrl+r volta a você") + " · ctrl+m " + m.shopText("dev_wallet_label")
 	if m.tab == tabRoom {
-		base += " · ctrl+f " + m.shopText("history")
+		base += " · ctrl+f " + m.shopText("dev_history_label")
 	}
 	if m.tab == tabProfile {
 		actions := m.t("ctrl+n nome") + " · " + m.t("ctrl+e energia")

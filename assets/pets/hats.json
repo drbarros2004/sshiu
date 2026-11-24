@@ -1,12 +1,22 @@
 {
   "width": 16,
   "height": 6,
+  "noHat": {
+    "description": {
+      "pt": "o vento sopra sobre sua careca, sem um chapéu para cobri-la",
+      "en": "i wouldn't say 'owned' for this, but you do have 'no hat' on"
+    }
+  },
   "hats": [
     {
       "id": "top_hat",
       "displayName": {
         "pt": "cartola",
         "en": "top hat"
+      },
+      "description": {
+        "pt": "pra focar com muita classe.",
+        "en": "for a very classy focus session."
       },
       "order": 0,
       "variants": [
@@ -93,6 +103,10 @@
         "pt": "cowboy",
         "en": "cowboy"
       },
+      "description": {
+        "pt": "as tarefas não vão se concluir sozinhas, xerife.",
+        "en": "tasks won't finish themselves, sheriff."
+      },
       "order": 1,
       "variants": [
         {
@@ -169,6 +183,10 @@
         "pt": "gorro de natal",
         "en": "xmas hat"
       },
+      "description": {
+        "pt": "hora de distribuir os presentes.",
+        "en": "time to go deliver some presents."
+      },
       "order": 2,
       "variants": [
         {
@@ -235,6 +253,10 @@
       "displayName": {
         "pt": "boné",
         "en": "cap"
+      },
+      "description": {
+        "pt": "só gente radical usa boné.",
+        "en": "only the cool kids wear caps."
       },
       "order": 3,
       "variants": [
@@ -402,6 +424,10 @@
         "pt": "coroa",
         "en": "crown"
       },
+      "description": {
+        "pt": "realeza também trabalha.",
+        "en": "even royalty has deadlines."
+      },
       "order": 4,
       "variants": [
         {
@@ -466,8 +492,12 @@
     {
       "id": "little_hair",
       "displayName": {
-        "pt": "topete",
+        "pt": "cabelinho",
         "en": "little hair"
+      },
+      "description": {
+        "pt": "bom, pelo menos você não é careca.",
+        "en": "i mean, at least you are not bald."
       },
       "order": 5,
       "variants": [
@@ -495,6 +525,10 @@
           "displayName": {
             "pt": "arco-íris",
             "en": "rainbow"
+          },
+          "description": {
+            "pt": "que que era pra ser isso?",
+            "en": "what even is this?"
           },
           "image": "hats/little_hair/little_hair_rainbow.png",
           "order": 2
@@ -562,6 +596,10 @@
       "displayName": {
         "pt": "chapéu de pirata",
         "en": "pirate"
+      },
+      "description": {
+        "pt": "em busca do tesouro e de uma tarefa concluída.",
+        "en": "on a quest for treasure and a finished task."
       },
       "order": 6,
       "variants": [
@@ -638,6 +676,10 @@
       "displayName": {
         "pt": "bombeiro",
         "en": "firefighter"
+      },
+      "description": {
+        "pt": "pra apagar incêndios na lista de tarefas.",
+        "en": "for putting out fires on your task list."
       },
       "order": 7,
       "variants": [

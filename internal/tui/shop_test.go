@@ -62,3 +62,55 @@ func TestShopCancelDoesNotPurchase(t *testing.T) {
 		t.Fatal("cancelamento alterou saldo/inventário")
 	}
 }
+
+func TestShopDescriptionsFollowSelectedCategory(t *testing.T) {
+	for _, height := range []int{24, 50} {
+		m := model{lang: "en", economyReady: true}
+		m.shop.Editor = newAppearanceEditor(pet.Appearance{Character: "fruit", Variant: "blue"})
+		character := pet.ShopItemByKey("character/fruit").Description.Text("en")
+		color := pet.ShopItemByKey("color/fruit/blue").Description.Text("en")
+		for _, state := range []string{store.ItemOwned, store.ItemLocked, store.ItemAvailable} {
+			m.economy.States = map[string]string{"character/fruit": state}
+			m.shop.Editor.Row = 0
+			screen := ansi.Strip(m.shopView(220, height))
+			if !strings.Contains(screen, character) || strings.Contains(screen, color) {
+				t.Fatal("apenas a categoria selecionada deve mostrar descrição, independente do estado ou altura")
+			}
+		}
+		m.shop.Editor.Row = 1
+		screen := ansi.Strip(m.shopView(220, height))
+		if !strings.Contains(screen, color) || strings.Contains(screen, character) {
+			t.Fatal("a descrição deve acompanhar a categoria selecionada")
+		}
+		m.shop.Editor.Row = 2
+		screen = ansi.Strip(m.shopView(220, height))
+		if !strings.Contains(screen, pet.Pets.NoHat.Description.Text("en")) {
+			t.Fatal("sem chapéu deve usar a descrição do catálogo de chapéus")
+		}
+	}
+}
+
+func TestShopDescriptionFallback(t *testing.T) {
+	for _, tc := range []struct {
+		state, text string
+		balance     int
+	}{
+		{store.ItemOwned, "description_owned", 0},
+		{store.ItemLocked, "description_locked", 0},
+		{store.ItemAvailable, "description_available", 40},
+		{store.ItemAvailable, "description_insufficient", 0},
+	} {
+		t.Run(tc.text, func(t *testing.T) {
+			m := model{lang: "en", economyReady: true, economy: store.Economy{
+				Balance: tc.balance,
+				States:  map[string]string{"color/fruit/green": tc.state},
+				Prices:  map[string]int{"color/fruit/green": 40},
+			}}
+			m.shop.Editor = newAppearanceEditor(pet.Appearance{Character: "fruit", Variant: "green"})
+			m.shop.Editor.Row = 1
+			if !strings.Contains(ansi.Strip(m.shopView(220, 50)), m.shopText(tc.text)) {
+				t.Fatal("item sem descrição deve usar o texto curto de seu estado")
+			}
+		})
+	}
+}

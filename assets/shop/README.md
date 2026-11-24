@@ -25,11 +25,17 @@ Em janelas muito baixas, `↑/↓` rola o conteúdo do diálogo mantendo a respo
 - `enter`: comprar o item da categoria atual; `ctrl+b`: comprar a seleção inteira.
 - `ctrl+r`: voltar a prévia à aparência equipada.
 - `y/n`: confirmar/cancelar compra; depois da compra, responder separadamente se deseja equipar.
-- Com `-dev`, `x`: abrir o rascunho; `ctrl+o`: alternar disponível/possuído/bloqueado; `ctrl+p`: editar preço.
+- Com `-dev`, `x`: abrir o rascunho; `ctrl+o`: alternar disponível/adquirido/bloqueado; `ctrl+p`: editar preço.
 - No preço, `←/→` muda 1 e `j/l` muda 10; `enter` confirma no rascunho e `esc` desfaz esse campo.
 - `ctrl+s`: salvar o rascunho e continuar; `x`: salvar e sair; `esc`: cancelar o rascunho.
 
 ## saldo e tarefas no dev
+
+As chaves de textos exclusivos do dev começam com `dev_`. Por exemplo,
+`dev_price_help` orienta a edição de preço, `dev_wallet_help` orienta o saldo,
+`dev_equipped_item_error` impede retirar um item em uso e
+`dev_included_variant_error` impede retirar a variante incluída de uma base adquirida.
+Textos compartilhados com compras normais, como `stale`, não recebem esse prefixo.
 
 Dentro do editor dev de sala/perfil, `ctrl+m` edita seu saldo: setas mudam 1 e `j/l` mudam 50. Sem precisar de `enter`, `x` salva e sai ou `ctrl+s` salva e continua no dev. `enter` apenas confirma o valor no rascunho; `esc` cancela o campo.
 

@@ -33,7 +33,7 @@
       "en": "locked"
     },
     "owned": {
-      "pt": "possuído",
+      "pt": "adquirido",
       "en": "owned"
     },
     "available": {
@@ -88,14 +88,6 @@
       "pt": "incluído",
       "en": "included"
     },
-    "can_buy": {
-      "pt": "você pode comprar este item de %s por %d moedas",
-      "en": "you can buy this %s for %d coins"
-    },
-    "need_money": {
-      "pt": "parece que tá te faltando moeda pra comprar %s... melhor focar mais",
-      "en": "seems you don't have enough coins for this %s... go focus more"
-    },
     "locked_help": {
       "pt": "você ainda não pode comprar este item de %s, precisa desbloquear primeiro",
       "en": "you can't buy this %s yet, you need to unlock it first"
@@ -104,21 +96,9 @@
       "pt": "você já possui este item de %s",
       "en": "you already own this %s"
     },
-    "included_help": {
-      "pt": "este item de %s vem com %s",
-      "en": "this %s comes with the %s"
-    },
-    "included_owned": {
-      "pt": "você já possui este item de %s que veio com %s",
-      "en": "you already own this %s which came with buying %s"
-    },
     "included_error": {
       "pt": "este item de %s vem com %s; compre a base para receber junto",
       "en": "this %s comes with the %s, you need to buy the base and you will get this with it"
-    },
-    "no_hat_help": {
-      "pt": "não sei se possuído é a palavra certa, mas você tem sem chapéu",
-      "en": "i wouldn't say 'owned' is the right word for this, but i guess you do have 'no hat'"
     },
     "no_hat_error": {
       "pt": "por que tentar comprar sem chapéu!? o que espera receber, ar?",
@@ -177,16 +157,16 @@
       "en": "do you want to equip all selected items?"
     },
     "equip_one": {
-      "pt": "quer equipar este item: %s %s?",
-      "en": "do you want to equip this %s %s?"
+      "pt": "quer equipar este item: %s (%s)?",
+      "en": "do you want to equip this: %s (%s)?"
     },
-    "equipped_error": {
+    "dev_equipped_item_error": {
       "pt": "você não pode remover a posse deste item porque está usando agora",
       "en": "you can't change this from owned because it's what you have on now"
     },
-    "dependency_error": {
-      "pt": "a base possuída precisa manter sua primeira opção",
-      "en": "an owned base must keep its included first option"
+    "dev_included_variant_error": {
+      "pt": "este item precisa continuar adquirido porque você já tem seu item base.",
+      "en": "this item must remain owned because you own its base item."
     },
     "stale": {
       "pt": "os preços, o inventário ou o saldo mudaram; confira e confirme novamente",
@@ -196,7 +176,7 @@
       "pt": "compra concluída",
       "en": "purchase completed"
     },
-    "saved": {
+    "dev_shop_saved": {
       "pt": "salvo",
       "en": "saved"
     },
@@ -208,7 +188,7 @@
       "pt": "↑/↓ categoria · ←/→ escolhe · ctrl+o estado · ctrl+p preço · x salva e sai · ctrl+s salva · esc cancela",
       "en": "↑/↓ category · ←/→ choose · ctrl+o state · ctrl+p price · x save and exit · ctrl+s save · esc cancel"
     },
-    "number_help": {
+    "dev_price_help": {
       "pt": "←/→ ±1 · j/l ±10 · enter confirma · esc cancela",
       "en": "←/→ ±1 · j/l ±10 · enter confirm · esc cancel"
     },
@@ -228,19 +208,19 @@
       "pt": "(+%d moedas ganhas)",
       "en": "(+%d coins gained)"
     },
-    "history_prompt": {
+    "dev_history_prompt": {
       "pt": "tarefa | início | fim (aaaa-mm-dd hh:mm:ss)",
       "en": "task | start | end (yyyy-mm-dd hh:mm:ss)"
     },
-    "invalid_history": {
+    "dev_history_error": {
       "pt": "use tarefa | início | fim, com fim após início",
       "en": "use task | start | end, with end after start"
     },
-    "wallet": {
+    "dev_wallet_label": {
       "pt": "moedas",
       "en": "coins"
     },
-    "history": {
+    "dev_history_label": {
       "pt": "tarefa concluída dev",
       "en": "completed dev task"
     },
@@ -252,12 +232,12 @@
       "pt": "(+%d moeda ganha)",
       "en": "(+%d coin gained)"
     },
-    "wallet_help": {
+    "dev_wallet_help": {
       "pt": "←/→ ±1 · j/l ±50 · enter confirma prévia · x salva e sai · ctrl+s salva · esc cancela campo",
       "en": "←/→ ±1 · j/l ±50 · enter confirm preview · x save and exit · ctrl+s save · esc cancel field"
     },
     "collection": {
-      "pt": "%d/%d possuídos",
+      "pt": "%d/%d adquiridos",
       "en": "%d/%d owned"
     },
     "confirm_title": {
@@ -279,6 +259,26 @@
     "confirm_model": {
       "pt": "modelo",
       "en": "model"
+    },
+    "description_owned": {
+      "pt": "você já tem isso.",
+      "en": "you already own this."
+    },
+    "description_locked": {
+      "pt": "precisa desbloquear primeiro.",
+      "en": "unlock this first."
+    },
+    "description_available": {
+      "pt": "pode levar!",
+      "en": "ready when you are."
+    },
+    "description_insufficient": {
+      "pt": "tá faltando moeda. melhor ir focar.",
+      "en": "short on coins. it's time to focus"
+    },
+    "description_included": {
+      "pt": "vem com seu item base.",
+      "en": "included with the base item."
     }
   },
   "confirmation": {

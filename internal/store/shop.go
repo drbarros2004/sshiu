@@ -297,7 +297,7 @@ func DevShopSave(id string, states map[string]string, prices map[string]int, exp
 			return errors.New("item/estado inválido")
 		}
 		if worn[k] && v != ItemOwned {
-			return &ShopError{Kind: "equipped_error"}
+			return &ShopError{Kind: "dev_equipped_item_error"}
 		}
 		e.States[k] = v
 	}
@@ -312,7 +312,7 @@ func DevShopSave(id string, states map[string]string, prices map[string]int, exp
 	}
 	for _, item := range pet.ShopItems {
 		if item.Included && e.State(item.Parent) == ItemOwned && e.State(item.Key) != ItemOwned {
-			return &ShopError{Kind: "dependency_error"}
+			return &ShopError{Kind: "dev_included_variant_error"}
 		}
 	}
 	for k := range states {
