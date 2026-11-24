@@ -152,9 +152,9 @@ func (m model) shopError(err error, batch bool) string {
 	switch e.Kind {
 	case "insufficient":
 		if batch {
-			return m.shopText("batch_insufficient", e.Need, e.Have)
+			return m.shopText("batch_insufficient")
 		}
-		return m.shopText("insufficient", category, e.Need, e.Have)
+		return m.shopText("insufficient", category)
 	case "missing_base":
 		base := pet.ShopItemByKey(item.Parent)
 		return m.shopText("missing_base", m.shopText(base.Kind), base.Name.Text(string(m.lang)), category)
@@ -501,7 +501,7 @@ func (m model) shopView(w, h int) string {
 				state = m.coinDisplay(e.Prices[key])
 				info = m.shopText("can_buy", category, e.Prices[key])
 				if e.Prices[key] > e.Balance {
-					info = m.shopText("need_money", category, e.Prices[key])
+					info = m.shopText("need_money", category)
 				}
 			}
 		}

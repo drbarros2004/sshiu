@@ -87,8 +87,8 @@
       "en": "you can buy this %s for %d coins"
     },
     "need_money": {
-      "pt": "você poderia comprar este item de %s por %d moedas se tivesse moedas suficientes... vá focar mais",
-      "en": "you could buy this %s for %d coins if you had enough coins... go focus more"
+      "pt": "parece que tá te faltando moeda pra comprar %s... melhor focar mais",
+      "en": "seems you don't have enough coins for this %s... go focus more"
     },
     "locked_help": {
       "pt": "você ainda não pode comprar este item de %s, precisa desbloquear primeiro",
@@ -104,7 +104,7 @@
     },
     "included_owned": {
       "pt": "você já possui este item de %s que veio com %s",
-      "en": "you already own this %s which came with buying its %s"
+      "en": "you already own this %s which came with buying %s"
     },
     "included_error": {
       "pt": "este item de %s vem com %s; compre a base para receber junto",
@@ -127,8 +127,8 @@
       "en": "you need to own the %s %s to buy this %s. buy it first or choose 'buy all selected items'."
     },
     "insufficient": {
-      "pt": "você não pode comprar este item de %s, precisa de %d moedas e tem %d... deixe a preguiça e vá focar mais",
-      "en": "you can't buy this %s, you need %d coins and you have %d... stop being lazy and go focus more"
+      "pt": "nada de comprar %s, tá faltando moeda... chega de preguiça e vai focar mais",
+      "en": "you can't buy this %s, you don't have enough coins... stop being lazy and go focus more"
     },
     "batch_locked": {
       "pt": "você não pode comprar todos os itens selecionados porque ao menos um está bloqueado",
@@ -139,8 +139,8 @@
       "en": "you already own all selected items"
     },
     "batch_insufficient": {
-      "pt": "você não pode comprar todos os itens selecionados, precisa de %d moedas e tem %d... compre menos ou vá focar mais",
-      "en": "you can't buy all selected items, you need %d coins and you have %d... maybe buy less or just go focus more"
+      "pt": "não tem como você comprar tudo isso, tá faltando moeda... ou compra menos ou foca mais",
+      "en": "you can't buy all selected items with that little money... either buy less or focus more"
     },
     "confirm_one": {
       "pt": "tem certeza de que quer comprar %s %s por %d moedas?",
