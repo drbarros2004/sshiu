@@ -21,7 +21,7 @@ Saldo inicial e inventário inicial só se aplicam ao criar a carteira. Reconect
 
 ## saldo e tarefas no dev
 
-Dentro do editor dev de sala/perfil, `ctrl+m` edita seu saldo: setas mudam 1, `j/l` mudam 10, `enter` confirma no rascunho. Salve com `ctrl+s` ou `x`.
+Dentro do editor dev de sala/perfil, `ctrl+m` edita seu saldo: setas mudam 1 e `j/l` mudam 10. Sem precisar de `enter`, `x` salva e sai ou `ctrl+s` salva e continua no dev. `enter` apenas confirma o valor no rascunho; `esc` cancela o campo.
 
 Na sala dev, `ctrl+f` cria uma tarefa já cumprida. Com membro selecionado, usa esse membro; sem seleção fixa, usa sua identidade atual. Digite:
 

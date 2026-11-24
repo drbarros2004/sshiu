@@ -249,6 +249,10 @@
     "receipt_one": {
       "pt": "(+%d moeda ganha)",
       "en": "(+%d coin gained)"
+    },
+    "wallet_help": {
+      "pt": "←/→ ±1 · j/l ±10 · enter confirma prévia · x salva e sai · ctrl+s salva · esc cancela campo",
+      "en": "←/→ ±1 · j/l ±10 · enter confirm preview · x save and exit · ctrl+s save · esc cancel field"
     }
   }
 }

@@ -154,12 +154,15 @@ func (m model) inlineKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		delta := map[string]int{"left": -1, "right": 1, "j": -10, "l": 10}[k]
 		d.number = float64(max(0, min(pet.Coins.Maximum, int(d.number)+delta)))
-		if k == "enter" {
+		if k == "enter" || k == "x" || k == "ctrl+s" {
 			v := int(d.number)
 			d.change(m.id).Coins = &v
 			d.field = ""
 		}
-		return m, nil
+		if k != "x" && k != "ctrl+s" {
+			return m, nil
+		}
+		// Os atalhos seguem para o salvamento comum, incluindo os demais rascunhos.
 	}
 	if d.field == "history" {
 		if k == "esc" {
@@ -603,7 +606,7 @@ func (m model) inlinePanel(w int) string {
 	case "name", "new", "taskText":
 		body = m.in.View()
 	case "coins":
-		body = m.coinDisplay(int(d.number)) + "\n" + m.shopText("number_help")
+		body = m.coinDisplay(int(d.number)) + "\n" + m.shopText("wallet_help")
 	case "history":
 		body = m.shopText("history_prompt") + "\n" + m.in.View()
 	case "energy":
@@ -644,6 +647,9 @@ func (m model) inlineHelp() string {
 		return ""
 	}
 	if d.field != "" {
+		if d.field == "coins" {
+			return m.shopText("wallet_help")
+		}
 		if d.field == "appearance" {
 			return m.t("↑/↓ opção · ←/→ altera · enter confirma prévia · esc volta")
 		}
