@@ -1,6 +1,7 @@
 # moedas e loja
 
 - `../coins/coins.json`: segundos por recompensa, moedas por recompensa, limite, saldo inicial, sprite e cor dos números.
+- `../coins/coin.png`: ícone 2×2, desenhado em duas colunas e uma linha do terminal, ao lado do número.
 - `shop.json`: textos em português/inglês, cores dos estados e IDs dos itens iniciais.
 - `../pets/characters.json` e `../pets/hats.json`: `price` da base e `defaultVariantPrice` das cores/modelos. `price` em uma variante substitui o padrão da base. A primeira variante vem incluída por zero.
 

@@ -83,8 +83,8 @@ func loadShop() []ShopItem {
 	}
 	defer f.Close()
 	CoinImage, err = png.Decode(f)
-	if err != nil || CoinImage.Bounds().Dx() != 5 || CoinImage.Bounds().Dy() != 5 {
-		panic("coins.json: sprite precisa ser PNG 5x5")
+	if err != nil || CoinImage.Bounds().Dx() != 2 || CoinImage.Bounds().Dy() != 2 {
+		panic("coins.json: sprite precisa ser PNG 2x2")
 	}
 	var items []ShopItem
 	for _, c := range Pets.Characters {

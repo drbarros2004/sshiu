@@ -15,6 +15,14 @@ import (
 	"sshiu/internal/store"
 )
 
+// Ajustes visuais da lista: todos os recuos e espaços entre categorias ficam aqui.
+const (
+	shopDescriptionIndent = 2
+	shopSectionGap        = 1
+	shopColumnGap         = 4
+	shopCompactColumnGap  = 1
+)
+
 type shopPanel struct {
 	Editor             *appearanceEditor
 	Mood               pet.Mood
@@ -66,7 +74,8 @@ func shopStyle(key string) lipgloss.Style {
 	return lipgloss.NewStyle().Foreground(c)
 }
 func (m model) coinDisplay(amount int) string {
-	icon := pet.Pixels(pet.CoinImage, 0, 0, 5, 5, 1, nil)
+	bounds := pet.CoinImage.Bounds()
+	icon := pet.Pixels(pet.CoinImage, bounds.Min.X, bounds.Min.Y, bounds.Dx(), bounds.Dy(), 1, nil)
 	return lipgloss.JoinHorizontal(lipgloss.Center, icon, " ", shopStyle("coin").Render(strconv.Itoa(amount)))
 }
 func (m model) loadEconomy() tea.Cmd {
@@ -411,14 +420,27 @@ func (m model) shopView(w, h int) string {
 		}
 		return m.box(m.shopText("shop"), question+"\n\n"+m.shopText("yes_no"), w, 0)
 	}
+	// A prévia ocupa metade da largura; a lista usa o restante.
+	rightWidth := max(26, (w-2)/2)
+	leftWidth := max(28, w-rightWidth-2)
+	previewHeight := max(8, h)
+	if w < 58 {
+		leftWidth, rightWidth = w, w
+		previewHeight = max(12, h/2)
+	}
 	rows := m.shop.Editor.rows(true)
-	var lines []string
+	type categoryRow struct {
+		label, name, state string
+		details            []string
+	}
+	var categories []categoryRow
 	for i, kind := range rows {
 		if kind == "mood" {
-			lines = append(lines, m.shopRow(i, m.shopText(kind), pet.Pets.MoodName(a, m.shop.Mood, string(m.lang)), ""))
+			row := categoryRow{label: m.shopText(kind), name: pet.Pets.MoodName(a, m.shop.Mood, string(m.lang))}
 			if i == m.shop.Editor.Row {
-				lines = append(lines, m.st.muted.Render(m.shopText("preview")))
+				row.details = []string{m.shopText("preview")}
 			}
+			categories = append(categories, row)
 			continue
 		}
 		var items []pet.ShopItem
@@ -488,36 +510,102 @@ func (m model) shopView(w, h int) string {
 			info = m.shopText("number_help")
 		}
 		label := fmt.Sprintf("%s (%d/%d)", m.shopText(kind), index+1, total)
-		row := m.shopRow(i, label, name, state)
+		row := categoryRow{label: label, name: name, state: state}
 		plural := map[string]string{"character": "characters", "color": "colors", "hat": "hats", "model": "models"}[kind]
-		lines = append(lines, row)
 		if i == m.shop.Editor.Row || h >= 38 {
-			lines = append(lines, m.st.muted.Render(info), m.st.muted.Render(m.shopText("have", owned, total, m.shopText(plural))))
+			row.details = []string{info, m.shopText("have", owned, total, m.shopText(plural))}
+		}
+		categories = append(categories, row)
+	}
+	// O catálogo inteiro fixa as colunas; navegar não altera suas larguras.
+	widths := m.shopColumnWidths()
+	columnGap := shopColumnGap
+	// Só encurtar os intervalos quando as colunas ficariam pequenas demais.
+	minimumColumns := min(widths[0], 12) + min(widths[1], 10) + min(widths[2], 6)
+	if leftWidth-4-2 < minimumColumns+2*columnGap {
+		columnGap = shopCompactColumnGap
+	}
+	available := max(3, leftWidth-4-2-2*columnGap)
+	for widths[0]+widths[1]+widths[2] > available {
+		widest := slices.Index(widths, slices.Max(widths))
+		widths[widest]--
+	}
+	var lines []string
+	for i, row := range categories {
+		if i > 0 {
+			for range shopSectionGap {
+				lines = append(lines, "")
+			}
+		}
+		lines = append(lines, m.shopRow(i, row.label, row.name, row.state, widths, columnGap))
+		for _, detail := range row.details {
+			lines = append(lines, m.st.muted.Render(lipgloss.NewStyle().Width(max(1, leftWidth-4)).PaddingLeft(shopDescriptionIndent).Render(detail)))
 		}
 	}
-	rightWidth := max(20, w/3)
-	leftWidth := max(28, w-rightWidth-2)
 	title := m.shopText("shop")
 	if m.shop.Dev {
 		title += " · " + devAccent.Render(m.t("dev"))
 	}
 	left := m.box(title, strings.Join(lines, "\n"), leftWidth, 0)
+	innerWidth := max(1, rightWidth-4)
+	drawingHeight := max(1, previewHeight-3) // bordas e linha de saldo
 	scale := 1
-	if w >= 112 && h >= 30 {
+	pixelWidth, pixelHeight := pet.Pets.CanvasSize(a)
+	if pixelWidth*2 <= innerWidth && pixelHeight <= drawingHeight {
 		scale = 2
 	}
 	preview := pet.Pets.RenderTerminal(a, m.shop.Mood, m.tick, scale, 0, m.pixel)
-	right := m.box(m.shopText("shop"), m.coinDisplay(e.Balance)+"\n\n"+preview, rightWidth, 0)
+	balance := lipgloss.PlaceHorizontal(innerWidth, lipgloss.Right, m.coinDisplay(e.Balance))
+	centered := lipgloss.Place(innerWidth, drawingHeight, lipgloss.Center, lipgloss.Center, preview)
+	right := m.box(m.shopText("shop"), balance+"\n"+centered, rightWidth, 0)
 	if w < 58 {
 		return left + "\n" + right
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, left, "  ", right)
 }
-func (m model) shopRow(i int, label, name, state string) string {
+func (m model) shopColumnWidths() []int {
+	widths := []int{1, 1, 1}
+	measure := func(column int, text string) {
+		widths[column] = max(widths[column], lipgloss.Width(text))
+	}
+	counts := map[string]int{"character": len(pet.Pets.Characters), "hat": len(pet.Pets.Hats) + 1}
+	for _, character := range pet.Pets.Characters {
+		counts["color"] = max(counts["color"], len(character.Variants))
+		for mood := pet.Wilted; mood <= pet.Sleeping; mood++ {
+			name := pet.Pets.MoodName(pet.Appearance{Character: character.ID}, mood, string(m.lang))
+			measure(1, "‹ "+name+" ›")
+		}
+	}
+	for _, hat := range pet.Pets.Hats {
+		counts["model"] = max(counts["model"], len(hat.Variants))
+	}
+	for kind, total := range counts {
+		measure(0, fmt.Sprintf("%s (%d/%d)", m.shopText(kind), total, total))
+	}
+	measure(0, m.shopText("mood"))
+	measure(1, "‹ "+m.shopText("no_hat")+" ›")
+	for _, item := range pet.ShopItems {
+		name := item.Name.Text(string(m.lang))
+		measure(1, "‹ "+name+" ›")
+		if item.Parent == "" {
+			measure(2, m.shopText("comes", name))
+		}
+	}
+	measure(2, m.shopText("owned"))
+	measure(2, m.shopText("locked"))
+	measure(2, m.coinDisplay(9999)) // maior preço permitido, inclusive no dev
+	return widths
+}
+
+func (m model) shopRow(i int, label, name, state string, widths []int, columnGap int) string {
 	prefix := "  "
 	if i == m.shop.Editor.Row {
 		prefix = m.st.sel.Render("▸ ")
 		label = m.st.sel.Render(label)
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Center, prefix+label+"  ‹ "+name+" ›  ", state)
+	gap := strings.Repeat(" ", columnGap)
+	category := lipgloss.NewStyle().Width(widths[0]).Render(label)
+	option := lipgloss.NewStyle().Width(widths[1]).Render("‹ " + name + " ›")
+	status := lipgloss.NewStyle().Width(widths[2]).Render(state)
+	return lipgloss.JoinHorizontal(lipgloss.Top, prefix, category, gap, option, gap, status)
 }
