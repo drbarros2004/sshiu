@@ -24,6 +24,7 @@ const (
 )
 
 type shopPanel struct {
+	DialogScroll       int
 	Editor             *appearanceEditor
 	Mood               pet.Mood
 	Confirm            *store.Purchase
@@ -114,6 +115,7 @@ func (m model) updateShop(msg tea.Msg) (model, tea.Cmd, bool) {
 		m.economy = v.Value
 		m.economyReady = true
 		m.shop.Equip = true
+		m.shop.DialogScroll = 0
 		m.shop.Batch = v.Batch
 		m.shop.Purchased = v.Choice
 		m.shop.PurchasedKind = v.Kind
@@ -217,6 +219,17 @@ func (m model) shopKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
 	m.err = ""
 	if !m.economyReady || m.shop.Busy {
+		return m, nil
+	}
+	if (m.shop.Confirm != nil || m.shop.Equip) && (k == "up" || k == "down") {
+		inner := max(1, m.width-4)
+		height := max(1, m.height-2-lipgloss.Height(m.header())-2-lipgloss.Height(m.footer(m.shopHelp(), inner)))
+		_, limit := m.shopDialogView(inner, height-lipgloss.Height(m.errLine())+1)
+		delta := 1
+		if k == "up" {
+			delta = -1
+		}
+		m.shop.DialogScroll = max(0, min(limit, m.shop.DialogScroll+delta))
 		return m, nil
 	}
 	if m.shop.Equip {
@@ -351,6 +364,7 @@ func (m model) shopKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.shop.Keys, m.shop.Batch, m.shop.Confirm = keys, batch, &p
+			m.shop.DialogScroll = 0
 			return m, nil
 		}
 	}
@@ -380,45 +394,9 @@ func (m model) shopView(w, h int) string {
 	m.ensureShop()
 	e := m.shopEconomy()
 	a := m.shop.Editor.Choice
-	if p := m.shop.Confirm; p != nil {
-		title := m.shopText("confirm_all", p.Total)
-		if !m.shop.Batch {
-			item := pet.ShopItemByKey(m.shop.Keys[0])
-			title = m.shopText("confirm_one", m.shopText(item.Kind), item.Name.Text(string(m.lang)), p.Total)
-		}
-		lines := []string{title, "", shopStyle("balance").Render(m.shopText("balance", e.Balance)), m.shopText("pay_for")}
-		for _, line := range p.Lines {
-			item := pet.ShopItemByKey(line.Key)
-			suffix := ""
-			indent := "  "
-			if line.Included {
-				suffix = " · " + m.shopText("included")
-				indent = "    "
-			}
-			lines = append(lines, indent+m.shopText(item.Kind)+" "+item.Name.Text(string(m.lang))+": "+shopStyle("deduction").Render(fmt.Sprintf("-%d", line.Cost))+suffix)
-		}
-		lines = append(lines, shopStyle("balance").Render(m.shopText("remaining", e.Balance-p.Total)), "", m.shopText("yes_no"))
-		return m.box(m.shopText("shop"), strings.Join(lines, "\n"), w, 0)
-	}
-	if m.shop.Equip {
-		question := m.shopText("equip_all")
-		if !m.shop.Batch {
-			a := m.shop.Purchased
-			key := ""
-			switch m.shop.PurchasedKind {
-			case "character":
-				key = "character/" + a.Character
-			case "color":
-				key = "color/" + a.Character + "/" + a.Variant
-			case "hat":
-				key = "hat/" + a.Hat
-			case "model":
-				key = "model/" + a.Hat + "/" + a.HatVariant
-			}
-			item := pet.ShopItemByKey(key)
-			question = m.shopText("equip_one", item.Name.Text(string(m.lang)), m.shopText(item.Kind))
-		}
-		return m.box(m.shopText("shop"), question+"\n\n"+m.shopText("yes_no"), w, 0)
+	if m.shop.Confirm != nil || m.shop.Equip {
+		screen, _ := m.shopDialogView(w, h)
+		return screen
 	}
 	// A prévia ocupa metade da largura; a lista usa o restante.
 	rightWidth := max(26, (w-2)/2)

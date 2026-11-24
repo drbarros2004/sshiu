@@ -17,7 +17,17 @@ type CoinRules struct {
 	Sprite           string `json:"sprite"`
 	Color            string `json:"color"`
 }
+type ShopDialogConfig struct {
+	MinimumWidth      int `json:"minimumWidth"`
+	WidthPercent      int `json:"widthPercent"`
+	PaddingHorizontal int `json:"paddingHorizontal"`
+	PaddingVertical   int `json:"paddingVertical"`
+	ItemIndent        int `json:"itemIndent"`
+	IncludedIndent    int `json:"includedIndent"`
+}
+
 type ShopConfig struct {
+	Confirmation ShopDialogConfig       `json:"confirmation"`
 	Colors       map[string]string      `json:"colors"`
 	Texts        map[string]DisplayName `json:"texts"`
 	StarterItems []string               `json:"starterItems"`
@@ -46,6 +56,11 @@ func loadShop() []ShopItem {
 	}
 	read("coins/coins.json", &Coins)
 	read("shop/shop.json", &Shop)
+	layout := Shop.Confirmation
+	if layout.MinimumWidth < 12 || layout.WidthPercent < 1 || layout.WidthPercent > 100 || layout.PaddingHorizontal < 0 || layout.PaddingVertical < 0 || layout.ItemIndent < 0 || layout.IncludedIndent < 0 {
+		panic("shop.json: dimensões da confirmação inválidas")
+	}
+
 	// Zero é um preço explícito, não uma consequência de esquecer o campo.
 	type pricedBase struct {
 		ID      string

@@ -11,6 +11,14 @@ Saldo inicial e inventário inicial só se aplicam ao criar a carteira. Reconect
 
 A lista usa quatro colunas: categoria, seleção (`‹ item › X/Y`), estado/preço e coleção (`X/Y owned`). A prévia de humor não tem estado nem coleção. A explicação continua abaixo da categoria; as contagens não se repetem abaixo. As colunas reservam as maiores larguras do catálogo e só se comprimem quando a janela exige.
 
+## confirmação de compra
+
+A compra e a pergunta de equipamento usam uma caixa centralizada na área entre as abas e os controles. `confirmation` em `shop.json` controla a largura mínima (62 colunas), a proporção horizontal da janela (45%) e os preenchimentos. A altura acompanha o conteúdo, com uma linha vazia antes dos controles `y/n`, em cinza secundário. O terminal informa células; o tamanho da fonte é controlado pelo próprio terminal.
+
+A confirmação destaca a pergunta em negrito, seguida de um divisor. Os rótulos dos saldos ficam em cinza; os valores continuam verdes. Sob `itens:`, em negrito, compras ficam recuadas duas colunas (`itemIndent`) e opções incluídas quatro (`includedIndent`). Uma linha vazia separa compras; opções incluídas ficam junto da base. Preços são vermelhos com sinal de menos; opções incluídas mostram apenas `included`. As cores `confirm_text`, `confirm_question`, `confirm_muted`, `confirm_border`, `confirm_balance` e `confirm_price` ficam no mesmo JSON, com tons da paleta xterm. Fundo e navegação seguem o tema atual.
+
+Em janelas muito baixas, `↑/↓` rola o conteúdo do diálogo mantendo a resposta `y/n` visível. Os atalhos de navegação e saída do rodapé continuam funcionando.
+
 ## controles da loja
 
 - `↑/↓`: categoria; `←/→`: escolher item ou humor.

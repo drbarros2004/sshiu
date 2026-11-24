@@ -542,7 +542,8 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.garden = nil
 		return m, nil
 	}
-	if m.tab == tabShop && (m.shop.Confirm != nil || m.shop.Equip || m.shop.PriceEditing || m.shop.Busy) && k != "ctrl+c" {
+	dialogNavigation := (m.shop.Confirm != nil || m.shop.Equip) && !m.shop.Busy && (k == "a" || k == "d" || k == "tab" || k == "shift+tab" || k == "q")
+	if m.tab == tabShop && (m.shop.Confirm != nil || m.shop.Equip || m.shop.PriceEditing || m.shop.Busy) && k != "ctrl+c" && !dialogNavigation {
 		return m.shopKey(msg)
 	}
 	if k == "ctrl+c" || k == "q" && m.nick != "" && !m.typing() {
@@ -723,19 +724,7 @@ func (m model) View() tea.View {
 			help += m.t(" · h oculta opções dev")
 		}
 		inner := max(m.width-4, 1)
-		footer := func(help string) string {
-			nav := m.t("a/d troca de aba · q sai")
-			if m.typing() {
-				nav = m.t("tab troca de aba · ctrl+c sai")
-			}
-			if help != "" {
-				nav = help + " · " + nav
-			}
-			// o rodapé quebra entre um atalho e outro, nunca no meio de um ("q" numa linha, "sai" na outra)
-			nbsp := string(rune(0xa0)) // o espaço que não quebra
-			nav = strings.ReplaceAll(strings.ReplaceAll(nav, " ", nbsp), nbsp+"·"+nbsp, nbsp+"· ")
-			return m.st.muted.Width(inner).Render(nav)
-		}
+		footer := func(help string) string { return m.footer(help, inner) }
 		// cabeçalho em cima, rodapé preso na última linha e o conteúdo no espaço do meio
 		top, foot := m.header(), footer(help)
 		h := max(1, m.height-2-lipgloss.Height(top)-2-lipgloss.Height(foot))
@@ -753,6 +742,20 @@ func (m model) View() tea.View {
 	v := tea.NewView(lipgloss.NewStyle().Padding(1, 2).Render(body))
 	v.AltScreen = true
 	return v
+}
+
+func (m model) footer(help string, inner int) string {
+	nav := m.t("a/d troca de aba · q sai")
+	if m.typing() {
+		nav = m.t("tab troca de aba · ctrl+c sai")
+	}
+	if help != "" {
+		nav = help + " · " + nav
+	}
+	// o rodapé quebra entre um atalho e outro, nunca no meio de um ("q" numa linha, "sai" na outra)
+	nbsp := string(rune(0xa0)) // o espaço que não quebra
+	nav = strings.ReplaceAll(strings.ReplaceAll(nav, " ", nbsp), nbsp+"·"+nbsp, nbsp+"· ")
+	return m.st.muted.Width(inner).Render(nav)
 }
 
 // fit deixa s com exatamente h linhas de no máximo w colunas: corta o que passa (com "…" na

@@ -4,7 +4,13 @@
     "owned": "#87D7FF",
     "error": "#FF5F5F",
     "deduction": "#FF5F5F",
-    "balance": "#87FF87"
+    "balance": "#87FF87",
+    "confirm_text": "#D0D0D0",
+    "confirm_question": "#EEEEEE",
+    "confirm_muted": "#878787",
+    "confirm_border": "#4E4E4E",
+    "confirm_balance": "#87FF87",
+    "confirm_price": "#FF5F5F"
   },
   "starterItems": [
     "character/fruit",
@@ -143,24 +149,24 @@
       "en": "you can't buy all selected items with that little money... either buy less or focus more"
     },
     "confirm_one": {
-      "pt": "tem certeza de que quer comprar %s %s por %d moedas?",
-      "en": "are you sure you want to buy the %s %s for %d coins?"
+      "pt": "comprar %s %s por %d moedas?",
+      "en": "buy this %s %s for %d coins?"
     },
     "confirm_all": {
-      "pt": "tem certeza de que quer comprar estes itens por %d moedas?",
-      "en": "are you sure you want to buy these items for %d coins?"
+      "pt": "comprar estes itens por %d moedas?",
+      "en": "buy these items for %d coins?"
     },
     "balance": {
-      "pt": "quantidade atual de moedas: %d",
-      "en": "current amount of coins: %d"
+      "pt": "saldo atual",
+      "en": "current balance"
     },
     "pay_for": {
-      "pt": "itens pelos quais você vai pagar:",
-      "en": "items you'll pay for:"
+      "pt": "itens:",
+      "en": "items:"
     },
     "remaining": {
-      "pt": "quantidade de moedas após esta compra: %d",
-      "en": "amount of coins you will have after this purchase: %d"
+      "pt": "saldo após a compra",
+      "en": "balance after purchase"
     },
     "yes_no": {
       "pt": "y sim · n não",
@@ -253,6 +259,34 @@
     "collection": {
       "pt": "%d/%d possuídos",
       "en": "%d/%d owned"
+    },
+    "confirm_title": {
+      "pt": "confirmar compra",
+      "en": "confirm purchase"
+    },
+    "equip_title": {
+      "pt": "equipar itens",
+      "en": "equip items"
+    },
+    "dialog_scroll": {
+      "pt": "↑/↓ rola",
+      "en": "↑/↓ scroll"
+    },
+    "confirm_color": {
+      "pt": "cor",
+      "en": "color"
+    },
+    "confirm_model": {
+      "pt": "modelo",
+      "en": "model"
     }
+  },
+  "confirmation": {
+    "minimumWidth": 62,
+    "widthPercent": 45,
+    "paddingHorizontal": 2,
+    "paddingVertical": 1,
+    "itemIndent": 2,
+    "includedIndent": 4
   }
 }
