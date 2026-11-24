@@ -56,7 +56,11 @@ func (m model) profileView(w, h int) string {
 		if h < 26 {
 			top, bottom = 0, 0
 		}
-		return lipgloss.NewStyle().Padding(top, profilePetPaddingHorizontal, bottom).Render(drawing)
+		coinHeader := ""
+		if m.economyReady {
+			coinHeader = lipgloss.NewStyle().Align(lipgloss.Right).Width(lipgloss.Width(drawing)).Render(m.coinDisplay(m.walletBalance())) + "\n"
+		}
+		return coinHeader + lipgloss.NewStyle().Padding(top, profilePetPaddingHorizontal, bottom).Render(drawing)
 	}
 	tasks := []string{m.st.muted.Render(m.t("nenhuma ainda"))}
 	if len(m.tasks) > 0 {
@@ -275,7 +279,7 @@ func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		revision := m.appearanceRevision
 		m.custom, m.notice, m.appearanceEdit = false, m.t("salvando…"), nil
 		save := func() tea.Msg {
-			err := store.SetAppearance(id, a)
+			err := rooms.EquipOwned(id, a)
 			if err != nil {
 				return appearanceSavedMsg{id: id, revision: revision, err: err}
 			}
@@ -290,6 +294,9 @@ func (m model) profileKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, save
 	default:
+		if m.inline() == nil && m.economyReady {
+			m.appearanceEdit.Owned = m.economy.States
+		}
 		m.appearanceEdit.key(k, true, &m.previewMood)
 	}
 	return m, nil

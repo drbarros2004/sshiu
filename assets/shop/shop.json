@@ -1,0 +1,254 @@
+{
+  "colors": {
+    "locked": "#808080",
+    "owned": "#87D7FF",
+    "error": "#FF5F5F",
+    "deduction": "#FF5F5F",
+    "balance": "#87FF87"
+  },
+  "starterItems": [
+    "character/fruit",
+    "color/fruit/blue",
+    "color/fruit/green",
+    "color/fruit/yellow",
+    "color/fruit/coral"
+  ],
+  "texts": {
+    "shop": {
+      "pt": "loja",
+      "en": "shop"
+    },
+    "coins": {
+      "pt": "moedas",
+      "en": "coins"
+    },
+    "locked": {
+      "pt": "bloqueado",
+      "en": "locked"
+    },
+    "owned": {
+      "pt": "possuído",
+      "en": "owned"
+    },
+    "available": {
+      "pt": "disponível",
+      "en": "available"
+    },
+    "character": {
+      "pt": "personagem",
+      "en": "character"
+    },
+    "color": {
+      "pt": "cor do personagem",
+      "en": "character color"
+    },
+    "hat": {
+      "pt": "chapéu",
+      "en": "hat"
+    },
+    "model": {
+      "pt": "modelo do chapéu",
+      "en": "hat model"
+    },
+    "mood": {
+      "pt": "prévia do humor",
+      "en": "mood preview"
+    },
+    "characters": {
+      "pt": "personagens",
+      "en": "characters"
+    },
+    "colors": {
+      "pt": "cores",
+      "en": "colors"
+    },
+    "hats": {
+      "pt": "chapéus",
+      "en": "hats"
+    },
+    "models": {
+      "pt": "modelos",
+      "en": "models"
+    },
+    "no_hat": {
+      "pt": "sem chapéu",
+      "en": "no hat"
+    },
+    "comes": {
+      "pt": "vem com %s",
+      "en": "comes with %s"
+    },
+    "included": {
+      "pt": "incluído",
+      "en": "included"
+    },
+    "can_buy": {
+      "pt": "você pode comprar este item de %s por %d moedas",
+      "en": "you can buy this %s for %d coins"
+    },
+    "need_money": {
+      "pt": "você poderia comprar este item de %s por %d moedas se tivesse moedas suficientes... vá focar mais",
+      "en": "you could buy this %s for %d coins if you had enough coins... go focus more"
+    },
+    "locked_help": {
+      "pt": "você ainda não pode comprar este item de %s, precisa desbloquear primeiro",
+      "en": "you can't buy this %s yet, you need to unlock it first"
+    },
+    "owned_help": {
+      "pt": "você já possui este item de %s",
+      "en": "you already own this %s"
+    },
+    "included_help": {
+      "pt": "este item de %s vem com %s",
+      "en": "this %s comes with the %s"
+    },
+    "included_owned": {
+      "pt": "você já possui este item de %s que veio com %s",
+      "en": "you already own this %s which came with buying its %s"
+    },
+    "included_error": {
+      "pt": "este item de %s vem com %s; compre a base para receber junto",
+      "en": "this %s comes with the %s, you need to buy the base and you will get this with it"
+    },
+    "no_hat_help": {
+      "pt": "não sei se possuído é a palavra certa, mas você tem sem chapéu",
+      "en": "i wouldn't say 'owned' is the right word for this, but i guess you do have 'no hat'"
+    },
+    "no_hat_error": {
+      "pt": "por que tentar comprar sem chapéu!? o que espera receber, ar?",
+      "en": "why are you trying to buy 'no hat'!? what do you expect to get, air?"
+    },
+    "preview": {
+      "pt": "apenas para visualização (não altera humor ou energia)",
+      "en": "just a preview (doesn't change mood or energy)"
+    },
+    "have": {
+      "pt": "você tem %d/%d %s",
+      "en": "you have %d/%d %s"
+    },
+    "missing_base": {
+      "pt": "você precisa possuir %s %s para comprar este item de %s. compre a base primeiro ou escolha 'comprar todos os itens selecionados'.",
+      "en": "you need to own the %s %s to buy this %s. buy it first or choose 'buy all selected items'."
+    },
+    "insufficient": {
+      "pt": "você não pode comprar este item de %s, precisa de %d moedas e tem %d... deixe a preguiça e vá focar mais",
+      "en": "you can't buy this %s, you need %d coins and you have %d... stop being lazy and go focus more"
+    },
+    "batch_locked": {
+      "pt": "você não pode comprar todos os itens selecionados porque ao menos um está bloqueado",
+      "en": "you can't buy all selected items because at least one of them is locked"
+    },
+    "batch_owned": {
+      "pt": "você já possui todos os itens selecionados",
+      "en": "you already own all selected items"
+    },
+    "batch_insufficient": {
+      "pt": "você não pode comprar todos os itens selecionados, precisa de %d moedas e tem %d... compre menos ou vá focar mais",
+      "en": "you can't buy all selected items, you need %d coins and you have %d... maybe buy less or just go focus more"
+    },
+    "confirm_one": {
+      "pt": "tem certeza de que quer comprar %s %s por %d moedas?",
+      "en": "are you sure you want to buy the %s %s for %d coins?"
+    },
+    "confirm_all": {
+      "pt": "tem certeza de que quer comprar estes itens por %d moedas?",
+      "en": "are you sure you want to buy these items for %d coins?"
+    },
+    "balance": {
+      "pt": "quantidade atual de moedas: %d",
+      "en": "current amount of coins: %d"
+    },
+    "pay_for": {
+      "pt": "itens pelos quais você vai pagar:",
+      "en": "items you'll pay for:"
+    },
+    "remaining": {
+      "pt": "quantidade de moedas após esta compra: %d",
+      "en": "amount of coins you will have after this purchase: %d"
+    },
+    "yes_no": {
+      "pt": "y sim · n não",
+      "en": "y yes · n no"
+    },
+    "equip_all": {
+      "pt": "quer equipar todos os itens selecionados?",
+      "en": "do you want to equip all selected items?"
+    },
+    "equip_one": {
+      "pt": "quer equipar este item: %s %s?",
+      "en": "do you want to equip this %s %s?"
+    },
+    "equipped_error": {
+      "pt": "você não pode remover a posse deste item porque está usando agora",
+      "en": "you can't change this from owned because it's what you have on now"
+    },
+    "dependency_error": {
+      "pt": "a base possuída precisa manter sua primeira opção",
+      "en": "an owned base must keep its included first option"
+    },
+    "stale": {
+      "pt": "os preços, o inventário ou o saldo mudaram; confira e confirme novamente",
+      "en": "prices, inventory or balance changed; review and confirm again"
+    },
+    "bought": {
+      "pt": "compra concluída",
+      "en": "purchase completed"
+    },
+    "saved": {
+      "pt": "salvo",
+      "en": "saved"
+    },
+    "help": {
+      "pt": "↑/↓ categoria · ←/→ escolhe · enter compra item · ctrl+b compra seleção · ctrl+r visual atual",
+      "en": "↑/↓ category · ←/→ choose · enter buy current · ctrl+b buy all selected items · ctrl+r current look"
+    },
+    "dev_help": {
+      "pt": "↑/↓ categoria · ←/→ escolhe · ctrl+o estado · ctrl+p preço · x salva e sai · ctrl+s salva · esc cancela",
+      "en": "↑/↓ category · ←/→ choose · ctrl+o state · ctrl+p price · x save and exit · ctrl+s save · esc cancel"
+    },
+    "number_help": {
+      "pt": "←/→ ±1 · j/l ±10 · enter confirma · esc cancela",
+      "en": "←/→ ±1 · j/l ±10 · enter confirm · esc cancel"
+    },
+    "dev_hint": {
+      "pt": " · x modo dev",
+      "en": " · x dev mode"
+    },
+    "gain": {
+      "pt": "(+%d moedas)",
+      "en": "(+%d coins)"
+    },
+    "gain_limited": {
+      "pt": " · limite de %d moedas",
+      "en": " · %d-coin limit"
+    },
+    "receipt": {
+      "pt": "(+%d moedas ganhas)",
+      "en": "(+%d coins gained)"
+    },
+    "history_prompt": {
+      "pt": "tarefa | início | fim (aaaa-mm-dd hh:mm:ss)",
+      "en": "task | start | end (yyyy-mm-dd hh:mm:ss)"
+    },
+    "invalid_history": {
+      "pt": "use tarefa | início | fim, com fim após início",
+      "en": "use task | start | end, with end after start"
+    },
+    "wallet": {
+      "pt": "moedas",
+      "en": "coins"
+    },
+    "history": {
+      "pt": "tarefa concluída dev",
+      "en": "completed dev task"
+    },
+    "gain_one": {
+      "pt": "(+%d moeda)",
+      "en": "(+%d coin)"
+    },
+    "receipt_one": {
+      "pt": "(+%d moeda ganha)",
+      "en": "(+%d coin gained)"
+    }
+  }
+}

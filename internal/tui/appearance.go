@@ -19,6 +19,7 @@ type appearanceSavedMsg struct {
 
 // Cada abertura tem sua própria memória de cores/modelos. Só Choice é salvo.
 type appearanceEditor struct {
+	Owned  map[string]string
 	Choice pet.Appearance
 	Row    int
 	Colors map[string]string
@@ -69,22 +70,38 @@ func (e *appearanceEditor) key(k string, moodPreview bool, mood *pet.Mood) {
 	a := &e.Choice
 	switch rows[e.Row] {
 	case "character":
-		cs := pet.Pets.Characters
+		cs := slices.DeleteFunc(slices.Clone(pet.Pets.Characters), func(c pet.Character) bool { return e.Owned != nil && e.Owned["character/"+c.ID] != "owned" })
+		if len(cs) == 0 {
+			return
+		}
 		i := slices.IndexFunc(cs, func(c pet.Character) bool { return c.ID == a.Character })
 		ch := cs[cycle(i, len(cs))]
 		a.Character = ch.ID
 		a.Variant = e.Colors[ch.ID]
 		if a.Variant == "" {
 			a.Variant = ch.Variants[0].ID
+			if e.Owned != nil {
+				for _, v := range ch.Variants {
+					if e.Owned["color/"+ch.ID+"/"+v.ID] == "owned" {
+						a.Variant = v.ID
+						break
+					}
+				}
+			}
 			e.Colors[ch.ID] = a.Variant
 		}
 	case "color":
-		vs := pet.Pets.Character(a.Character).Variants
+		vs := slices.DeleteFunc(slices.Clone(pet.Pets.Character(a.Character).Variants), func(v pet.CharacterVariant) bool {
+			return e.Owned != nil && e.Owned["color/"+a.Character+"/"+v.ID] != "owned"
+		})
+		if len(vs) == 0 {
+			return
+		}
 		i := slices.IndexFunc(vs, func(v pet.CharacterVariant) bool { return v.ID == a.Variant })
 		a.Variant = vs[cycle(i, len(vs))].ID
 		e.Colors[a.Character] = a.Variant
 	case "hat":
-		hs := pet.Pets.Hats
+		hs := slices.DeleteFunc(slices.Clone(pet.Pets.Hats), func(h pet.Hat) bool { return e.Owned != nil && e.Owned["hat/"+h.ID] != "owned" })
 		i := slices.IndexFunc(hs, func(h pet.Hat) bool { return h.ID == a.Hat }) + 1
 		i = cycle(i, len(hs)+1)
 		if i == 0 {
@@ -99,7 +116,10 @@ func (e *appearanceEditor) key(k string, moodPreview bool, mood *pet.Mood) {
 			e.Models[h.ID] = a.HatVariant
 		}
 	case "model":
-		vs := pet.Pets.Hat(a.Hat).Variants
+		vs := slices.DeleteFunc(slices.Clone(pet.Pets.Hat(a.Hat).Variants), func(v pet.HatVariant) bool { return e.Owned != nil && e.Owned["model/"+a.Hat+"/"+v.ID] != "owned" })
+		if len(vs) == 0 {
+			return
+		}
 		i := slices.IndexFunc(vs, func(v pet.HatVariant) bool { return v.ID == a.HatVariant })
 		a.HatVariant = vs[cycle(i, len(vs))].ID
 		e.Models[a.Hat] = a.HatVariant

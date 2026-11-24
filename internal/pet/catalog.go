@@ -47,6 +47,7 @@ type SpriteLayout struct {
 }
 
 type CharacterVariant struct {
+	Price        *int              `json:"price,omitempty"`
 	ID           string            `json:"id"`
 	DisplayName  DisplayName       `json:"displayName"`
 	DisplayColor string            `json:"displayColor"`
@@ -58,12 +59,14 @@ type CharacterVariant struct {
 }
 
 type Character struct {
-	ID           string      `json:"id"`
-	DisplayName  DisplayName `json:"displayName"`
-	Order        int         `json:"order"`
-	SpriteLayout string      `json:"spriteLayout"`
-	Moods        string      `json:"moods"`
-	Composition  struct {
+	Price               int         `json:"price"`
+	DefaultVariantPrice int         `json:"defaultVariantPrice"`
+	ID                  string      `json:"id"`
+	DisplayName         DisplayName `json:"displayName"`
+	Order               int         `json:"order"`
+	SpriteLayout        string      `json:"spriteLayout"`
+	Moods               string      `json:"moods"`
+	Composition         struct {
 		WithoutHat []string `json:"withoutHat"`
 		WithHat    []string `json:"withHat"`
 	} `json:"composition"`
@@ -74,6 +77,7 @@ type Character struct {
 }
 
 type HatVariant struct {
+	Price       *int        `json:"price,omitempty"`
 	ID          string      `json:"id"`
 	DisplayName DisplayName `json:"displayName"`
 	Image       string      `json:"image"`
@@ -81,10 +85,12 @@ type HatVariant struct {
 }
 
 type Hat struct {
-	ID          string       `json:"id"`
-	DisplayName DisplayName  `json:"displayName"`
-	Order       int          `json:"order"`
-	Variants    []HatVariant `json:"variants"`
+	Price               int          `json:"price"`
+	DefaultVariantPrice int          `json:"defaultVariantPrice"`
+	ID                  string       `json:"id"`
+	DisplayName         DisplayName  `json:"displayName"`
+	Order               int          `json:"order"`
+	Variants            []HatVariant `json:"variants"`
 }
 
 type artworkColor struct {

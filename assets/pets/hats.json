@@ -17,7 +17,8 @@
             "en": "normal"
           },
           "image": "hats/top_hat/top_hat_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "normal_detailed",
@@ -82,7 +83,9 @@
           "image": "hats/top_hat/top_hat_blue_band.png",
           "order": 7
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "cowboy",
@@ -99,7 +102,8 @@
             "en": "normal"
           },
           "image": "hats/cowboy/cowboy_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "normal_detailed",
@@ -155,7 +159,9 @@
           "image": "hats/cowboy/cowboy_navy.png",
           "order": 6
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "xmas_hat",
@@ -172,7 +178,8 @@
             "en": "normal"
           },
           "image": "hats/xmas_hat/xmas_hat_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "green",
@@ -219,7 +226,9 @@
           "image": "hats/xmas_hat/xmas_hat_black.png",
           "order": 5
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "cap",
@@ -236,7 +245,8 @@
             "en": "blue"
           },
           "image": "hats/cap/cap_blue.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "blue_backwards",
@@ -382,7 +392,9 @@
           "image": "hats/cap/cap_reference.png",
           "order": 16
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "crown",
@@ -399,7 +411,8 @@
             "en": "normal"
           },
           "image": "hats/crown/crown_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "rgb",
@@ -446,7 +459,9 @@
           "image": "hats/crown/crown_amethyst.png",
           "order": 5
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "little_hair",
@@ -463,7 +478,8 @@
             "en": "normal"
           },
           "image": "hats/little_hair/little_hair_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "dark",
@@ -537,7 +553,9 @@
           "image": "hats/little_hair/little_hair_white.png",
           "order": 8
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "pirate",
@@ -554,7 +572,8 @@
             "en": "normal"
           },
           "image": "hats/pirate/pirate_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "red",
@@ -610,7 +629,9 @@
           "image": "hats/pirate/pirate_ivory.png",
           "order": 6
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     },
     {
       "id": "firefighter_helmet",
@@ -627,7 +648,8 @@
             "en": "normal"
           },
           "image": "hats/firefighter_helmet/firefighter_helmet_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "yellow",
@@ -692,7 +714,9 @@
           "image": "hats/firefighter_helmet/firefighter_helmet_sunset.png",
           "order": 7
         }
-      ]
+      ],
+      "price": 60,
+      "defaultVariantPrice": 15
     }
   ]
 }

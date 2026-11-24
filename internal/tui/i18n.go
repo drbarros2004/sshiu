@@ -108,6 +108,14 @@ var enErrors = []struct {
 
 // en: português → inglês. Em minúsculas, como todo texto da interface.
 var en = map[string]string{
+	"saldo inválido":            "invalid coin balance",
+	"preço inválido":            "invalid price",
+	"tarefa histórica inválida": "invalid historical task",
+	"aparência não possuída":    "appearance not owned",
+	"item/estado inválido":      "invalid item or state",
+	"usuário inexistente":       "unknown user",
+
+	"loja":              "shop",
 	"personagem":        "character",
 	"cor do personagem": "character color",
 	"chapéu":            "hat",

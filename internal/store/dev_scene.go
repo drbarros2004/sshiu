@@ -13,6 +13,8 @@ type DevWrite struct {
 	Pet      pet.Pet
 	New      bool
 	Finish   *TaskRow
+	History  *TaskRow
+	Coins    *int
 	Open     *OpenTask
 }
 
@@ -46,8 +48,49 @@ func SaveDevScene(writes []DevWrite, room *RoomRow, members []string, state any)
 			}
 		}
 		p := w.Pet
+		if p.Appearance.Character != "" {
+			if err = initializeWallet(tx, w.ID); err != nil {
+				return err
+			}
+			for _, key := range pet.AppearanceItems(p.Look()) {
+				if err = grantItem(tx, w.ID, key); err != nil {
+					return err
+				}
+			}
+		}
 		if _, err = tx.Exec(`UPDATE users SET nick=?,energy=?,last_active=?,streak=?,streak_day=?,today=?,today_min=?,pet_color=?,dev_energy=?,pet_character=?,pet_variant=?,pet_hat=?,pet_hat_variant=? WHERE id=?`, w.Nick, p.Energy, p.LastActive.Unix(), p.Streak, p.StreakDay, p.Today, p.TodayMin, p.Color, p.DirectEnergy, p.Appearance.Character, p.Appearance.Variant, p.Appearance.Hat, p.Appearance.HatVariant, w.ID); err != nil {
 			return err
+		}
+		if w.Coins != nil {
+			if err = initializeWallet(tx, w.ID); err != nil {
+				return err
+			}
+			if *w.Coins < 0 || *w.Coins > pet.Coins.Maximum {
+				return errors.New("saldo inválido")
+			}
+			if _, err = tx.Exec(`UPDATE wallets SET balance=? WHERE user_id=?`, *w.Coins, w.ID); err != nil {
+				return err
+			}
+		}
+		if w.History != nil {
+			t := w.History
+			var recorded int
+			if err = tx.QueryRow(`SELECT COUNT(*) FROM tasks t JOIN coin_receipts r ON r.task_id=t.id WHERE t.user_id=? AND t.started_at=? AND t.ended_at=? AND t.task=?`, w.ID, t.Start.Unix(), t.End.Unix(), t.Task).Scan(&recorded); err != nil {
+				return err
+			}
+			if recorded == 0 {
+				result, e := tx.Exec(`INSERT INTO tasks(user_id,started_at,ended_at,task,declared_min,focused_sec,result,room_code) VALUES (?,?,?,?,?,?,?,?)`, w.ID, t.Start.Unix(), t.End.Unix(), t.Task, t.DeclaredMin, int(t.Focused.Seconds()), pet.Done, t.Room)
+				if e != nil {
+					return e
+				}
+				taskID, e := result.LastInsertId()
+				if e != nil {
+					return e
+				}
+				if _, e = settleCoins(tx, w.ID, taskID, int(t.Focused.Seconds()), true); e != nil {
+					return e
+				}
+			}
 		}
 		if w.Finish != nil {
 			if _, err = recordTask(tx, w.ID, *w.Finish); err != nil {

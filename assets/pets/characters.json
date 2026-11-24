@@ -41,7 +41,8 @@
             "plant": "characters/00_fruit/other_assets/plant/fruit_plant_blue.png",
             "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_blue.png"
           },
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "green",
@@ -56,7 +57,8 @@
             "plant": "characters/00_fruit/other_assets/plant/fruit_plant_green.png",
             "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_green.png"
           },
-          "order": 1
+          "order": 1,
+          "price": 0
         },
         {
           "id": "yellow",
@@ -71,7 +73,8 @@
             "plant": "characters/00_fruit/other_assets/plant/fruit_plant_yellow.png",
             "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_yellow.png"
           },
-          "order": 2
+          "order": 2,
+          "price": 0
         },
         {
           "id": "coral",
@@ -86,7 +89,8 @@
             "plant": "characters/00_fruit/other_assets/plant/fruit_plant_coral.png",
             "sparkles": "characters/00_fruit/other_assets/sparkles/fruit_sparkles_coral.png"
           },
-          "order": 3
+          "order": 3,
+          "price": 0
         },
         {
           "id": "purple",
@@ -148,7 +152,9 @@
           },
           "order": 7
         }
-      ]
+      ],
+      "price": 0,
+      "defaultVariantPrice": 10
     },
     {
       "id": "bunny",
@@ -180,7 +186,8 @@
           "displayColor": "#87AFD7",
           "artworkColor": "blue",
           "spriteSheet": "characters/01_bunny/body/bunny_blue.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "green",
@@ -259,7 +266,9 @@
           "spriteSheet": "characters/01_bunny/body/bunny_pink.png",
           "order": 7
         }
-      ]
+      ],
+      "price": 120,
+      "defaultVariantPrice": 20
     },
     {
       "id": "claude",
@@ -292,7 +301,8 @@
           "displayColor": "#D7875F",
           "artworkColor": "coral",
           "spriteSheet": "characters/02_claude/body/claude_normal.png",
-          "order": 0
+          "order": 0,
+          "price": 0
         },
         {
           "id": "blue",
@@ -371,7 +381,9 @@
           "spriteSheet": "characters/02_claude/body/claude_pink.png",
           "order": 7
         }
-      ]
+      ],
+      "price": 120,
+      "defaultVariantPrice": 20
     }
   ]
 }
