@@ -45,6 +45,47 @@ func (e *appearanceEditor) rows(moodPreview bool) []string {
 	return rows
 }
 
+// A posição usa a mesma ordem do catálogo e só as opções que este editor permite escolher.
+// Sem chapéu é uma opção própria, sempre disponível.
+func (e *appearanceEditor) position(kind string, mood pet.Mood) (int, int) {
+	if kind == "mood" {
+		return int(mood) + 1, int(pet.Sleeping) + 1
+	}
+	a := e.Choice
+	key, parent := "", ""
+	switch kind {
+	case "character":
+		key = "character/" + a.Character
+	case "color":
+		parent = "character/" + a.Character
+		key = "color/" + a.Character + "/" + a.Variant
+	case "hat":
+		if a.Hat != "" {
+			key = "hat/" + a.Hat
+		}
+	case "model":
+		parent = "hat/" + a.Hat
+		key = "model/" + a.Hat + "/" + a.HatVariant
+	}
+	index, total := 0, 0
+	if kind == "hat" {
+		total = 1
+		if key == "" {
+			index = 1
+		}
+	}
+	for _, item := range pet.ShopItems {
+		if item.Kind != kind || item.Parent != parent || e.Owned != nil && e.Owned[item.Key] != "owned" {
+			continue
+		}
+		total++
+		if item.Key == key {
+			index = total
+		}
+	}
+	return index, total
+}
+
 func (e *appearanceEditor) key(k string, moodPreview bool, mood *pet.Mood) {
 	rows := e.rows(moodPreview)
 	e.Row = min(e.Row, len(rows)-1)
@@ -156,6 +197,10 @@ func (m model) appearanceRows(a pet.Appearance, e *appearanceEditor, preview boo
 		label = fmt.Sprintf("%-18s", label)
 		if e != nil {
 			value = "‹ " + value + " ›"
+			if preview {
+				index, total := e.position(e.rows(true)[i], m.previewMood)
+				value += fmt.Sprintf(" %d/%d", index, total)
+			}
 			if e.Row == i {
 				prefix = m.st.sel.Render("▸ ")
 				label = m.st.sel.Render(label)

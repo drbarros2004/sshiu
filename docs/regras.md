@@ -19,6 +19,8 @@ As regras editáveis ficam em [coins.json](../assets/coins/coins.json); o cálcu
 
 Uma compra confirma valores antes de descontar e conceder itens na mesma transação. Equipar é uma segunda pergunta. A loja permite prévia de todos os itens; o perfil normal só permite usar os possuídos. Preços dev são globais ao banco dev; inventário e saldo são individuais.
 
+Na personalização do perfil, cada seleção mostra `posição/total` considerando apenas as opções disponíveis no inventário; “sem chapéu” conta como uma opção. Fora da personalização, esses contadores não aparecem. A prévia de humor do perfil e da loja conta os seis humores, incluindo dormir, independentemente do inventário. [appearance.go](../internal/tui/appearance.go), [shop.go](../internal/tui/shop.go).
+
 ## Energia e humor do pet
 
 As regras da energia estão em [`internal/pet/mood.go`](../internal/pet/mood.go). A energia vem dos minutos focados de verdade, não do tempo declarado: declarar 60 min e marcar "feito" no minuto 1 não rende.

@@ -231,8 +231,12 @@ const (
 
 func (m model) colorRow() string {
 	var editor *appearanceEditor
-	if m.custom {
-		editor = m.appearanceEdit
+	if m.custom && m.appearanceEdit != nil {
+		copy := *m.appearanceEdit
+		if m.inline() == nil && m.economyReady {
+			copy.Owned = m.economy.States
+		}
+		editor = &copy
 	}
 	return m.appearanceRows(m.profileAppearance(), editor, m.custom)
 }
