@@ -20,7 +20,8 @@
 
 ## Pré-condições (checklist do dia)
 
-- [ ] O pedido (`[R$ 100 mil]` por `[10%]`) e a data da capa definidos; `grep -o '\[[^]]*\]' deck/index.html` sem placeholder de texto.
+- [ ] O pedido (`[R$ 100 mil]` por `[10%]`) definido; `grep -o '\[[^]]*\]' deck/index.html` sem placeholder de texto.
+- [ ] Números do slide 7 medidos de novo na véspera (`git rev-list --count master`, `gh pr list --state merged`, `grep '^func Test'`).
 - [ ] Octoverse 2026 e preço do Focusmate Plus conferidos ([`source-checks.md`](source-checks.md)).
 - [ ] Deck aberto pelo **`deck/index.offline.html`** no Google Chrome (o Chromium sem codec não toca o vídeo). Funciona sem internet.
 - [ ] Projetor em 16:9 testado; tela cheia com `F`; modo apresentador com `S` no notebook.
