@@ -87,11 +87,11 @@ Orçamento: 177 s de slides (2:57) para um limite de 3:00, com 3 s de folga. Fal
 
 ## 7. Onde estamos · 2:24 · 18 s
 
-> Em quatro semanas, quatro pessoas fizeram 256 commits, 66 pull requests e 152 testes. O app funciona hoje.
+> Em quatro semanas, quatro pessoas fizeram 257 commits, 67 pull requests e 152 testes. O app funciona hoje.
 
 > Próximo passo: ssh sshiu no ar e um piloto com turmas. Depois, login pelo GitHub e as issues virando tarefas.
 
-- Conferido: git log de 28/10 a 25/11/2026 (256 commits); 66 PRs mesclados (gh pr list); 152 funções de teste em Go; commit 854000a.
+- Conferido: medido em 25/11/2026 no master (commit b590406): git rev-list --count master (257 commits desde 28/10); 67 PRs mesclados (gh pr list --state merged); 152 funções de teste em Go. Medir de novo na véspera: o número pode subir até 27/11.
 - Pergunta: 'e o custo para escalar?' → a sala manda ~90 KB/s por pessoa (medido em 30/10/2026); um servidor pequeno aguenta uma turma, e a passada de performance já está planejada.
 - Gancho: 'O que a gente pede.'
 

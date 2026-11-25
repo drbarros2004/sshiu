@@ -40,4 +40,4 @@ O HUD embaixo mostra o tempo, o ritmo (no ritmo, atrasado, adiantado) e quanto d
 2. Gere o arquivo único: `python3 ~/.claude/skills/interactive-slides/scripts/embed_assets.py deck/index.html -o deck/index.offline.html`.
 3. Gere o PDF de novo com `P` no Chrome.
 
-Valores entre colchetes (`[R$ 100 mil]`, `[data]`) ainda precisam ser decididos: o atalho `?` mostra quantos faltam.
+Valores entre colchetes (`[R$ 100 mil]`, `[10%]`) ainda precisam ser decididos: o atalho `?` mostra quantos faltam.

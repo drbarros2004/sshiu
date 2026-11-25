@@ -1,7 +1,7 @@
 # Dossiê do pitch: sshiu
 
 > Formato: Shark Tank simulado na aula de empreendedorismo, 3 minutos no máximo, banca com investidor-anjo, CEO, founder e agilista. Pedido: investimento em troca de participação.
-> Status: preparado em 25/11/2026. Ensaios ainda não realizados.
+> Apresentação: 27/11/2026. Status: preparado em 25/11/2026; ensaios ainda não realizados.
 
 Números e fontes: [`source-checks.md`](source-checks.md). Receita: [`revenue-assumptions.md`](revenue-assumptions.md). Fala: [`script.md`](script.md).
 
@@ -13,7 +13,7 @@ Números e fontes: [`source-checks.md`](source-checks.md). Receita: [`revenue-as
 - **O que não é:** não é chat, não é rede social e não vigia ninguém. O app só sabe o que a pessoa declara: sem câmera e sem capturar tela ou teclado.
 - **Estágio:** app funcionando em Go (Wish + Bubble Tea), com salas, pet, loja com moedas, modo jardim, estatísticas e tabela de foco. Ainda não há servidor público nem usuários reais fora do time. Em termos de TRL, é um protótipo validado em ambiente de desenvolvimento.
 - **Insight:** quem programa já passa o dia no terminal, e o `ssh` já vem instalado em todo computador. Os apps de foco disputam atenção no celular, onde a distração mora; o sshiu fica onde o trabalho já está.
-- **Evidência:** 256 commits, 66 PRs e 152 testes em 4 semanas, com 4 pessoas (medição local). Não há evidência de demanda paga.
+- **Evidência:** 257 commits, 67 PRs e 152 testes em 4 semanas, com 4 pessoas (medição local). Não há evidência de demanda paga.
 - **Lacunas:** nenhum usuário fora do time, conversão freemium não medida e nenhuma empresa consultada.
 
 ## 2. Dor e problema
@@ -72,7 +72,7 @@ Era uma vez uma turma de computação que precisava entregar listas e projetos. 
 | Pergunta provável | Resposta curta | Dado no bolso |
 |---|---|---|
 | Isso já não existe? | Foco existe; foco **junto, no terminal, sem chat** não. O par recortado é o novo. | Tabela de alternativas |
-| Por que vocês? | Somos o usuário: estudantes de computação que fizeram o app para a própria turma e entregaram 256 commits em 4 semanas. | 66 PRs, 152 testes, 12 ADRs |
+| Por que vocês? | Somos o usuário: estudantes de computação que fizeram o app para a própria turma e entregaram 257 commits em 4 semanas. | 67 PRs, 152 testes, 12 ADRs |
 | Empresa vai vigiar funcionário? (CEO) | Não. O sshiu só sabe o que a pessoa declara; a tabela de foco só aparece se o dono da sala abrir. | ADR 0010 |
 | Como entra no ágil? (agilista) | A tarefa já é "a próxima coisa concreta", como quebrar a história em tarefas. Com issues, a sala vira o quadro do sprint ao vivo, sem reunião de status. | Login pelo GitHub já desenhado em `IDEIAS.md` |
 | Skin paga não estraga o jogo? | Só visual: as moedas continuam vindo do foco e dinheiro nunca compra energia. | `docs/regras.md`, moedas e loja |
@@ -89,7 +89,6 @@ Era uma vez uma turma de computação que precisava entregar listas e projetos. 
 ## 8. Lacunas [A CONFIRMAR]
 
 - O pedido (valor e participação) e a justificativa do valuation.
-- A data da apresentação, na capa.
 - O Octoverse 2026 e o preço do Focusmate Plus na página original.
 - Uma conversa com 2–3 colegas ou um tech lead antes da aula seria a primeira evidência de demanda; hoje não há nenhuma.
 - O personagem "claude" na loja: tirar da venda paga ou pedir autorização.
