@@ -415,7 +415,8 @@ func (m model) shopView(w, h int) string {
 	var categories []categoryRow
 	for i, kind := range rows {
 		if kind == "mood" {
-			row := categoryRow{label: m.shopText(kind), selection: "‹ " + pet.Pets.MoodName(a, m.shop.Mood, string(m.lang)) + " ›"}
+			index, total := m.shop.Editor.position(kind, m.shop.Mood)
+			row := categoryRow{label: m.shopText(kind), selection: fmt.Sprintf("‹ %s › %d/%d", pet.Pets.MoodName(a, m.shop.Mood, string(m.lang)), index, total)}
 			if i == m.shop.Editor.Row {
 				row.details = []string{m.shopText("preview")}
 			}
@@ -566,7 +567,7 @@ func (m model) shopColumnWidths() []int {
 		counts["color"] = max(counts["color"], len(character.Variants))
 		for mood := pet.Wilted; mood <= pet.Sleeping; mood++ {
 			name := pet.Pets.MoodName(pet.Appearance{Character: character.ID}, mood, string(m.lang))
-			measure(1, "‹ "+name+" ›")
+			measure(1, fmt.Sprintf("‹ %s › %d/%d", name, int(pet.Sleeping)+1, int(pet.Sleeping)+1))
 		}
 	}
 	for _, hat := range pet.Pets.Hats {
