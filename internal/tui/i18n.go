@@ -408,6 +408,8 @@ var en = map[string]string{
 	"agora":                            "now",
 	"%dº":                              "#%d",
 	" · +%d no o":                      " · +%d on o",
+	"obra: %d de %d peças completas":   "mural: %d of %d pieces complete",
+	" · na tecla o":                    " · on o",
 	"+%d: aumente a janela para ver todo mundo": "+%d: make the window bigger to see everyone",
 	"período": "period",
 	"quem vê": "who sees",

@@ -58,9 +58,10 @@ var portoPNG []byte
 var foguetesPNG []byte
 
 const (
-	pieceW, pieceH = 12, 12 // pixels de cada peça: 12 colunas por 6 linhas no terminal
-	pieceGap       = 2      // colunas entre uma peça e a outra
-	obraGap        = 4      // colunas entre o log e a obra, quando ela fica ao lado dele
+	pieceW, pieceH     = 12, 12 // pixels de cada peça: 12 colunas por 6 linhas no terminal
+	pieceGap           = 2      // colunas entre uma peça e a outra
+	obraGap            = 4      // colunas entre o log e a obra, quando ela fica ao lado dele
+	maxArtworkRowRatio = 4      // a última fileira tem ao menos um quarto da anterior
 )
 
 // pieceBody: as duas cores marcadoras do corpo da peça na folha, base e sombra. São elas que
@@ -113,7 +114,7 @@ func init() {
 	obras["trem"] = &obra{sheet: read(tremPNG), pw: 16, chao: [2]string{"#8A8A94", "#44444E"},
 		engate: "#8A8A94", linkY: 4, fixo: 24, anim: 1, wide: true, rows: fitRows}
 	obras["cidade"] = &obra{sheet: read(cidadePNG), chao: [2]string{"#6E6E78", "#3A3A44"},
-		rows: cityRows}
+		rows: fitRows}
 	obras["horta"] = &obra{sheet: read(hortaPNG), chao: [2]string{"#6B4A2E", "#3E2A1A"},
 		wide: true, rows: fitRows}
 	obras["estante"] = &obra{sheet: read(estantePNG), chao: [2]string{"#4A4250", "#2E2A36"},
@@ -122,7 +123,7 @@ func init() {
 		wide: true, rows: fitRows}
 	// só a fogueira se mexe: barraca e cabana são iguais nas duas faixas da folha
 	obras["acampamento"] = &obra{sheet: read(acampamentoPNG), chao: [2]string{"#3D8B47", "#24602C"},
-		fixo: pieceW, centro: true, anim: 1, rows: campRows}
+		fixo: pieceW, centro: true, anim: 1, rows: fitRows}
 	// o instrumento sai da cor do pet, na ordem de pet.Colors: quem é azul toca violino
 	obras["orquestra"] = &obra{sheet: read(orquestraPNG), chao: [2]string{"#8A6A3E", "#5A4529"},
 		inst: true, anim: 2, nota: true, wide: true, rows: fitRows}
@@ -135,30 +136,22 @@ func init() {
 		wide: true, rows: fitRows}
 }
 
-// fitRows: a fileira que quebra quando não cabe na largura, dividindo as peças por igual entre as
-// fileiras: cinco num lugar de quatro viram 3 e 2, não 4 e um vagão solto embaixo.
+// fitRows: preenche cada fileira antes de abrir a próxima, conforme a largura disponível.
 func fitRows(n, per int) []int {
 	per = max(1, per)
-	rows := (n + per - 1) / per
-	var out []int
-	for r := range rows {
-		out = append(out, n/rows+min(1, max(0, n%rows-r))) // as primeiras levam a sobra
+	var rows []int
+	for n > 0 {
+		count := min(n, per)
+		rows = append(rows, count)
+		n -= count
 	}
-	return out
-}
-
-// cityRows: o arranjo da cidade para cada quantidade de gente. É uma tabela de propósito: com
-// fórmula, sete pessoas viravam uma grade torta em vez da praça que 2-3-2 desenha (ADR 0008).
-func cityRows(n, _ int) []int {
-	table := [][]int{{}, {1}, {2}, {2, 1}, {2, 2}, {3, 2}, {3, 3}, {2, 3, 2}, {4, 4}, {3, 3, 3}, {5, 5}}
-	return table[min(max(n, 0), rooms.MaxMembers)]
-}
-
-// campRows: as barracas em volta da fogueira, que entra no meio da fileira do meio. Tabela pelo
-// mesmo motivo da cidade: com quatro, 1-2-1 faz a roda que uma grade não faz.
-func campRows(n, _ int) []int {
-	table := [][]int{{}, {1}, {2}, {1, 2}, {1, 2, 1}, {2, 2, 1}, {2, 2, 2}, {3, 2, 2}, {3, 2, 3}, {2, 4, 3}, {3, 4, 3}}
-	return table[min(max(n, 0), rooms.MaxMembers)]
+	if last := len(rows) - 1; last > 0 {
+		for rows[last]*maxArtworkRowRatio < rows[last-1] {
+			rows[last-1]--
+			rows[last]++
+		}
+	}
+	return rows
 }
 
 // obraOf: o tema que a sala está construindo, ou nil quando não há obra para desenhar — sala solo,
@@ -248,7 +241,7 @@ func (m model) obraBlock(s rooms.Snapshot, cols int, flat bool) string {
 		i += n
 	}
 	// o arranjo de tabela é um lugar, não uma lista: as fileiras ficam centradas umas nas outras,
-	// e é isso que põe a fogueira no meio de todo mundo e faz o 2-3-2 da cidade virar uma praça
+	// mantendo a fogueira no meio da sua fileira, mesmo quando a última leva menos peças
 	widest := 0
 	for _, f := range out {
 		widest = max(widest, lipgloss.Width(f[0]))

@@ -22,6 +22,8 @@ import (
 // periods: os períodos da tabela, na ordem das setas.
 var periods = []string{"hoje", "esta semana", "este mês", "total"}
 
+const boardNameGap = 4 // espaços após o maior apelido, antes do tempo
+
 // boardWho: quem vê a tabela, como a página do dono diz.
 func (m model) boardWho(open bool) string {
 	if open {
@@ -29,10 +31,6 @@ func (m model) boardWho(open bool) string {
 	}
 	return m.t("só você")
 }
-
-// sideRows: quantas pessoas a tabela compacta mostra; o resto fica na tecla o (docs/regras.md).
-// Com o título, ela fica só uma ou duas linhas mais alta que o painel de foco ao lado.
-const sideRows = 3
 
 // boardMsg: os minutos das tarefas encerradas antes de hoje no período, lidos do banco no dia day.
 type boardMsg struct {
@@ -157,10 +155,10 @@ func (m model) periodArrows(sel bool) string {
 func (m model) boardName(x rooms.Member) string { return ansi.Truncate(m.obraName(x), 16, "…") }
 
 // board: a tabela, na ordem em que os membros entraram para as linhas não pularem a cada tick, ou
-// o ranking, do mais focado para o menos. Com mini, a versão compacta da sala: sem cabeçalho nem o
-// que cada um faz agora (os cards já dizem), a barra pela metade e até sideRows pessoas. Com
+// o ranking, do mais focado para o menos. Com mini, a versão da faixa da sala, ao lado da obra:
+// sem cabeçalho nem o que cada um faz agora (os cards já dizem) e com a barra pela metade. Com
 // limit > 0, a tabela inteira ocupa no máximo limit linhas: quem não cabe vira um "+N" na última,
-// em vez de ser cortado sem aviso no pé da tela (#119).
+// em vez de ser cortado sem aviso no pé da tela (#119); na mini, o "+N" fica no título da faixa.
 func (m model) board(s rooms.Snapshot, mini bool, limit int) string {
 	ms := slices.Clone(s.Members)
 	if s.BoardRank { // pelos minutos inteiros, como a posição: quem empata fica na ordem de entrada
@@ -171,15 +169,13 @@ func (m model) board(s rooms.Snapshot, mini bool, limit int) string {
 		mins[i] = m.boardMin(x)
 	}
 	pl := places(mins) // as posições contam a sala inteira, mesmo quando só o começo aparece
-	name, cols := lipgloss.NewStyle().Width(18), barCols
-	if mini { // só quem aparece; a coluna do apelido acompanha o mais comprido deles
-		n := min(len(ms), sideRows)
-		ms, mins, pl = ms[:n], mins[:n], pl[:n]
+	name, cols := lipgloss.NewStyle().Width(16+boardNameGap), barCols
+	if mini { // a coluna do apelido acompanha o mais comprido
 		w := 0
 		for _, x := range ms {
 			w = max(w, lipgloss.Width(m.boardName(x)))
 		}
-		name, cols = name.Width(w+2), barCols/2
+		name, cols = name.Width(w+boardNameGap), barCols/2
 	}
 	var lines []string
 	if !s.BoardRank && !mini {
@@ -187,8 +183,10 @@ func (m model) board(s rooms.Snapshot, mini bool, limit int) string {
 	}
 	var more string
 	if rows := limit - len(lines); limit > 0 && rows < len(ms) { // a última linha diz quantos faltam
-		rows = max(rows-1, 1)
-		more = m.st.muted.Render(m.tf("+%d: aumente a janela para ver todo mundo", len(ms)-rows))
+		if !mini {
+			rows = max(rows-1, 1)
+			more = m.st.muted.Render(m.tf("+%d: aumente a janela para ver todo mundo", len(ms)-rows))
+		}
 		ms, mins, pl = ms[:rows], mins[:rows], pl[:rows]
 	}
 	for i, p := range pl {
@@ -225,19 +223,6 @@ func (m model) boardBlock(s rooms.Snapshot, reset, tight bool, h int) string {
 	}
 	return m.boardTitle(s) + "\n" + m.boardNote(reset) + "\n\n" +
 		cfgRow(m, false, m.t("período"), m.periodArrows(true)) + "\n\n" + m.board(s, false, 0)
-}
-
-// boardSide: a tabela compacta da sala, ao lado do painel de foco, só quando o dono a abriu para
-// todo mundo. O período é o que você escolheu na tecla o, onde ela aparece inteira.
-func (m model) boardSide(s rooms.Snapshot) string {
-	if !s.BoardOpen || len(s.Members) < 2 { // a sala solo tem uma pessoa só
-		return ""
-	}
-	title := bold.Render(m.t("tabela de foco")) + m.st.muted.Render(" · "+m.t(periods[m.bper]))
-	if rest := len(s.Members) - sideRows; rest > 0 { // o resto, na tecla o
-		title += m.st.muted.Render(m.tf(" · +%d no o", rest))
-	}
-	return title + "\n" + m.board(s, true, 0)
 }
 
 // boardPage: a página da tabela no menu do dono: quem vê, o formato e o período, com a tabela
