@@ -21,6 +21,10 @@ Esta revisão substitui as regras abaixo sobre fileiras equilibradas, teto de 80
 
 As decisões iniciais e alternativas consideradas continuam registradas abaixo para contexto histórico.
 
+## Navegação sem redesenhar as tentativas de encaixe
+
+As tentativas de layout medem blocos já preparados e a altura do feed, em vez de montar uma tela completa para cada quantidade de eventos. Só o arranjo escolhido é desenhado. O limite navegável e o View usam o mesmo plano; setas consecutivas reaproveitam as medidas, desenhando a seleção atual. Qualquer outra mensagem invalida esse plano, incluindo ticks, redimensionamento e novos dados da sala, para manter animações, foco e eventos atualizados. O View continua apenas lendo o modelo.
+
 ## Regras iniciais (substituídas nos pontos acima)
 
 - **A obra e a tabela ficam numa faixa embaixo dos cards**, lado a lado e alinhadas pelo topo. A tabela aparece inteira, com todo mundo, sem o que cada um faz agora (os cards já dizem). Se as duas não cabem na largura, a tabela desce para baixo da obra.

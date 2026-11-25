@@ -179,6 +179,7 @@ type model struct {
 	other    bool               // digitando os minutos do "outro"...
 	otherMin string             // ...e o que já foi digitado
 	sel      int                // evento selecionado (ID)
+	roomPlan *roomLayoutResult  // medidas reaproveitadas nas setas; qualquer outra mensagem as invalida
 	picking  bool               // menu de salas aberto
 	cfg      bool               // menu do dono da sala aberto (tecla c)
 	cpage    cfgPage            // página dentro dele: o menu, passar, remover ou encerrar
@@ -352,6 +353,9 @@ func (m model) loadProfile() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if k, ok := msg.(tea.KeyPressMsg); !ok || k.Code != tea.KeyUp && k.Code != tea.KeyDown {
+		m.roomPlan = nil
+	}
 	if next, cmd, ok := m.updateShop(msg); ok {
 		return next, cmd
 	}
@@ -523,6 +527,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if msg.Code != tea.KeyUp && msg.Code != tea.KeyDown {
+		m.roomPlan = nil
+	}
 	k := msg.String()
 	m.lastKey = time.Now()
 	if Dev && m.hideDev && (k == "h" || k == "x") && !m.typing() {

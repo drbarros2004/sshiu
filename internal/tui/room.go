@@ -134,14 +134,19 @@ func (m model) selIndex() int {
 }
 
 // A navegação e as reações usam só os eventos que cabem na tela atual.
-func (m model) visibleRoomEvents() []rooms.Event {
+func (m *model) visibleRoomEvents() []rooms.Event {
 	ev := m.events()
 	if m.width == 0 || m.height == 0 {
 		return ev
 	}
 	w := max(1, m.width-4)
 	h := max(1, m.height-2-lipgloss.Height(m.header())-2-lipgloss.Height(m.footer(m.roomHelp(), w)))
-	_, n := m.roomLayout(w, h-lipgloss.Height(m.errLine())+1)
+	h = h - lipgloss.Height(m.errLine()) + 1
+	if r := m.roomPlan; r != nil && r.width == w && r.height == h {
+		return ev[:min(r.events, len(ev))]
+	}
+	plan, n := m.planRoomLayout(w, h)
+	m.roomPlan = &roomLayoutResult{plan: plan, events: n, width: w, height: h}
 	return ev[:min(n, len(ev))]
 }
 
@@ -375,12 +380,21 @@ func (m model) roomView(w, h int) string {
 
 // O mesmo cálculo informa a tela e o limite real de navegação dos eventos.
 func (m model) roomLayout(w, h int) (string, int) {
+	if r := m.roomPlan; r != nil && r.width == w && r.height == h {
+		return r.plan.render(m, r.plan.count), r.events
+	}
+	plan, n := m.planRoomLayout(w, h)
+	return plan.render(m, plan.count), n
+}
+
+// Mede os blocos uma vez por tamanho, sem montar uma tela para cada quantidade de eventos.
+func (m model) planRoomLayout(w, h int) (roomBodyPlan, int) {
 	if m.inPicker() {
-		return m.pickerView(), 0
+		return roomBodyPlan{top: m.pickerView()}, 0
 	}
 	s := m.w.Rooms[m.room]
 	if m.cfg {
-		return m.cfgView(h), 0
+		return roomBodyPlan{top: m.cfgView(h)}, 0
 	}
 	title := bold.Render(m.roomName(s))
 	if m.room != rooms.DemoCode && !m.solo() { // a sala solo não tem código para passar
@@ -405,10 +419,10 @@ func (m model) roomLayout(w, h int) (string, int) {
 		title += "   " + m.noticeStyle().Render(m.notice)
 	}
 	if m.oScreen() { // a obra sozinha, na tecla o
-		return m.obraView(s, w, h), 0
+		return roomBodyPlan{top: m.obraView(s, w, h)}, 0
 	}
 	if m.solo() { // a sala solo tem uma pessoa e nenhum card: ela já cabe
-		return title + "\n\n" + m.soloView(), 0
+		return roomBodyPlan{top: title + "\n\n" + m.soloView()}, 0
 	}
 	// os cards e a faixa de cada tamanho são desenhados uma vez só: a escada passa pelo mesmo
 	// tamanho várias vezes, e o pixel art dos cards é a parte cara do tick
@@ -430,7 +444,19 @@ func (m model) roomLayout(w, h int) (string, int) {
 		}
 		return bands[mode]
 	}
-	var out, prevBand string
+	feeds := map[int]string{}
+	feedOf := func(width int) string {
+		if block, ok := feeds[width]; ok {
+			return block
+		}
+		block := m.feedBlock(shownEvents, width)
+		feeds[width] = block
+		return block
+	}
+	panel := lipgloss.NewStyle().Height(clockRows).Render(m.focusPanel(w))
+	top := title + "\n\n" + panel + "\n\n"
+	var out roomBodyPlan
+	var prevBand string
 	prevCard := -1
 	for _, st := range m.fitSteps(s) {
 		band := bandOf(st.band)
@@ -442,21 +468,24 @@ func (m model) roomLayout(w, h int) (string, int) {
 		prevCard, prevBand = st.card, band
 		// sem eventos só sem a faixa, e com os pets já encolhidos: com a obra ou a tabela na tela
 		// ficam pelo menos dois (ADR 0010)
+		out = m.prepareRoomBody(s, top+cardsOf(st.card), w, st.band, band, feedOf)
 		for n := min(shownEvents, max(2, len(m.events()))); n >= 0 && (n > 0 || band == "" && st.card != cardFull); n-- {
 			if n == 1 && band != "" {
 				continue
 			}
-			if out = m.roomBody(s, title, w, n, cardsOf(st.card), st.band, band); lipgloss.Height(out) <= h {
+			if out.height(n) <= h {
+				out.count = n
 				return out, min(n, len(m.events()))
 			}
 		}
 	}
 	if m.alone() { // sem ninguém, o seu card é o que menos diz: ele sai antes do convite
-		return title + "\n\n" + m.focusPanel(w) + "\n\n" + m.invitePanel(s), 0
+		return roomBodyPlan{top: title + "\n\n" + m.focusPanel(w) + "\n\n" + m.invitePanel(s)}, 0
 	}
 	per := m.cardsPer(s, w)
 	for r := (len(s.Members)+per-1)/per - 1; r >= 1; r-- {
-		if out = m.roomBody(s, title, w, 0, m.cards(s, w, cardDot, r), bandFora, ""); lipgloss.Height(out) <= h {
+		out = m.prepareRoomBody(s, top+m.cards(s, w, cardDot, r), w, bandFora, "", feedOf)
+		if out.height(0) <= h {
 			break
 		}
 	}
@@ -548,43 +577,10 @@ func (m model) roomDivider(height int) string {
 // Com largura, os eventos entram na faixa, à esquerda, só na largura que usam: a faixa encosta na
 // esquerda e a sobra fica à direita. Sem a faixa, uma linha diz onde estão a obra e a tabela.
 func (m model) roomBody(s rooms.Snapshot, title string, w, n int, cards string, mode int, band string) string {
-	// o painel tem sempre a altura do relógio: parado ele tem duas linhas, e a linha a mais ao
-	// começar uma tarefa trocava o arranjo da tela inteira (a obra saía e o feed voltava)
 	panel := lipgloss.NewStyle().Height(clockRows).Render(m.focusPanel(w))
-	out := title + "\n\n" + panel + "\n\n" + cards
-	if m.alone() { // o convite vale mais que o feed vazio, e não encolhe
-		if band != "" {
-			out += "\n\n" + band
-		}
-		return out + "\n\n" + m.invitePanel(s)
-	}
-	var log, beside string
-	if n > 0 {
-		log = m.feedBlock(n, w)
-	}
-	if fw := w - lipgloss.Width(band) - roomSectionGap; log != "" && band != "" && fw >= feedMin {
-		// a legenda das reações não encolhe com fw: os eventos só entram se couberem de verdade
-		if l := m.feedBlock(n, min(fw, w/2)); lipgloss.Width(l)+roomSectionGap+lipgloss.Width(band) <= w {
-			beside = lipgloss.NewStyle().Width(fw).Render(l)
-		}
-	}
-	switch {
-	case band == "" && mode == bandFora && (m.obraOf(s) != nil || m.boardInRoom(s)):
-		out += "\n\n" + m.st.muted.Render(m.bandAway(s))
-	case band == "":
-	case beside != "":
-		out += "\n\n" + lipgloss.JoinHorizontal(lipgloss.Top, beside, m.roomDivider(max(lipgloss.Height(beside), lipgloss.Height(band))), band)
-		log = ""
-	default:
-		out += "\n\n" + lipgloss.PlaceHorizontal(w, lipgloss.Right, band)
-	}
-	if log != "" {
-		out += "\n\n" + log
-	}
-	if mode == bandSemTabela && m.boardInRoom(s) {
-		out += "\n" + m.st.muted.Render(m.t("tabela de foco")+m.t(" · na tecla o"))
-	}
-	return out
+	top := title + "\n\n" + panel + "\n\n" + cards
+	plan := m.prepareRoomBody(s, top, w, mode, band, func(width int) string { return m.feedBlock(shownEvents, width) })
+	return plan.render(m, n)
 }
 
 // bandAway: a faixa fora da tela vira uma linha, com o quanto a obra andou e onde ela está.
