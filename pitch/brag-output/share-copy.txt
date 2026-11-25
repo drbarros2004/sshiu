@@ -1,0 +1,1 @@
+o sshiu é uma sala de foco que mora no terminal: você digita ssh sshiu, diz a próxima coisa concreta e foca junto com a sua turma, sem chat e sem câmera. cada minuto de foco constrói a obra da sala, e o seu pet fica radiante.

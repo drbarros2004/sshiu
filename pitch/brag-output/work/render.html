@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<style>
+:root{--brand:#FF8700;--accent:#A34A00;--deep:#212121;--paper:#FAFAF7;--muted:#6b6b66;--mono:'JetBrains Mono',ui-monospace,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--paper);font-family:var(--mono)}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:var(--paper)}
+.scene{position:absolute;inset:0;display:none}
+/* cena escura (gancho e fecho) */
+.dark{background:var(--deep);color:#FAFAF7}
+.cmd{position:absolute;left:0;right:0;top:400px;text-align:center;font:800 150px/1 var(--mono);letter-spacing:-2px;white-space:pre}
+.cmd .d{color:var(--brand)}
+.cur{display:inline-block;width:.55em;height:.95em;background:var(--brand);vertical-align:-.12em;margin-left:.06em}
+.hookline{position:absolute;left:0;right:0;top:600px;text-align:center;font:500 56px/1.2 var(--mono);color:#e9e6df}
+/* cenas de produto */
+.bgshape{position:absolute;right:-260px;bottom:-420px;width:1100px;height:1100px;border-radius:50%;background:var(--brand);opacity:.95}
+.label{position:absolute;left:256px;top:52px;font:700 26px/1 var(--mono);color:var(--paper);background:var(--deep);padding:10px 16px;border-radius:8px}
+.label b{color:var(--brand);font-weight:800}
+.title{position:absolute;left:256px;top:108px;font:800 54px/1.15 var(--mono);color:var(--deep);letter-spacing:-1px;white-space:nowrap}
+.title .w{display:inline-block}
+.title .hl{color:var(--accent)}
+.win{position:absolute;left:256px;top:214px;width:1408px;height:826px;border-radius:16px;overflow:hidden;background:#fff;
+     box-shadow:0 30px 80px rgba(33,33,33,.22),0 0 0 1px rgba(33,33,33,.10)}
+.bar{height:34px;background:#ecebe6;display:flex;align-items:center;gap:9px;padding-left:16px;border-bottom:1px solid #dcdad3}
+.bar i{width:13px;height:13px;border-radius:50%;background:#d8d6cf}
+.bar i:first-child{background:#FF5F57}.bar i:nth-child(2){background:#FEBC2E}.bar i:nth-child(3){background:#28C840}
+.bar span{position:absolute;left:0;right:0;text-align:center;font:600 16px/34px var(--mono);color:#7b7972}
+.view{position:relative;width:1408px;height:792px;overflow:hidden;background:#fff}
+.view img{position:absolute;left:0;top:0;transform-origin:0 0;image-rendering:auto}
+/* jardim em tela cheia */
+.full img{position:absolute;inset:0;width:1920px;height:1080px}
+.gcard{position:absolute;left:72px;bottom:72px;background:rgba(24,24,24,.86);color:#FAFAF7;border-radius:18px;padding:26px 34px 30px}
+.gcard .l{font:700 24px/1 var(--mono);color:var(--brand);margin-bottom:14px}
+.gcard .t{font:800 46px/1.2 var(--mono);letter-spacing:-.5px}
+/* pets */
+.pets{position:absolute;left:0;right:0;top:270px;display:flex;justify-content:center;gap:40px}
+.pet{width:270px;display:flex;flex-direction:column;align-items:center;gap:22px}
+.pet .box{width:270px;height:440px;border-radius:18px;background:#fff;box-shadow:0 0 0 2px #e4e2da;display:flex;align-items:flex-end;justify-content:center;padding-bottom:26px}
+.pet.on .box{box-shadow:0 0 0 4px var(--brand),0 24px 50px rgba(255,135,0,.25)}
+.pet img{width:288px;height:396px;image-rendering:pixelated}
+.pet .n{font:700 30px/1 var(--mono);color:var(--deep)}
+.pet.on .n{color:var(--accent)}
+.arrow{position:absolute;left:330px;right:330px;top:870px;height:6px;background:linear-gradient(90deg,#d8d6cf,var(--brand));border-radius:3px}
+.arrow:after{content:"";position:absolute;right:-6px;top:-11px;border:14px solid transparent;border-left:20px solid var(--brand);border-right:0}
+.cap2{position:absolute;left:330px;right:330px;top:900px;display:flex;justify-content:space-between;font:600 26px/1 var(--mono);color:var(--muted)}
+/* fecho */
+.logo{position:absolute;left:0;right:0;top:300px;display:flex;justify-content:center}
+.logo svg{width:780px;height:208px}
+.tag{position:absolute;left:0;right:0;top:580px;text-align:center;font:700 58px/1.2 var(--mono);color:#FAFAF7}
+.pill{position:absolute;left:50%;top:730px;transform:translateX(-50%);font:800 48px/1 var(--mono);color:var(--deep);background:var(--brand);padding:22px 36px;border-radius:14px;white-space:pre}
+</style></head>
+<body><div id="stage">
+
+<section class="scene dark" id="s-hook">
+  <div class="cmd" id="cmd"></div>
+  <div class="hookline" id="hookline"></div>
+</section>
+
+<section class="scene" id="s-prod">
+  <div class="bgshape" id="shape"></div>
+  <div class="label" id="label"></div>
+  <div class="title" id="title"></div>
+  <div class="win" id="win"><div class="bar"><i></i><i></i><i></i><span>ssh sshiu</span></div>
+    <div class="view"><img id="foot"></div></div>
+</section>
+
+<section class="scene full" id="s-garden">
+  <img id="gimg">
+  <div class="gcard" id="gcard"><div class="l">04 · modo jardim</div><div class="t" id="gt"></div></div>
+</section>
+
+<section class="scene" id="s-pets">
+    <div class="label" id="plabel"><b>05</b> · o pet</div>
+  <div class="title" id="ptitle"></div>
+  <div class="pets" id="pets"></div>
+  <div class="arrow" id="parrow"></div>
+  <div class="cap2" id="pcap"><span>sem foco</span><span>focando</span></div>
+</section>
+
+<section class="scene dark" id="s-end">
+  <div class="logo" id="logo"><svg viewBox="0 0 300 80" aria-hidden="true"><text x="0" y="58" font-family="JetBrains Mono,ui-monospace,monospace" font-weight="800" font-size="60" fill="#FAFAF7">sshiu</text><rect x="196" y="16" width="30" height="50" fill="#FF8700"/></svg></div>
+  <div class="tag" id="tag"></div>
+  <div class="pill" id="pill">$ ssh sshiu</div>
+</section>
+
+</div>
+<script>
+const BEAT=60/96, BAR=4*BEAT, FPS=30;
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const eo=x=>1-Math.pow(1-clamp(x),3);              // ease-out cúbico
+const eio=x=>{x=clamp(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
+const lerp=(a,b,k)=>a+(b-a)*k;
+const pad=n=>String(n).padStart(4,'0');
+const $=id=>document.getElementById(id);
+
+// trechos reais: quadros, velocidade e o recorte (x, y, largura em px da gravação 2560×1440)
+const SEG={room:{n:166,rate:1.0,from:[0,0,2560],to:[0,190,2050]},
+           task:{n:180,rate:1.18,from:[0,60,1700],to:[0,90,1460]},
+           mural:{n:118,off:27,rate:.6,from:[0,30,1150],to:[700,30,1150]},
+           shop:{n:191,rate:1.55,from:[0,40,2560],to:[20,80,2250]}};
+const PROD=[{t0:5,   t1:10,   seg:'room', n:'01', l:'a sala', words:['veja','quem','está','focando,','e','em','quê.']},
+            {t0:10,  t1:15,   seg:'task', n:'02', l:'a tarefa', words:['diga','a','próxima','coisa','concreta.','e','foque.'], hl:[4]},
+            {t0:15,  t1:20,   seg:'mural',n:'03', l:'a obra', words:['cada','minuto','de','foco','constrói','a','obra','da','sala.']},
+            {t0:32.5,t1:36.25,seg:'shop', n:'06', l:'a loja', words:['as','moedas','do','foco','viram','chapéus','e','personagens.'], hl:[5]}];
+const GARDEN=[{t0:20,seg:'coffee',n:77},{t0:22.5,seg:'tree',n:79},{t0:25,seg:'road',n:91}];
+const MOODS=[['wilted','murcho'],['tired','cansado'],['normal','normal'],['good','bem'],['radiant','radiante']];
+
+function words(el,ws,u,hl=[]){ // palavras sobem uma a uma
+  if(el.dataset.k!==ws.join(' ')){el.innerHTML=ws.map((w,i)=>`<span class="w${hl.includes(i)?' hl':''}">${w}</span>`).join(' ');el.dataset.k=ws.join(' ')}
+  [...el.children].forEach((s,i)=>{const k=eo((u-.12-i*.045)/.28);s.style.opacity=k;s.style.transform=`translateY(${(1-k)*26}px)`});
+}
+function show(id){document.querySelectorAll('.scene').forEach(s=>s.style.display=s.id===id?'block':'none')}
+const pending=[];
+function setImg(img,src){ if(img.getAttribute('src')!==src){img.setAttribute('src',src);pending.push(img.decode().catch(()=>{}))} }
+
+function hook(t){
+  show('s-hook');
+  const txt='ssh sshiu', t0=BEAT, n=clamp(Math.floor((t-t0)/(BEAT/4))+1,0,9);
+  const blink=(t%BEAT)<BEAT*.55 || (t>t0 && t<t0+9*BEAT/4);
+  const up=eo((t-BAR)/.45);
+  $('cmd').innerHTML=`<span class="d">$</span> ${txt.slice(0,n)}<span class="cur" style="opacity:${blink&&t<BAR?1:0}"></span>`;
+  $('cmd').style.transform=`translateY(${-90*up}px) scale(${1-.12*up})`;
+  words($('hookline'),['uma','sala','de','foco','que','mora','no','terminal.'],t-BAR);
+}
+function prod(t,p){
+  show('s-prod'); const u=t-p.t0, S=SEG[p.seg];
+  $('label').innerHTML=`<b>${p.n}</b> · ${p.l}`;
+  const lk=eo(u/.3); $('label').style.opacity=lk; $('label').style.transform=`translateX(${(1-lk)*-30}px)`;
+  words($('title'),p.words,u,p.hl||[]);
+  const wk=eo(u/.42); $('win').style.opacity=clamp(u/.07); $('win').style.transform=`translateY(${(1-wk)*60}px) scale(${.96+.04*wk})`;
+  $('shape').style.transform=`translate(${(1-wk)*80}px,${(1-wk)*80}px)`;
+  const i=clamp(Math.floor(u*S.rate*FPS)+1+(S.off||0),1,S.n);
+  const img=$('foot'); setImg(img,`frames/${p.seg}/${pad(i)}.jpg`);
+  const z=eio((u-.3)/(p.t1-p.t0-.6)), x=lerp(S.from[0],S.to[0],z), y=lerp(S.from[1],S.to[1],z), w=lerp(S.from[2],S.to[2],z);
+  const k=1408/w; img.style.width=(2560*k)+'px'; img.style.transform=`translate(${-x*k}px,${-y*k}px)`;
+}
+function garden(t){
+  show('s-garden'); let g=GARDEN[0]; for(const x of GARDEN) if(t>=x.t0) g=x;
+  const u=t-g.t0, i=clamp(Math.floor(u*FPS)+1,1,g.n);
+  setImg($('gimg'),`frames/${g.seg}/${pad(i)}.jpg`);
+  const ug=t-20, k=eo(ug/.4); $('gcard').style.opacity=k; $('gcard').style.transform=`translateY(${(1-k)*40}px)`;
+  words($('gt'),['só','o','relógio,','a','tarefa','e','quem','foca','junto.'],ug);
+  const s=1.0+.035*((t-g.t0)/2.5); $('gimg').style.transform=`scale(${s})`;
+}
+function pets(t){
+  show('s-pets'); const u=t-27.5;
+  const lk=eo(u/.3); $('plabel').style.opacity=lk; $('plabel').style.transform=`translateX(${(1-lk)*-30}px)`;
+  words($('ptitle'),['seu','pet','reflete','o','seu','foco.'],u,[5]);
+  const box=$('pets');
+  if(!box.children.length) box.innerHTML=MOODS.map(([m,n])=>`<div class="pet"><div class="box"><img></div><div class="n">${n}</div></div>`).join('');
+  [...box.children].forEach((el,j)=>{
+    const a=u-BEAT*(j+1), k=eo(a/.3), pop=a>0&&a<.3?1+.08*Math.sin(Math.PI*a/.3):1;
+    el.style.opacity=k; el.style.transform=`translateY(${(1-k)*50}px) scale(${pop})`;
+    el.classList.toggle('on',j===4&&a>0);
+    const f=Math.floor(t*1000/[2000,1500,1000,1000,500][j])%2; setImg(el.querySelector('img'),`pets/fruit-${MOODS[j][0]}-${f}.png`);
+  });
+  const ak=eo((u-BEAT*5.5)/.5); $('parrow').style.opacity=ak; $('parrow').style.transform=`scaleX(${ak})`; $('parrow').style.transformOrigin='0 50%';
+  $('pcap').style.opacity=eo((u-BEAT*6)/.4);
+}
+function end(t){
+  show('s-end'); const u=t-36.25;
+  const k=eo(u/.45); $('logo').style.opacity=k; $('logo').style.transform=`scale(${.85+.15*k})`;
+  words($('tag'),['foque','junto,','sem','sair','do','terminal.'],u-BEAT*.5);
+  const pk=eo((u-BEAT*2)/.35); $('pill').style.opacity=pk; $('pill').style.transform=`translateX(-50%) translateY(${(1-pk)*30}px)`;
+}
+window.render=async function(t){
+  pending.length=0;
+  if(t<5) hook(t);
+  else if(t<20){ prod(t,PROD.find(p=>t>=p.t0&&t<p.t1)); }
+  else if(t<27.5) garden(t);
+  else if(t<32.5) pets(t);
+  else if(t<36.25) prod(t,PROD[3]);
+  else end(t);
+  await Promise.all(pending); await document.fonts.ready;
+  return true;
+};
+</script></body></html>

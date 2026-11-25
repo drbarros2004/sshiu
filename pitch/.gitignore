@@ -1,0 +1,11 @@
+# material intermediário do vídeo: regenerável com brag-output/work/extract.sh, moods.py, music.py e capture.mjs
+brag-output/work/frames/
+brag-output/work/out/
+brag-output/work/stills/
+brag-output/work/tr/
+brag-output/work/pets/
+brag-output/work/*.png
+brag-output/work/*.wav
+brag-output/work/*.mov
+brag-output/work/demo-antigo.*
+.DS_Store
