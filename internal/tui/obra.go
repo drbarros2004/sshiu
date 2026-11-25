@@ -111,28 +111,28 @@ func init() {
 	// fogueira baixa e sobe. O movimento é pequeno de propósito: é um app de foco, e a obra fica
 	// no canto do olho (docs/regras.md).
 	obras["trem"] = &obra{sheet: read(tremPNG), pw: 16, chao: [2]string{"#8A8A94", "#44444E"},
-		engate: "#8A8A94", linkY: 4, fixo: 24, anim: 1, wide: true, rows: fitRows}
+		engate: "#8A8A94", linkY: 4, fixo: 24, anim: 1, wide: true, rows: twoRows}
 	obras["cidade"] = &obra{sheet: read(cidadePNG), chao: [2]string{"#6E6E78", "#3A3A44"},
-		rows: cityRows}
+		rows: twoRows}
 	obras["horta"] = &obra{sheet: read(hortaPNG), chao: [2]string{"#6B4A2E", "#3E2A1A"},
-		wide: true, rows: fitRows}
+		wide: true, rows: twoRows}
 	obras["estante"] = &obra{sheet: read(estantePNG), chao: [2]string{"#4A4250", "#2E2A36"},
-		wide: true, rows: fitRows}
+		wide: true, rows: twoRows}
 	obras["feira"] = &obra{sheet: read(feiraPNG), chao: [2]string{"#9A8A78", "#5E5246"},
-		wide: true, rows: fitRows}
+		wide: true, rows: twoRows}
 	// só a fogueira se mexe: barraca e cabana são iguais nas duas faixas da folha
 	obras["acampamento"] = &obra{sheet: read(acampamentoPNG), chao: [2]string{"#3D8B47", "#24602C"},
 		fixo: pieceW, centro: true, anim: 1, rows: campRows}
 	// o instrumento sai da cor do pet, na ordem de pet.Colors: quem é azul toca violino
 	obras["orquestra"] = &obra{sheet: read(orquestraPNG), chao: [2]string{"#8A6A3E", "#5A4529"},
-		inst: true, anim: 2, nota: true, wide: true, rows: fitRows}
+		inst: true, anim: 2, nota: true, wide: true, rows: twoRows}
 	// o fio é o engate: ele sai do poste, que não é de ninguém, e passa por todo mundo
 	obras["passarinhos"] = &obra{sheet: read(passarinhosPNG), chao: [2]string{"#6E6E78", "#3A3A44"},
-		engate: "#8A8A94", linkY: 4, fixo: pieceW, anim: 2, nota: true, wide: true, rows: fitRows}
+		engate: "#8A8A94", linkY: 4, fixo: pieceW, anim: 2, nota: true, wide: true, rows: twoRows}
 	obras["porto"] = &obra{sheet: read(portoPNG), chao: [2]string{"#3E7CB1", "#2A5580"},
-		anim: 3, wide: true, rows: fitRows}
+		anim: 3, wide: true, rows: twoRows}
 	obras["foguetes"] = &obra{sheet: read(foguetesPNG), chao: [2]string{"#8A8A94", "#44444E"},
-		wide: true, rows: fitRows}
+		wide: true, rows: twoRows}
 }
 
 // fitRows: a fileira que quebra quando não cabe na largura, dividindo as peças por igual entre as
@@ -147,18 +147,33 @@ func fitRows(n, per int) []int {
 	return out
 }
 
-// cityRows: o arranjo da cidade para cada quantidade de gente. É uma tabela de propósito: com
-// fórmula, sete pessoas viravam uma grade torta em vez da praça que 2-3-2 desenha (ADR 0008).
-func cityRows(n, _ int) []int {
-	table := [][]int{{}, {1}, {2}, {2, 1}, {2, 2}, {3, 2}, {3, 3}, {2, 3, 2}, {4, 4}, {3, 3, 3}, {5, 5}}
-	return table[min(max(n, 0), rooms.MaxMembers)]
+// twoRows: o arranjo das obras (ADR 0012): até três peças numa fileira, e daí em diante duas
+// fileiras, a de cima com a sobra (nove viram 5 e 4). Duas fileiras deixam a obra baixa e larga,
+// do jeito que cabe na faixa ao lado da tabela; quando nem assim cabe na largura, o obraBlock
+// troca pela fileira que quebra (fitRows).
+func twoRows(n, _ int) []int {
+	if n <= 3 {
+		return []int{max(n, 0)}
+	}
+	return []int{n - n/2, n / 2}
 }
 
-// campRows: as barracas em volta da fogueira, que entra no meio da fileira do meio. Tabela pelo
-// mesmo motivo da cidade: com quatro, 1-2-1 faz a roda que uma grade não faz.
+// campRows: as barracas em duas fileiras, com a fogueira no meio da de baixo. Para ela ficar
+// mesmo no meio, a fileira de baixo leva um número par de barracas: sete viram 3 e 4, com a
+// fogueira entre a segunda e a terceira de baixo.
 func campRows(n, _ int) []int {
-	table := [][]int{{}, {1}, {2}, {1, 2}, {1, 2, 1}, {2, 2, 1}, {2, 2, 2}, {3, 2, 2}, {3, 2, 3}, {2, 4, 3}, {3, 4, 3}}
-	return table[min(max(n, 0), rooms.MaxMembers)]
+	if n <= 2 {
+		return []int{max(n, 0)}
+	}
+	low := n / 2
+	if low%2 == 1 { // ímpar: sobe ou desce uma, para a fileira mais curta
+		if n-low > low {
+			low++
+		} else {
+			low--
+		}
+	}
+	return []int{n - low, low}
 }
 
 // obraOf: o tema que a sala está construindo, ou nil quando não há obra para desenhar — sala solo,

@@ -178,25 +178,63 @@ func TestCardsAlinhados(t *testing.T) {
 	}
 	m := model{id: "ana", room: "s", st: newStyles(themes[0]), now: time.Now(),
 		w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": s}}}
-	for _, w := range []int{40, 76, 116, 156} {
-		var cards []string
-		for _, x := range s.Members {
-			cards = append(cards, m.card(x, 0, false, m.cardInner(s.Members)))
-		}
-		for _, c := range cards {
-			if lipgloss.Width(c) != lipgloss.Width(cards[0]) || lipgloss.Height(c) != lipgloss.Height(cards[0]) {
-				t.Fatalf("card %d×%d, o primeiro %d×%d:\n%s", lipgloss.Width(c), lipgloss.Height(c),
-					lipgloss.Width(cards[0]), lipgloss.Height(cards[0]), c)
+	for _, size := range []int{cardFull, cardMid} { // o médio também: as reações no status não quebram a linha
+		for _, w := range []int{40, 76, 116, 156} {
+			var cards []string
+			for i, x := range s.Members {
+				cards = append(cards, m.card(x, i*3, size, m.cardInner(s.Members)))
 			}
-		}
-		for _, l := range strings.Split(m.cards(s, w, false, 0), "\n") {
-			if lipgloss.Width(l) > max(w, lipgloss.Width(cards[0])) {
-				t.Fatalf("%d colunas: linha de %d", w, lipgloss.Width(l))
+			for _, c := range cards {
+				if lipgloss.Width(c) != lipgloss.Width(cards[0]) || lipgloss.Height(c) != lipgloss.Height(cards[0]) {
+					t.Fatalf("tamanho %d: card %d×%d, o primeiro %d×%d:\n%s", size, lipgloss.Width(c), lipgloss.Height(c),
+						lipgloss.Width(cards[0]), lipgloss.Height(cards[0]), c)
+				}
+			}
+			for _, l := range strings.Split(m.cards(s, w, size, 0), "\n") {
+				if lipgloss.Width(l) > max(w, lipgloss.Width(cards[0])) {
+					t.Fatalf("%d colunas: linha de %d", w, lipgloss.Width(l))
+				}
 			}
 		}
 	}
 	if got := m.cardInner(s.Members[:1]); got != cardMin {
 		t.Errorf("sala de apelidos curtos: miolo %d, queria %d", got, cardMin)
+	}
+}
+
+// Quando os cards quebram de linha, as fileiras se dividem por igual: nove pessoas numa tela de
+// oito cards viram 5 e 4, não 8 e 1.
+func TestCardsEquilibrados(t *testing.T) {
+	s := rooms.Snapshot{Max: rooms.MaxMembers}
+	for _, n := range []string{"a", "b", "c", "d", "e", "f", "g", "h", "i"} {
+		s.Members = append(s.Members, rooms.Member{ID: n, Nick: n})
+	}
+	m := model{id: "a", room: "s", st: newStyles(themes[0]), w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": s}}}
+	w := 8 * (m.cardInner(s.Members) + 2) // cabem oito por fileira
+	var per []int
+	for _, l := range strings.Split(m.cards(s, w, cardDot, 0), "\n") {
+		if n := strings.Count(l, "╭"); n > 0 {
+			per = append(per, n)
+		}
+	}
+	if !slices.Equal(per, []int{5, 4}) {
+		t.Errorf("fileiras %v, queria [5 4]", per)
+	}
+	// dez em fileiras de quatro: 4, 3 e 3, não 4, 4 e 2
+	s10 := s
+	s10.Members = append(slices.Clone(s.Members), rooms.Member{ID: "j", Nick: "j"})
+	per = nil
+	for _, l := range strings.Split(m.cards(s10, 4*(m.cardInner(s10.Members)+2), cardDot, 0), "\n") {
+		if n := strings.Count(l, "╭"); n > 0 {
+			per = append(per, n)
+		}
+	}
+	if !slices.Equal(per, []int{4, 3, 3}) {
+		t.Errorf("dez em fileiras de quatro: %v, queria [4 3 3]", per)
+	}
+	// no "+N" do fim, a fileira que aparece vem cheia: 8 e "+1", não 5 e "+4"
+	if out := ansi.Strip(m.cards(s, w, cardDot, 1)); strings.Count(out, "╭") != 8 || !strings.Contains(out, "+1:") {
+		t.Errorf("com uma fileira só, o \"+N\" escondeu quem cabia:\n%s", out)
 	}
 }
 

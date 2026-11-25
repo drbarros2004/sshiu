@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"sshiu/internal/rooms"
 	"strings"
@@ -66,20 +67,42 @@ func TestBoardMsgAtrasada(t *testing.T) {
 	}
 }
 
-// A compacta só aparece aberta para a sala, e mostra até sideRows pessoas; o resto fica na tecla o.
-func TestBoardSide(t *testing.T) {
-	s := rooms.Snapshot{Owner: "eu", Max: 10}
-	for _, n := range []string{"a", "b", "c", "d", "e", "f", "g"} {
+// A faixa da sala mostra a tabela só aberta para a sala, inteira, ao lado da obra e na altura
+// dela; apertada, a tabela fica na altura da obra e o resto vai para o título, na tecla o (ADR 0012).
+func TestRoomBand(t *testing.T) {
+	s := rooms.Snapshot{Owner: "eu", Max: 10, Obra: "cidade", Meta: 60}
+	for _, n := range []string{"eu", "a", "b", "c", "d", "e", "f", "g", "h", "i"} { // a sala cheia
 		s.Members = append(s.Members, rooms.Member{ID: n, Nick: n})
 	}
-	m := model{id: "eu"}
-	if m.boardSide(s) != "" {
+	m := model{id: "eu", room: "s", w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": s}}}
+	if strings.Contains(ansi.Strip(m.roomBand(s, 200, bandArranjo)), "tabela de foco") {
 		t.Fatal("a tabela fechada apareceu na sala para o dono")
 	}
 	s.BoardOpen = true
-	side := ansi.Strip(m.boardSide(s))
-	if lines := strings.Split(side, "\n"); len(lines) != 1+sideRows || !strings.Contains(lines[0], "+4 no o") {
-		t.Fatalf("compacta:\n%s", side)
+	band := ansi.Strip(m.roomBand(s, 200, bandArranjo))
+	if first := strings.Split(band, "\n")[0]; !strings.Contains(first, "meta") || !strings.Contains(first, "tabela de foco") {
+		t.Fatalf("a tabela não está ao lado da obra, na mesma altura:\n%s", band)
+	}
+	if n := strings.Count(band, "0:00:00"); n != len(s.Members) {
+		t.Fatalf("a tabela da faixa mostrou %d de %d pessoas:\n%s", n, len(s.Members), band)
+	}
+	tight := ansi.Strip(m.roomBand(s, 200, bandApertada))
+	if n := strings.Count(tight, "0:00:00"); n >= len(s.Members) || !strings.Contains(tight, fmt.Sprintf("+%d no o", len(s.Members)-n)) {
+		t.Fatalf("apertada, a tabela não ficou na altura da obra com o resto no o:\n%s", tight)
+	}
+	if m.roomBand(s, 200, bandFora) != "" {
+		t.Fatal("a faixa fora da tela desenhou alguma coisa")
+	}
+	// estreita, a locomotiva não cabe ao lado da tabela: a tabela desce inteira, sem cortar ninguém
+	s.Obra = "trem"
+	stacked := ansi.Strip(m.roomBand(s, 50, bandApertada))
+	if n := strings.Count(stacked, "0:00:00"); n != len(s.Members) || strings.Contains(stacked, "no o") {
+		t.Fatalf("empilhada embaixo da obra, a tabela foi cortada (%d de %d):\n%s", n, len(s.Members), stacked)
+	}
+	for _, l := range strings.Split(stacked, "\n") {
+		if ansi.StringWidth(l) > 50 {
+			t.Fatalf("empilhada, a faixa passou das 50 colunas: %q", l)
+		}
 	}
 }
 
@@ -101,33 +124,17 @@ func TestBoardShown(t *testing.T) {
 	}
 }
 
-// A tabela tem prioridade sobre a obra: a obra encolhe e sai com a tabela ainda na tela, e só
-// depois a tabela sai (ADR 0010).
-func TestFitStepsTabelaAntesDaObra(t *testing.T) {
-	sala := rooms.Snapshot{Owner: "eu", BoardOpen: true, Obra: "cidade", Meta: 60, Max: rooms.MaxMembers, Members: []rooms.Member{
-		{ID: "eu", Nick: "eu"}, {ID: "a", Nick: "ana"}, {ID: "b", Nick: "bruno"},
-	}}
-	m := model{id: "eu", room: "s", w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": sala}}}
-	steps := m.fitSteps(sala, 120)
-	if steps[0].bd == "" || steps[0].ob == "" {
-		t.Fatal("o primeiro passo tem que ter a tabela e a obra")
+// Fora da tela, a faixa vira uma linha que diz o quanto a obra andou e onde estão ela e a tabela.
+func TestBandAway(t *testing.T) {
+	s := rooms.Snapshot{Max: 10, Obra: "cidade", Meta: 60, BoardOpen: true,
+		Members: []rooms.Member{{ID: "eu", TodayMin: 61}, {ID: "a", TodayMin: 10}, {ID: "b"}}}
+	m := model{id: "eu"}
+	if got, want := m.bandAway(s), "obra: 1 de 3 peças completas · tabela de foco · na tecla o"; got != want {
+		t.Errorf("com a obra e a tabela: %q, want %q", got, want)
 	}
-	semObra, semTabela := -1, -1
-	for i, st := range steps {
-		if st.bd != "" && st.ob == "" && semObra < 0 {
-			semObra = i
-		}
-		if st.bd == "" && semTabela < 0 {
-			semTabela = i
-		}
-	}
-	if semObra < 0 || semTabela < semObra {
-		t.Errorf("a tabela saiu antes da obra: sem obra=%d, sem tabela=%d", semObra, semTabela)
-	}
-	for _, st := range steps[semTabela:] { // sem a tabela, a obra não volta
-		if st.ob != "" {
-			t.Fatal("a obra voltou depois de a tabela sair")
-		}
+	s.Obra = ""
+	if got, want := m.bandAway(s), "tabela de foco · na tecla o"; got != want {
+		t.Errorf("só com a tabela: %q, want %q", got, want)
 	}
 }
 
@@ -187,45 +194,6 @@ func TestOScreen(t *testing.T) {
 	m.w.Rooms["s"] = s
 	if m.oScreen() {
 		t.Fatal("a tecla o ficou só com o nome da sala depois de a tabela fechar")
-	}
-}
-
-// A largura decide se a tabela compacta fica ao lado do painel, não o estado dele: a 100 colunas
-// ela fica ao lado do relógio e sai só enquanto se escreve a tarefa; a 80 ela não cabe nem com a
-// sala parada, em vez de aparecer e sumir a cada tecla.
-func TestBoardAoLadoDoPainel(t *testing.T) {
-	now := time.Now()
-	me := rooms.Member{ID: "eu", Nick: "eu", Status: rooms.Focusing, Focus: rooms.Focus{Task: "lista 3",
-		Start: now, SegStart: now, Ends: now.Add(25 * time.Minute), Declared: 25}}
-	s := rooms.Snapshot{Owner: "eu", Max: 5, BoardOpen: true, BoardRank: true,
-		Members: []rooms.Member{me, {ID: "a", Nick: "ana"}, {ID: "b", Nick: "bruno"}, {ID: "c", Nick: "caio"}}}
-	m := model{id: "eu", room: "s", now: now, w: rooms.World{Rooms: map[string]rooms.Snapshot{"s": s},
-		Users: map[string]rooms.Member{"eu": me}}}
-	bd := m.boardSide(s)
-	if out := ansi.Strip(m.roomBody(s, "sala", 96, 0, true, "", bd, 0)); !strings.Contains(out, "tabela de foco") {
-		t.Fatalf("focando a 100 colunas, a tabela saiu:\n%s", out)
-	}
-	m.entering, m.in = true, newInput("tarefa", 80)
-	if out := ansi.Strip(m.roomBody(s, "sala", 96, 0, true, "", bd, 0)); strings.Contains(out, "tabela de foco") {
-		t.Fatalf("escrevendo a tarefa, a tabela espremeu o campo:\n%s", out)
-	}
-	m.entering, me.Status = false, rooms.Idle
-	m.w.Users["eu"] = me
-	if out := ansi.Strip(m.roomBody(s, "sala", 76, 0, true, "", bd, 0)); strings.Contains(out, "tabela de foco") {
-		t.Fatalf("a 80 colunas, a tabela apareceu com a sala parada e sumiria ao focar:\n%s", out)
-	}
-}
-
-// Na compacta, a coluna do apelido mede só quem aparece: um apelido comprido mais para baixo na
-// lista não alarga a tabela que fica ao lado do painel.
-func TestBoardSideLargura(t *testing.T) {
-	s := rooms.Snapshot{Max: 10, BoardOpen: true, Members: []rooms.Member{
-		{ID: "a", Nick: "ana"}, {ID: "b", Nick: "bia"}, {ID: "c", Nick: "caio"}, {ID: "j", Nick: "joaquim_silveira"}}}
-	m := model{id: "eu"}
-	for _, l := range strings.Split(ansi.Strip(m.board(s, true, 0)), "\n") {
-		if w := ansi.StringWidth(strings.TrimRight(l, " ")); w > len("caio")+2+len("0:00:00") {
-			t.Fatalf("a coluna mediu quem não aparece: %q (%d colunas)", l, w)
-		}
 	}
 }
 
