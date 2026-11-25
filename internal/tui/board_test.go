@@ -19,6 +19,17 @@ func TestPlaces(t *testing.T) {
 	}
 }
 
+func TestFocusTableNameSpacing(t *testing.T) {
+	s := rooms.Snapshot{Members: []rooms.Member{{ID: "ana", Nick: "abcdefghijklmnop"}}}
+	m := model{lang: "en"}
+	for _, mini := range []bool{true, false} {
+		out := ansi.Strip(m.board(s, mini, 0))
+		if !strings.Contains(out, "abcdefghijklmnop    0:00:00") {
+			t.Fatalf("mini=%v: faltaram quatro espaços entre apelido e tempo: %q", mini, out)
+		}
+	}
+}
+
 func TestHMS(t *testing.T) {
 	for min, want := range map[float64]string{0: "0:00:00", 1.5: "0:01:30", 83.25: "1:23:15"} {
 		if got := hms(min); got != want {

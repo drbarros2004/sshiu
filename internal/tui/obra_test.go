@@ -99,8 +99,8 @@ func TestTremQuebra(t *testing.T) {
 	if got := fitRows(3, 0); !slices.Equal(got, []int{1, 1, 1}) {
 		t.Errorf("janela minúscula: %v", got)
 	}
-	if got := fitRows(5, 4); !slices.Equal(got, []int{3, 2}) { // e não 4 e um vagão solto
-		t.Errorf("dividido por igual: %v", got)
+	if got := fitRows(5, 4); !slices.Equal(got, []int{4, 1}) { // preencher a primeira antes de abrir outra
+		t.Errorf("primeira fileira preenchida: %v", got)
 	}
 }
 
@@ -330,24 +330,29 @@ func TestFogueiraNoMeio(t *testing.T) {
 			nomes = append(nomes, strings.Join(f, " "))
 		}
 	}
-	// 2 e 2: a fogueira não tem nome, então a fileira de baixo mostra só as barracas dos lados
-	if want := []string{"você ana", "bia caio"}; !slices.Equal(nomes, want) {
+	// Com largura suficiente, as quatro barracas e a fogueira ficam na mesma fileira.
+	if want := []string{"você ana bia caio"}; !slices.Equal(nomes, want) {
 		t.Errorf("fileiras %q, queria %q", nomes, want)
 	}
 }
 
-// As obras vêm em duas fileiras a partir de quatro peças, com a sobra em cima; no acampamento, a
-// fileira de baixo, que leva a fogueira no meio, tem sempre um número par de barracas (ADR 0012).
-func TestDuasFileiras(t *testing.T) {
-	for n, want := range map[int][]int{1: {1}, 3: {3}, 4: {2, 2}, 5: {3, 2}, 7: {4, 3}, 9: {5, 4}, 10: {5, 5}} {
-		if got := twoRows(n, 0); !slices.Equal(got, want) {
-			t.Errorf("twoRows(%d) = %v, want %v", n, got, want)
-		}
-	}
-	for n := 3; n <= rooms.MaxMembers; n++ {
-		rs := campRows(n, 0)
-		if len(rs) != 2 || rs[0]+rs[1] != n || rs[1]%2 != 0 {
-			t.Errorf("campRows(%d) = %v: duas fileiras, a de baixo par", n, rs)
+// Todos os temas usam a largura disponível antes de quebrar para a próxima fileira.
+func TestArtworkRowsFillAvailableWidth(t *testing.T) {
+	for name, artwork := range obras {
+		for _, tc := range []struct {
+			count, capacity int
+			want            []int
+		}{
+			{9, 12, []int{9}},
+			{10, 9, []int{8, 2}},
+			{5, 4, []int{4, 1}},
+			{9, 6, []int{6, 3}},
+			{10, 4, []int{4, 4, 2}},
+			{3, 0, []int{1, 1, 1}},
+		} {
+			if got := artwork.rows(tc.count, tc.capacity); !slices.Equal(got, tc.want) {
+				t.Errorf("%s: %d peças, capacidade %d: %v, esperado %v", name, tc.count, tc.capacity, got, tc.want)
+			}
 		}
 	}
 }

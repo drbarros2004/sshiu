@@ -4,7 +4,24 @@ A tela da sala tem quatro coisas disputando a altura: o painel de foco, os cards
 
 Decidimos manter tudo na mesma tela, com outro arranjo e outra ordem de encolher, escolhidos num protótipo com a sala demo em 120×40, 160×48, 200×50 e 330×60.
 
-## As regras
+## Revisão: aproveitar o espaço da sala (room-layout-rework)
+
+Esta revisão substitui as regras abaixo sobre fileiras equilibradas, teto de 80 colunas para eventos e retirada conjunta da obra/tabela e obra obrigatoriamente em duas fileiras:
+
+- Cada fileira de cards é preenchida antes de abrir a próxima: seis que cabem numa sala de dez viram 6 + 4. A tabela permanece abaixo dos cards, sem reservar uma coluna ao lado deles.
+- O card médio reduz o respiro do desenho, mas mantém uma linha vazia entre tarefa e tempo/status. Continua vindo antes da retirada completa da obra/tabela; os sprites só viram pontos depois.
+- A faixa inferior usa divisores verticais discretos entre seções presentes. A tabela alcança a margem direita e os eventos recebem a largura restante, sem o teto antigo de 80 colunas.
+- Depois da faixa apertada com cards médios, tenta-se a obra sem tabela antes de retirar ambas. A tabela oculta mantém uma indicação da tecla o.
+- O feed mostra os eventos recentes que cabem na altura restante, até os 20 disponíveis em memória. A navegação e as reações respeitam esse limite visível. Isso não implementa histórico persistente.
+- A obra também preenche cada fileira antes de abrir outra, sem obrigar 5 + 5 quando cabem mais peças na largura. Locomotiva, poste e fogueira continuam ocupando seu espaço no desenho.
+- A tabela reserva quatro espaços entre o maior apelido e os tempos.
+- A última fileira da obra recebe pelo menos um quarto da quantidade da anterior: 9 + 1 vira 8 + 2, enquanto 4 + 1 continua permitido.
+- O feed reserva largura conforme os eventos recentes (não conforme a seta selecionada), até metade da faixa. A obra quebra mais cedo com tarefas longas; a mensagem de feed vazio também ocupa a coluna esquerda e quebra linhas se preciso. Sem eventos, a legenda de reações não aparece.
+- A tarefa longa é encurtada dentro das aspas. O recibo de moedas e as reações têm espaço reservado; em larguras extremas, o recibo usa apenas +N.
+
+As decisões iniciais e alternativas consideradas continuam registradas abaixo para contexto histórico.
+
+## Regras iniciais (substituídas nos pontos acima)
 
 - **A obra e a tabela ficam numa faixa embaixo dos cards**, lado a lado e alinhadas pelo topo. A tabela aparece inteira, com todo mundo, sem o que cada um faz agora (os cards já dizem). Se as duas não cabem na largura, a tabela desce para baixo da obra.
 - **Com largura, os eventos entram na mesma faixa**, à esquerda: eventos, obra e tabela, nessa ordem. Os eventos ocupam só a largura que usam (até 80 colunas), e a faixa encosta na esquerda; a sobra fica à direita, em vez de um vão no meio numa tela larga.

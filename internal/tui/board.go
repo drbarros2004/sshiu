@@ -22,6 +22,8 @@ import (
 // periods: os períodos da tabela, na ordem das setas.
 var periods = []string{"hoje", "esta semana", "este mês", "total"}
 
+const boardNameGap = 4 // espaços após o maior apelido, antes do tempo
+
 // boardWho: quem vê a tabela, como a página do dono diz.
 func (m model) boardWho(open bool) string {
 	if open {
@@ -167,13 +169,13 @@ func (m model) board(s rooms.Snapshot, mini bool, limit int) string {
 		mins[i] = m.boardMin(x)
 	}
 	pl := places(mins) // as posições contam a sala inteira, mesmo quando só o começo aparece
-	name, cols := lipgloss.NewStyle().Width(18), barCols
+	name, cols := lipgloss.NewStyle().Width(16+boardNameGap), barCols
 	if mini { // a coluna do apelido acompanha o mais comprido
 		w := 0
 		for _, x := range ms {
 			w = max(w, lipgloss.Width(m.boardName(x)))
 		}
-		name, cols = name.Width(w+2), barCols/2
+		name, cols = name.Width(w+boardNameGap), barCols/2
 	}
 	var lines []string
 	if !s.BoardRank && !mini {

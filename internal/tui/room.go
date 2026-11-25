@@ -22,14 +22,14 @@ import (
 var reactionGlyphs = [rooms.Reactions]string{"👏", "🔥", "💪", "☕"}
 
 const (
-	shownEvents = 6
-	panelCols   = 54 // largura do painel da sala solo
-	minGarden   = 36 // menos que isso não dá jardim: a tela fica só com o painel
-	soloEvents  = 3  // linhas do mini log da sala solo
-	clockCols   = 20 // o relógio grande: 5 glifos de 4 colunas
-	clockRows   = 3  // e 3 linhas de altura
-	feedMin     = 50 // os eventos entram na faixa da obra só com essa largura sobrando (docs/regras.md)
-	feedMax     = 80 // e ocupam no máximo isso, para a obra e a tabela virem logo depois
+	shownEvents    = 20 // teto do feed recente; a altura disponível decide quantos aparecem
+	panelCols      = 54 // largura do painel da sala solo
+	minGarden      = 36 // menos que isso não dá jardim: a tela fica só com o painel
+	soloEvents     = 3  // linhas do mini log da sala solo
+	clockCols      = 20 // o relógio grande: 5 glifos de 4 colunas
+	clockRows      = 3  // e 3 linhas de altura
+	feedMin        = 50 // os eventos entram na faixa da obra só com essa largura sobrando (docs/regras.md)
+	roomSectionGap = 3  // espaço, divisor vertical, espaço
 )
 
 // solo: a sala é de uma pessoa (ADR 0006), então a tela não tem cards, reações nem código.
@@ -133,6 +133,18 @@ func (m model) selIndex() int {
 	return max(0, slices.IndexFunc(m.events(), func(e rooms.Event) bool { return e.ID == m.sel }))
 }
 
+// A navegação e as reações usam só os eventos que cabem na tela atual.
+func (m model) visibleRoomEvents() []rooms.Event {
+	ev := m.events()
+	if m.width == 0 || m.height == 0 {
+		return ev
+	}
+	w := max(1, m.width-4)
+	h := max(1, m.height-2-lipgloss.Height(m.header())-2-lipgloss.Height(m.footer(m.roomHelp(), w)))
+	_, n := m.roomLayout(w, h-lipgloss.Height(m.errLine())+1)
+	return ev[:min(n, len(ev))]
+}
+
 // inPicker: o menu de salas está na tela, seja porque você abriu com s, seja porque você ainda
 // não está em nenhuma sala (o primeiro acesso cai nele).
 func (m model) inPicker() bool { return m.picking || m.room == "" }
@@ -196,11 +208,11 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m.swapWallpaper(m.side, map[string]int{"left": -1, "right": 1}[k])
 		}
 	case "up", "down":
-		ev := m.events()
+		ev := m.visibleRoomEvents()
 		if len(ev) == 0 {
 			return m, nil
 		}
-		i := m.selIndex()
+		i := min(m.selIndex(), len(ev)-1)
 		if k == "up" {
 			i = max(0, i-1)
 		} else {
@@ -208,8 +220,8 @@ func (m model) roomKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		m.sel = ev[i].ID
 	case "1", "2", "3", "4":
-		if ev := m.events(); len(ev) > 0 {
-			eid, r := ev[m.selIndex()].ID, int(k[0]-'1')
+		if ev := m.visibleRoomEvents(); len(ev) > 0 {
+			eid, r := ev[min(m.selIndex(), len(ev)-1)].ID, int(k[0]-'1')
 			return m, act(func() { rooms.React(id, code, eid, r) })
 		}
 	case "s":
@@ -357,12 +369,18 @@ func (m model) alone() bool {
 // resto fica dito em vez de cortado.
 // ponytail: quem fica no "+N" só aparece com a janela maior; rolagem nos cards se isso fizer falta.
 func (m model) roomView(w, h int) string {
+	out, _ := m.roomLayout(w, h)
+	return out
+}
+
+// O mesmo cálculo informa a tela e o limite real de navegação dos eventos.
+func (m model) roomLayout(w, h int) (string, int) {
 	if m.inPicker() {
-		return m.pickerView()
+		return m.pickerView(), 0
 	}
 	s := m.w.Rooms[m.room]
 	if m.cfg {
-		return m.cfgView(h)
+		return m.cfgView(h), 0
 	}
 	title := bold.Render(m.roomName(s))
 	if m.room != rooms.DemoCode && !m.solo() { // a sala solo não tem código para passar
@@ -387,13 +405,14 @@ func (m model) roomView(w, h int) string {
 		title += "   " + m.noticeStyle().Render(m.notice)
 	}
 	if m.oScreen() { // a obra sozinha, na tecla o
-		return m.obraView(s, w, h)
+		return m.obraView(s, w, h), 0
 	}
 	if m.solo() { // a sala solo tem uma pessoa e nenhum card: ela já cabe
-		return title + "\n\n" + m.soloView()
+		return title + "\n\n" + m.soloView(), 0
 	}
 	// os cards e a faixa de cada tamanho são desenhados uma vez só: a escada passa pelo mesmo
 	// tamanho várias vezes, e o pixel art dos cards é a parte cara do tick
+	feedWidth := m.preferredFeedWidth(w)
 	cards, bands := map[int]string{}, map[int]string{}
 	cardsOf := func(size int) string {
 		if _, ok := cards[size]; !ok {
@@ -403,7 +422,11 @@ func (m model) roomView(w, h int) string {
 	}
 	bandOf := func(mode int) string {
 		if _, ok := bands[mode]; !ok {
-			bands[mode] = m.roomBand(s, w, mode)
+			width := w
+			if w >= 2*feedMin+roomSectionGap {
+				width -= feedWidth + roomSectionGap // inclusive quando o feed mostra a mensagem vazia
+			}
+			bands[mode] = m.roomBand(s, width, mode)
 		}
 		return bands[mode]
 	}
@@ -419,14 +442,17 @@ func (m model) roomView(w, h int) string {
 		prevCard, prevBand = st.card, band
 		// sem eventos só sem a faixa, e com os pets já encolhidos: com a obra ou a tabela na tela
 		// ficam pelo menos dois (ADR 0010)
-		for n := shownEvents; n >= 0 && (n > 0 || band == "" && st.card != cardFull); n -= 2 {
+		for n := min(shownEvents, max(2, len(m.events()))); n >= 0 && (n > 0 || band == "" && st.card != cardFull); n-- {
+			if n == 1 && band != "" {
+				continue
+			}
 			if out = m.roomBody(s, title, w, n, cardsOf(st.card), st.band, band); lipgloss.Height(out) <= h {
-				return out
+				return out, min(n, len(m.events()))
 			}
 		}
 	}
 	if m.alone() { // sem ninguém, o seu card é o que menos diz: ele sai antes do convite
-		return title + "\n\n" + m.focusPanel(w) + "\n\n" + m.invitePanel(s)
+		return title + "\n\n" + m.focusPanel(w) + "\n\n" + m.invitePanel(s), 0
 	}
 	per := m.cardsPer(s, w)
 	for r := (len(s.Members)+per-1)/per - 1; r >= 1; r-- {
@@ -434,7 +460,7 @@ func (m model) roomView(w, h int) string {
 			break
 		}
 	}
-	return out
+	return out, 0
 }
 
 // O tamanho dos cards: o cheio, o médio (o mesmo pet, sem o respiro em volta, com a tarefa numa
@@ -447,10 +473,11 @@ const (
 
 // A faixa embaixo dos cards, com a obra e a tabela de foco (ADR 0012), do mais alto ao mais baixo.
 const (
-	bandArranjo  = iota // a obra no arranjo do tema e a tabela inteira
-	bandFileira         // a obra numa fileira só
-	bandApertada        // e a tabela cortada na altura da obra, com o resto no o
-	bandFora            // a faixa sai: fica uma linha dizendo que ela está na tecla o
+	bandArranjo   = iota // a obra no arranjo do tema e a tabela inteira
+	bandFileira          // a obra numa fileira só
+	bandApertada         // e a tabela cortada na altura da obra, com o resto no o
+	bandSemTabela        // a obra fica, mas a tabela vai para a tecla o
+	bandFora             // a faixa sai: fica uma linha dizendo que ela está na tecla o
 )
 
 // fitStep: uma tentativa de caber na altura, da tela cheia para a mais apertada.
@@ -470,6 +497,7 @@ func (m model) fitSteps(s rooms.Snapshot) []fitStep {
 	return append([]fitStep{
 		{cardFull, bandArranjo}, {cardFull, bandFileira}, {cardFull, bandApertada},
 		{cardMid, bandArranjo}, {cardMid, bandFileira}, {cardMid, bandApertada},
+		{cardMid, bandSemTabela},
 	}, fora...)
 }
 
@@ -484,7 +512,7 @@ func (m model) roomBand(s rooms.Snapshot, w, mode int) string {
 		return ""
 	}
 	bd, title := "", bold.Render(m.t("tabela de foco"))+m.st.muted.Render(" · "+m.t(periods[m.bper]))
-	if m.boardInRoom(s) {
+	if m.boardInRoom(s) && mode != bandSemTabela {
 		bd = title + "\n" + m.board(s, true, 0)
 	}
 	flat := mode != bandArranjo
@@ -494,8 +522,8 @@ func (m model) roomBand(s rooms.Snapshot, w, mode int) string {
 	case bd == "":
 		return cropRight(m.obraBlock(s, w, flat))
 	}
-	ob := cropRight(m.obraBlock(s, w-lipgloss.Width(bd)-obraGap, flat))
-	if lipgloss.Width(ob)+obraGap+lipgloss.Width(bd) > w {
+	ob := cropRight(m.obraBlock(s, w-lipgloss.Width(bd)-roomSectionGap, flat))
+	if lipgloss.Width(ob)+roomSectionGap+lipgloss.Width(bd) > w {
 		// não cabem lado a lado (a locomotiva sozinha numa fileira, por exemplo): a obra volta à
 		// largura toda e a tabela desce inteira, que cortar só serve para alinhar as duas
 		return cropRight(m.obraBlock(s, w, flat)) + "\n\n" + bd
@@ -504,11 +532,16 @@ func (m model) roomBand(s rooms.Snapshot, w, mode int) string {
 	// título com o "+N" é mais largo, e só fica se ainda couber ao lado
 	if limit := max(3, lipgloss.Height(ob)-1); mode == bandApertada && limit < len(s.Members) {
 		short := title + m.st.muted.Render(m.tf(" · +%d no o", len(s.Members)-limit)) + "\n" + m.board(s, true, limit)
-		if lipgloss.Width(ob)+obraGap+lipgloss.Width(short) <= w {
+		if lipgloss.Width(ob)+roomSectionGap+lipgloss.Width(short) <= w {
 			bd = short
 		}
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, ob, strings.Repeat(" ", obraGap), bd)
+	return lipgloss.JoinHorizontal(lipgloss.Top, ob, m.roomDivider(max(lipgloss.Height(ob), lipgloss.Height(bd))), bd)
+}
+
+func (m model) roomDivider(height int) string {
+	bar := lipgloss.NewStyle().Foreground(lipgloss.Color(themes[m.theme].border)).Render(strings.TrimSuffix(strings.Repeat("│\n", height), "\n"))
+	return lipgloss.NewStyle().Padding(0, 1).Render(bar)
 }
 
 // roomBody: a tela montada com n eventos, os cards já desenhados e a faixa band (do passo mode).
@@ -527,12 +560,12 @@ func (m model) roomBody(s rooms.Snapshot, title string, w, n int, cards string, 
 	}
 	var log, beside string
 	if n > 0 {
-		log = m.feed(n, w) + "\n\n" + m.legend()
+		log = m.feedBlock(n, w)
 	}
-	if fw := min(w-lipgloss.Width(band)-obraGap, feedMax); log != "" && band != "" && fw >= feedMin {
+	if fw := w - lipgloss.Width(band) - roomSectionGap; log != "" && band != "" && fw >= feedMin {
 		// a legenda das reações não encolhe com fw: os eventos só entram se couberem de verdade
-		if l := cropRight(m.feed(n, fw) + "\n\n" + m.legend()); lipgloss.Width(l)+obraGap+lipgloss.Width(band) <= w {
-			beside = l
+		if l := m.feedBlock(n, min(fw, w/2)); lipgloss.Width(l)+roomSectionGap+lipgloss.Width(band) <= w {
+			beside = lipgloss.NewStyle().Width(fw).Render(l)
 		}
 	}
 	switch {
@@ -540,13 +573,16 @@ func (m model) roomBody(s rooms.Snapshot, title string, w, n int, cards string, 
 		out += "\n\n" + m.st.muted.Render(m.bandAway(s))
 	case band == "":
 	case beside != "":
-		out += "\n\n" + lipgloss.JoinHorizontal(lipgloss.Top, beside, strings.Repeat(" ", obraGap), band)
+		out += "\n\n" + lipgloss.JoinHorizontal(lipgloss.Top, beside, m.roomDivider(max(lipgloss.Height(beside), lipgloss.Height(band))), band)
 		log = ""
 	default:
-		out += "\n\n" + band
+		out += "\n\n" + lipgloss.PlaceHorizontal(w, lipgloss.Right, band)
 	}
 	if log != "" {
 		out += "\n\n" + log
+	}
+	if mode == bandSemTabela && m.boardInRoom(s) {
+		out += "\n" + m.st.muted.Render(m.t("tabela de foco")+m.t(" · na tecla o"))
 	}
 	return out
 }
@@ -670,7 +706,8 @@ func (m model) soloLog() string {
 		if e.Verb == "cumpriu" {
 			verb = m.st.ok.Render(verb)
 		}
-		b.WriteString(m.st.muted.Render(e.At.Format("15:04")) + "  " + verb + " \"" + e.Task + "\"" + m.receiptSuffix(e) + "\n")
+		prefix := m.st.muted.Render(e.At.Format("15:04")) + "  " + verb
+		b.WriteString(fitEventTask(prefix, e.Task, m.receiptSuffix(e), panelCols-1) + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
@@ -804,11 +841,8 @@ func (m model) cardsPer(s rooms.Snapshot, w int) int {
 	return max(1, w/(m.cardInner(s.Members)+2))
 }
 
-// cards: quantos couberem em w por fileira, no tamanho size (cardFull, cardMid ou cardDot). Quando
-// não cabem numa fileira, elas se dividem por igual (fitRows): nove em fileiras de oito viram 5 e
-// 4, e dez em fileiras de quatro, 4, 3 e 3. Com rows > 0, só as primeiras rows fileiras, cheias, e
-// uma linha com quantos ficaram de fora; aí e na rolagem do modo dev não há equilíbrio, para
-// nenhuma fileira esconder quem cabe.
+// cards: preenche cada fileira antes de abrir a próxima. Com rows > 0, mostra
+// apenas essas fileiras e informa quantos membros ficaram de fora.
 func (m model) cards(s rooms.Snapshot, w int, size int, rows int) string {
 	ms := orderedMembers(m.id, s)
 	got := received(s)
@@ -831,12 +865,9 @@ func (m model) cards(s rooms.Snapshot, w int, size int, rows int) string {
 			ms = ms[start:min(len(ms), start+visible)]
 		}
 	}
-	sizes := fitRows(len(ms), per) // com o "+N", ms já vem cortado em fileiras cheias
-	if m.inline() != nil {
-		sizes = sizes[:0]
-		for i := 0; i < len(ms); i += per {
-			sizes = append(sizes, min(per, len(ms)-i))
-		}
+	var sizes []int
+	for i := 0; i < len(ms); i += per {
+		sizes = append(sizes, min(per, len(ms)-i))
 	}
 	var lines []string
 	i := 0
@@ -903,6 +934,7 @@ func (m model) card(x rooms.Member, got int, size int, inner int, canvasHeight .
 			art,
 			name+" "+m.st.muted.Render(moodName),
 			m.st.task.Width(inner).Height(1).Render(ellipsize(task, inner, 1)),
+			"",
 			line))
 	default:
 		art = lipgloss.NewStyle().Padding(cardPetPaddingTop, 0, cardPetPaddingBottom).Render(art)
@@ -921,44 +953,45 @@ func (m model) feed(n, w int) string {
 	ev := m.events()
 	ev = ev[:min(max(n, 0), len(ev))]
 	if len(ev) == 0 {
-		return m.st.muted.Render(m.t("silêncio por aqui. quando alguém começar ou cumprir uma tarefa, aparece aqui"))
+		return m.st.muted.Render(ansi.Wrap(m.t("silêncio por aqui. quando alguém começar ou cumprir uma tarefa, aparece aqui"), max(1, w), ""))
 	}
-	text := func(e rooms.Event) string {
+	text := func(e rooms.Event, width int) string {
 		nick := e.Nick
 		if e.Who == m.id {
 			nick = m.t("você")
 		}
 		line := m.st.muted.Render(e.At.Format("15:04")) + " " + bold.Render(nick) + " " + m.t(e.Verb)
-		if e.Task != "" { // entrar e sair não têm tarefa
-			line += " \"" + m.taskText(e.Who, e.Task) + "\""
-		}
+		receipt := ""
 		if e.Who == m.id && e.Coins != nil {
-			line += " " + m.coinNumber("receipt", *e.Coins)
+			receipt = " " + m.coinNumber("receipt", *e.Coins)
+			if lipgloss.Width(receipt)+3 > width {
+				receipt = " " + shopStyle("coin").Render(fmt.Sprintf("+%d", *e.Coins))
+			}
 		}
-		return line
+		return fitEventTask(line, m.taskText(e.Who, e.Task), receipt, width)
 	}
 	reactsW := 0 // a largura das reações mais largas, que ficam sempre inteiras
 	for _, e := range ev {
 		rw := 0
-		for _, who := range e.Reacts {
+		for k, who := range e.Reacts {
 			if len(who) > 0 {
-				rw += 2 + lipgloss.Width(fmt.Sprintf("%s %d", reactionGlyphs[0], len(who)))
+				rw += 2 + lipgloss.Width(fmt.Sprintf("%s %d", reactionGlyphs[k], len(who)))
 			}
 		}
 		reactsW = max(reactsW, rw)
 	}
-	col, limit := 0, max(w-2-reactsW, 20) // 2: a seta do evento escolhido
+	col, limit := 0, max(0, w-2-reactsW) // 2: a seta do evento escolhido
 	for _, e := range ev {
-		col = max(col, min(lipgloss.Width(text(e)), limit))
+		col = max(col, min(lipgloss.Width(text(e, 1000000)), limit))
 	}
 	var b strings.Builder
-	sel := m.selIndex()
+	sel := min(m.selIndex(), len(ev)-1)
 	for i, e := range ev {
 		mark := "  "
 		if i == sel {
 			mark = m.st.title.Render("> ")
 		}
-		line := lipgloss.NewStyle().Width(col).Render(ansi.Truncate(text(e), col, "…"))
+		line := lipgloss.NewStyle().Width(col).Render(text(e, col))
 		for k, who := range e.Reacts { // ordem fixa 1-4: quem tem zero sai e os seguintes andam para a esquerda
 			if len(who) == 0 {
 				continue
@@ -969,7 +1002,7 @@ func (m model) feed(n, w int) string {
 			}
 			line += "  " + r
 		}
-		b.WriteString(mark + line + "\n")
+		b.WriteString(ansi.Truncate(mark+line, w, "…") + "\n")
 	}
 	return strings.TrimRight(b.String(), "\n")
 }
