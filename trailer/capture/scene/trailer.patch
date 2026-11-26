@@ -1,0 +1,61 @@
+--- a/internal/rooms/bots.go	2026-11-25 22:34:08
++++ b/internal/rooms/bots.go	2026-11-25 22:32:05
+@@ -4,6 +4,7 @@
+ // focando em tarefas de cerca de 1 min e reagindo a quem está na sala.
+ 
+ import (
++	"os"
+ 	"math/rand/v2"
+ 	"slices"
+ 	"sshiu/internal/pet"
+@@ -63,6 +64,9 @@
+ 		// os minutos de hoje saem da energia: é a escada que a demo precisa para a obra mostrar
+ 		// os quatro estágios ao mesmo tempo. Vai no banco, senão a primeira tarefa que o bot
+ 		// encerra lê de lá o zero e a obra esvazia enquanto a plateia olha.
++		if os.Getenv("TRAILER_KEEP_TODAY") != "" { // trailer: os minutos de hoje vêm do scene.py
++			continue
++		}
+ 		if err := store.SetToday("bot:"+b.nick, time.Now().Format(time.DateOnly), b.energy); err != nil {
+ 			log.Fatal("seed bots", "err", err)
+ 		}
+@@ -81,7 +85,9 @@
+ 			u.online = 1
+ 		}
+ 		if i != 2 && !b.offline { // caio começa sem tarefa
+-			start(u, DemoCode, b.tasks[0], 1, 20*time.Second+rand.N(60*time.Second))
++			off := time.Duration(2+i*4)*time.Minute + time.Duration(i*13)*time.Second // trailer: cada um num ponto da tarefa
++			start(u, DemoCode, b.tasks[0], 25, 25*time.Minute-off)
++			u.focus.Start, u.focus.SegStart = u.focus.Start.Add(-off), u.focus.SegStart.Add(-off)
+ 		}
+ 	}
+ 	go runBots()
+@@ -113,8 +119,6 @@
+ 				finish(u, r, now)
+ 			case u.focus == nil && u.online > 0 && rand.N(90) == 0: // uns 90 s parado entre uma tarefa e outra: a sala não fica barulhenta
+ 				start(u, DemoCode, b.tasks[rand.N(len(b.tasks))], 1, 40*time.Second+rand.N(50*time.Second))
+-			case u.focus == nil && rand.N(200) == 0:
+-				u.online = 1 - u.online // sem tarefa <-> offline
+ 			}
+ 		}
+ 		rest := pending[:0]
+--- a/internal/rooms/room.go	2026-11-25 22:34:08
++++ b/internal/rooms/room.go	2026-11-25 22:32:05
+@@ -7,6 +7,7 @@
+ // As telas não recebem eventos: cada sessão lê um retrato (World) a cada tick.
+ 
+ import (
++	"os"
+ 	"errors"
+ 	"fmt"
+ 	"slices"
+@@ -276,6 +277,10 @@
+ 	}
+ 	now := time.Now()
+ 	u.focus = &Focus{Task: task, Room: room, Start: now, SegStart: now, Ends: now.Add(d), Declared: minutes}
++	if u.bot == nil && task == os.Getenv("TRAILER_FAST_TASK") { // trailer: a tarefa já chega quase no fim
++		head := d - 90*time.Second
++		u.focus.Start, u.focus.SegStart, u.focus.Ends = now.Add(-head), now.Add(-head), u.focus.Ends.Add(-head)
++	}
+ 	save(u)
+ 	event(u, "começou", task)
+ }
