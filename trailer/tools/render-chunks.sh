@@ -5,6 +5,7 @@
 set -e
 ID=$1 OUT=$2 STEP=200
 TMP=$(mktemp -d)
+mkdir -p "$(dirname "$OUT")"
 N=$(npx remotion compositions 2>/dev/null | awk -v id="$ID" '$1==id{print $4}')
 [ -n "$N" ] || { echo "composição $ID não encontrada"; exit 1; }
 i=0

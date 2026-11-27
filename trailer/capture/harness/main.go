@@ -125,7 +125,7 @@ func main() {
 		case name == "type":
 			for _, r := range arg {
 				stdin.Write([]byte(string(r)))
-				time.Sleep(40 * time.Millisecond)
+				time.Sleep(90 * time.Millisecond)
 			}
 		case name == "key":
 			stdin.Write([]byte(arg))
