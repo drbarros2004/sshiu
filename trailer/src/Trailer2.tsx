@@ -337,10 +337,15 @@ const Counter: React.FC<{ at: number; from: number; to: number }> = ({ at, from,
   );
 };
 
-const opening = (f: number, i: number) => ramp(f, T + 4 + i * 7, T + 14 + i * 7); // janelinha i abrindo
+const opening = (f: number, i: number) => ramp(f, T + 4 + i * 7, T + 14 + i * 7); // janelinha i abrindo (openAt)
 
 // Grid do jardim: uma janelinha do Mac por wallpaper (garden-0..3), abrindo uma depois da outra.
-const Grid: React.FC<{ titles: string[] }> = ({ titles }) => {
+// Cada garden-i tem um trecho limpo do wallpaper (o 02-garden-long troca de wallpaper em 12,6, 16,77, 20,9,
+// 25,07 e 29,23 s): CLEAN = [início no garden-i, segundos limpos]. O vídeo começa quando a janela abre e,
+// se o trecho não chega até o fim da cena, fica só o necessário mais lento para não mostrar a troca.
+const CLEAN: [number, number][] = [[0.37, 4.07], [0.53, 4.04], [0.67, 4.07], [1.0, 3.97]];
+const openAt = (i: number) => T + 4 + i * 7;
+const Grid: React.FC<{ titles: string[]; dur: number }> = ({ titles, dur }) => {
   const f = useCurrentFrame();
   const left0 = (1920 - (GRID.w * 2 + GRID.gapX)) / 2;
   return (
@@ -358,7 +363,15 @@ const Grid: React.FC<{ titles: string[] }> = ({ titles }) => {
             bar={GRID.bar}
             style={{ opacity: a, scale: `${0.92 + 0.08 * a}` }}
           >
-            <OffthreadVideo src={staticFile(`clips/garden-${i}.mp4`)} muted style={{ width: GRID.w, height: GRID.h }} />
+            <Sequence from={openAt(i)} layout="none">
+              <OffthreadVideo
+                src={staticFile(`clips/garden-${i}.mp4`)}
+                trimBefore={Math.round(CLEAN[i][0] * 30)}
+                playbackRate={Math.min(1, (CLEAN[i][1] * 30) / (dur - openAt(i)))}
+                muted
+                style={{ width: GRID.w, height: GRID.h }}
+              />
+            </Sequence>
           </Window>
         );
       })}
@@ -421,7 +434,7 @@ const SceneView: React.FC<{ sc: Scene }> = ({ sc }) => {
       {sc.card === "title" && <Title />}
       {sc.card === "outro" && <Outro />}
       {sc.title && <Head title={sc.title} />}
-      {sc.grid && <Grid {...sc.grid} />}
+      {sc.grid && <Grid {...sc.grid} dur={sceneFrames(sc)} />}
       {sc.strips && <Strips strips={sc.strips} stages={sc.stages!} />}
       {sc.shots && (
         <Window title="maya — ssh sshiu — 160×45" {...APP} left={LEFT}>

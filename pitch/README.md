@@ -29,6 +29,8 @@ Abra `deck/index.offline.html` no **Google Chrome**.
 | `T` | Liga o cronômetro: dê na primeira palavra |
 | `N` | Mostra os cards de roteiro do slide |
 | `V` | Pausa e retoma o vídeo |
+| `J` `L` | Volta e avança 5 s no vídeo (o vídeo também tem barra de controles) |
+| `0` | Volta o vídeo para o começo |
 | `D` | Tema claro ou escuro |
 | `P` | Exporta o PDF |
 

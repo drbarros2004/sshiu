@@ -161,7 +161,7 @@ table.cmp tr.us td{background:var(--deep);color:var(--on-deep);font-weight:600} 
 .bg-canvas{position:absolute!important;top:0;left:-640px;width:2560px;height:720px;z-index:0;pointer-events:none}
 .over{position:relative;z-index:1;display:flex;flex-direction:column;gap:16px;height:100%}
 
-/* vídeo: toca ao entrar, pausa ao sair, V/clique alterna, arrastar arquivo carrega */
+/* vídeo: toca ao entrar, pausa ao sair, controles do navegador, V alterna, J/L voltam e avançam 5 s, 0 volta ao começo */
 .vid{position:relative;background:var(--deep);border-radius:var(--radius-lg);overflow:hidden;cursor:pointer;flex:1;min-height:0;aspect-ratio:16/9;align-self:center}
 .vid video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
 .vid-ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--on-deep);text-align:center;padding:24px;background:var(--deep)}
@@ -349,8 +349,8 @@ Gancho: 'E é aí que entra o dinheiro, mas antes: quem mais está nesse jogo.'"
   <div class="row" style="justify-content:space-between;align-items:center">
     <p class="eb"><b>03</b> / na prática</p><span class="sim-tag">app real · 40 s</span>
   </div>
-  <div class="vid" data-pdf-at="14.5" title="Clique ou V: tocar/pausar">
-    <video src="demo.mp4" poster="demo.jpg" preload="auto" playsinline></video>
+  <div class="vid" data-pdf-at="14.5" title="V: tocar/pausar · J/L: 5 s para trás/frente · 0: do começo">
+    <video src="demo.mp4" poster="demo.jpg" preload="auto" playsinline controls controlslist="nodownload noplaybackrate" disablepictureinpicture></video>
     <div class="vid-ph"><span class="play" aria-hidden="true"></span><span class="sim-tag" style="align-self:center;background:var(--brand);color:var(--on-brand)">vídeo</span>
       <p>Coloque <b>demo.mp4</b> na pasta deste arquivo, ou arraste o vídeo para cá.</p></div>
   </div>
@@ -481,6 +481,8 @@ Direção: os quatro pets da capa voltam radiantes: o foco em grupo deu certo.">
     <dt>N</dt><dd>cards de roteiro do slide</dd>
     <dt>S</dt><dd>janela do apresentador (sincronizada)</dd>
     <dt>V</dt><dd>tocar/pausar o vídeo do slide</dd>
+    <dt>J · L</dt><dd>voltar/avançar 5 s no vídeo</dd>
+    <dt>0</dt><dd>vídeo do começo</dd>
     <dt>D</dt><dd>tema claro/escuro</dd>
     <dt>F</dt><dd>tela cheia</dd>
     <dt>P</dt><dd>exportar PDF com keyframes</dd>
@@ -668,14 +670,17 @@ function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a
 const ease=t=>t<0?0:t>1?1:1-Math.pow(1-t,3);
 /* ===================== VÍDEO ===================== */
 /* Todo .vid: toca ao entrar (o clique/tecla do apresentador conta como gesto: sai com som),
-   pausa ao sair, V/clique alterna, arrastar arquivo carrega, data-pdf-at="s" escolhe o quadro do PDF. */
-const vids={};
+   pausa ao sair, tem os controles do navegador (tocar, barra, volume, tela cheia), V alterna, J/L voltam e
+   avançam 5 s, arrastar arquivo carrega, data-pdf-at="s" escolhe o quadro do PDF. */
+const vids={}, vidEls={};
 document.querySelectorAll('.vid').forEach(box=>{ const v=box.querySelector('video'), i=slides.indexOf(box.closest('.slide'));
   const isReady=()=>box.classList.contains('ready');
   const ready=()=>{ box.classList.add('ready'); if(cur===i&&v.paused&&!STILL&&!document.body.classList.contains('printing')) v.play().catch(()=>{}) };
   v.addEventListener('loadeddata',ready); v.addEventListener('error',()=>box.classList.remove('ready')); if(v.readyState>=2) ready();
   const toggle=()=>{ if(!isReady()) return; v.paused?v.play().catch(()=>{}):v.pause() };
-  box.addEventListener('click',toggle); vids[i]=toggle;
+  vids[i]=toggle; vidEls[i]=v;
+  /* depois de usar os controles, o foco volta ao deck: setas e espaço continuam passando os slides */
+  v.addEventListener('pointerup',()=>setTimeout(()=>v.blur(),0)); v.addEventListener('focus',()=>setTimeout(()=>v.blur(),0));
   box.addEventListener('dragover',e=>{e.preventDefault();box.classList.add('drag')});
   box.addEventListener('dragleave',()=>box.classList.remove('drag'));
   box.addEventListener('drop',e=>{ e.preventDefault(); box.classList.remove('drag');
@@ -710,6 +715,8 @@ addEventListener('keydown',e=>{
   else if(k==='n'||k==='N')panel('#notes');
   else if(k==='s'||k==='S')openPresenter();
   else if(k==='v'||k==='V')vids[cur]?.();
+  else if(k==='0'&&vidEls[cur]){ vidEls[cur].currentTime=0; vidEls[cur].play().catch(()=>{}) }
+  else if((k==='j'||k==='J'||k==='l'||k==='L')&&vidEls[cur]){ const v=vidEls[cur]; v.currentTime=Math.max(0,Math.min(v.duration||0,v.currentTime+(k.toLowerCase()==='l'?5:-5))) }
   else if(k==='f'||k==='F')full();
   else if(k==='d'||k==='D')theme();
   else if(k==='p'||k==='P')exportPDF();
