@@ -49,15 +49,15 @@ Orçamento: 177 s de slides (2:57) para um limite de 3:00, com 3 s de folga. Fal
 
 ## 4. Demo · 0:54 · 45 s
 
-> Esse é o app de verdade. Eu digito a próxima coisa que vou fazer, e a sala inteira já está focando junto.
+> Esse é o app de verdade. Na sala eu vejo quem está focando, e em quê. Digito a próxima coisa: fechar a issue 106.
 
-> Enquanto eu foco, a tela descansa: só o relógio, a tarefa e uma vista.
+> Cada minuto de foco da turma constrói a obra da sala, esse trem. Se eu largo o teclado, entra o modo jardim.
 
-> Terminando tarefas eu ganho moedas e visto o meu pet. E o foco da turma constrói a obra da sala.
+> O pet reflete o meu foco, e as moedas que eu ganho focando viram chapéus e personagens.
 
 - Direção: o vídeo começa sozinho e já tem legenda em cada corte. Fale pouco, uma frase por cena, e deixe o gancho (ssh sshiu) correr calado.
 - Atenção: testar o volume na sala antes: a música fica bem abaixo da voz (volume do notebook em ~30%).
-- Conferido: tomadas gravadas em 25 e 26/11/2026 no app real (commit 854000a), em modo demo, com bots e servidor local. Ainda não há servidor público. Montagem em trailer/ (Remotion, versão trailer2-flow), trilha 8-bit gerada com o earshot.
+- Conferido: tomadas gravadas em 25/11/2026 no app real (commit 854000a), em modo demo, com bots e servidor local. Ainda não há servidor público. Montagem e trilha originais em pitch/brag-output/work (render.html, music.py).
 - Gancho: 'E é aí que entra o dinheiro, mas antes: quem mais está nesse jogo.'
 
 ## 5. Alternativas · 1:39 · 18 s

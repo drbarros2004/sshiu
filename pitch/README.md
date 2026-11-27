@@ -7,8 +7,8 @@ Pitch de 3 minutos para o Shark Tank simulado da aula de empreendedorismo.
 | [`deck/index.offline.html`](deck/index.offline.html) | **O deck para apresentar:** um arquivo só, com fontes, imagens e vídeo dentro. Abre sem internet. |
 | [`deck/index.html`](deck/index.html) | O deck para editar (lê `demo.mp4`, `demo.jpg` e a pasta `pets/`) |
 | [`deck/sshiu-pitch.pdf`](deck/sshiu-pitch.pdf) | Reserva em PDF, uma página por slide |
-| [`deck/demo.mp4`](deck/demo.mp4) | A demo: 40 s, 1280×720, o trailer do sshiu (versão `trailer2-flow` de [`../trailer`](../trailer), em 8-bit): tomadas reais do app em modo demo, um título por tela e trilha gerada |
-| [`brag-output/`](brag-output/) | O vídeo anterior da demo, em 1920×1080 (`brag.mp4`), pôster, plano, texto para postar e o que gera tudo (`work/render.html`, `work/music.py`, `work/capture.mjs`) |
+| [`deck/demo.mp4`](deck/demo.mp4) | A demo: 40 s, 1280×720, um tour pelas funções com tomadas reais do app no Terminal.app, legendas e trilha original |
+| [`brag-output/`](brag-output/) | O mesmo vídeo em 1920×1080 (`brag.mp4`), pôster, plano, texto para postar e o que gera tudo (`work/render.html`, `work/music.py`, `work/capture.mjs`) |
 | [`script.md`](script.md) | Roteiro cronometrado, gerado das notas do deck |
 | [`dossier.md`](dossier.md) | Solução, dor, mercado, concorrência, posicionamento e perguntas da banca |
 | [`source-checks.md`](source-checks.md) | De onde vem cada número e o que dá para afirmar |
@@ -29,8 +29,6 @@ Abra `deck/index.offline.html` no **Google Chrome**.
 | `T` | Liga o cronômetro: dê na primeira palavra |
 | `N` | Mostra os cards de roteiro do slide |
 | `V` | Pausa e retoma o vídeo |
-| `J` `L` | Volta e avança 5 s no vídeo (o vídeo também tem barra de controles) |
-| `0` | Volta o vídeo para o começo |
 | `D` | Tema claro ou escuro |
 | `P` | Exporta o PDF |
 
