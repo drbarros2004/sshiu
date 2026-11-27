@@ -3,19 +3,19 @@
 > Status: roteiro preparado; **ainda não cronometrado em voz alta**. Só o ensaio diz se cabe em 3 min.
 > Fonte única: as linhas `Fala:` dos cards do deck ([`deck/index.html`](deck/index.html)). Mudou lá, gere este arquivo de novo.
 
-Orçamento: 177 s de slides (2:57) para um limite de 3:00, com 3 s de folga. Falado: 359 palavras, a ~140 palavras/min ≈ 154 s, incluindo a narração por cima do vídeo.
+Orçamento: 177 s de slides (2:57) para um limite de 3:00, com 3 s de folga. Falado: 356 palavras, a ~140 palavras/min ≈ 153 s, incluindo a narração por cima do vídeo.
 
 | # | Bloco | Início | Tempo | Palavras |
 |---|---|---|---|---|
 | 1 | Capa | 0:00 | 12 s | 24 |
-| 2 | O problema | 0:12 | 24 s | 57 |
+| 2 | O problema | 0:12 | 24 s | 54 |
 | 3 | A solução | 0:36 | 18 s | 42 |
 | 4 | Demo | 0:54 | 45 s | 63 |
 | 5 | Alternativas | 1:39 | 18 s | 40 |
 | 6 | Modelo de negócio | 1:57 | 27 s | 58 |
 | 7 | Onde estamos | 2:24 | 18 s | 38 |
 | 8 | O pedido | 2:42 | 15 s | 37 |
-| | **Total** | | **177 s** | **359** |
+| | **Total** | | **177 s** | **356** |
 
 ## 1. Capa · 0:00 · 12 s
 
@@ -27,14 +27,15 @@ Orçamento: 177 s de slides (2:57) para um limite de 3:00, com 3 s de folga. Fal
 
 ## 2. O problema · 0:12 · 24 s
 
-> Na tela, a atenção dura em média 47 segundos antes de trocar de janela.
+> Quase metade dos universitários procrastina de forma constante e problemática.
 
-> 68% das pessoas dizem que falta tempo de foco, e muita gente busca companhia: study with me teve 520 milhões de views.
+> Duas coisas ajudam: dizer a próxima tarefa concreta, como mostram 94 estudos, e ter companhia: study with me teve 520 milhões de views.
 
 > Só que os apps de foco são de celular, e quem programa vive no computador. Fizemos o sshiu para esse público.
 
-- Conferido: 47 s = tempo médio numa tela antes de trocar, nas medições de Gloria Mark (UC Irvine, 2004–2020; livro Attention Span, 2023). Mede troca de tela, não 'capacidade de atenção'. 68% = Microsoft Work Trend Index 2023, 31 mil pessoas em 31 países. 520 mi = blog do YouTube, views em 2023 de vídeos com 'study with me' no título.
-- Pergunta: 'e para dev, especificamente?' → só 10% das sessões de programação interrompidas voltam ao código em menos de 1 min (Parnin & Rugaber, 10 mil sessões), e metade dos devs perde mais de 10 h por semana com ineficiências (Atlassian 2025, 3.500 devs).
+- Conferido: quase 50% = Steel (2007), Psychological Bulletin 133(1), p. 65: 'almost 50% procrastinate consistently and problematically', em universitários, citando Day, Mensink & O'Sullivan (2000) e outros. Tarefa concreta = meta-análise de Gollwitzer & Sheeran (2006): 94 testes, mais de 8 mil pessoas, efeito médio a grande (d = 0,65) em cumprir a meta, comparado a só ter a intenção. 520 mi = blog do YouTube, views em 2023 de vídeos com 'study with me' no título.
+- Pergunta: 'focar junto funciona mesmo?' → a procura é grande (520 mi de views, Discord de estudo com 1 mi de membros), mas estudo controlado de 'body doubling' ainda é pouco e pequeno. Por isso o sshiu junta a companhia com a tarefa concreta, que tem evidência forte.
+Pergunta: 'e a atenção na tela?' → a atenção fica 47 s numa tela antes de trocar (Gloria Mark) e 68% dizem não ter tempo de foco sem interrupção (Microsoft 2023). O sshiu fica em segundo plano: não disputa a tela, só segura a tarefa e a sala.
 - Pergunta: 'mas o celular atrapalha mesmo?' → num estudo de 2017 (Ward et al.), só ter o celular na mesa já reduziu a memória de trabalho; as replicações são mistas, então usamos como indício, não como prova.
 - Gancho: 'Então levamos a sala de estudo para onde o dev já está: o terminal.'
 
