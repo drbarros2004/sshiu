@@ -49,21 +49,21 @@ const dressCuts = DRESS.slice(0, 4).map((_, k) => DRESS.slice(0, k + 1).reduce((
 // 00-task: pede a tarefa em 1,45 s, digita de 2,8 a 4,2 s, "how long?" em 5,4 s e o relógio em 7,1 s.
 // Os trechos parados saem com cortes que não se veem (a tela não muda neles).
 const TASK: Shot[] = [
-  { clip: "00-task", from: 1.0, to: 4.4 },
+  { clip: "00-task", from: 1.2, to: 4.4 },
   { clip: "00-task", from: 5.2, to: 5.9 },
-  { clip: "00-task", from: 6.8, to: 7.9 },
+  { clip: "00-task", from: 6.9, to: 7.9 },
 ];
-const typing = Array.from({ length: 16 }, (_, k) => ({ at: 1.8 + k * 0.0875, src: `key${(k % 4) + 1}`, volume: 0.1 }));
+const typing = Array.from({ length: 16 }, (_, k) => ({ at: 1.6 + k * 0.0875, src: `key${(k % 4) + 1}`, volume: 0.1 }));
 
 const SCENES: Scene[] = [
-  { id: "title", card: "title", dur: 3.6 },
+  { id: "title", card: "title", dur: 3.4 },
   {
     id: "task",
     enter: "window",
     title: "say the *one* thing you'll do next.",
     shots: TASK,
     cam: [FULL, [0.6, 1, 0.5, 0.5], at(PROMPT, 1.4)],
-    sfx: [...typing, { at: 3.5, src: "enter", volume: 0.18 }, { at: 4.25, src: "enter", volume: 0.18 }],
+    sfx: [...typing, { at: 3.3, src: "enter", volume: 0.18 }, { at: 3.95, src: "enter", volume: 0.18 }],
   },
   {
     id: "room",
@@ -76,7 +76,7 @@ const SCENES: Scene[] = [
     id: "garden",
     enter: "slide",
     title: "just a timer, your task and a *view*.",
-    dur: 4.3, // o grid inteiro fica um pouco na tela antes do brainrot
+    dur: 4.1, // o grid inteiro fica um pouco na tela antes do brainrot
     // garden-0..3: trechos do 02-garden-long (ver o README)
     grid: { titles: ["coffee", "tree", "night road", "sleeping cat"] },
     sfx: [0, 1, 2, 3].map((i) => ({ at: (T + 4 + i * 7) / 30, src: "dialog", volume: 0.18 })),
@@ -86,7 +86,7 @@ const SCENES: Scene[] = [
     enter: "window",
     title: "it's 2026. of course there's *brainrot*.",
     // a duração faz as moedas entrarem num bumbo da música (ver BREAK, mais abaixo)
-    shots: [{ clip: "04-brainrot", from: 0, to: 137 / 30 }],
+    shots: [{ clip: "04-brainrot", from: 0, to: 104 / 30 }],
   },
   {
     id: "coins",
@@ -122,13 +122,13 @@ const SCENES: Scene[] = [
     id: "profile",
     enter: "window",
     title: "see where your hours *actually* went.",
-    shots: [{ clip: "08-profile-v2", from: 0.2, to: 6.2 }],
+    shots: [{ clip: "08-profile-v2", from: 0.2, to: 6.2 + 8 / 30 }], // o fim acerta o logo num bumbo (END)
     // a tela inteira para situar; depois passa devagar pelo alto (o pet, o calendário e o mês) e desce
     // até a hora em que você foca, o que completa e as últimas tarefas (a "ship the trailer" no topo),
     // e a tela fica parada antes do fecho
     cam: [FULL, [1.2, 1, 0.5, 0.5], [2.2, 1.45, 0.355, 0.34], [3.1, 1.45, 0.355, 0.34], [4.2, 1.4, 0.628, 0.62]],
   },
-  { id: "outro", enter: "fade", card: "outro", dur: 3.6, sfx: [{ at: 1.3, src: "shh-voice", volume: 0.6 }] },
+  { id: "outro", enter: "fade", card: "outro", dur: 3.8, sfx: [{ at: 1.9, src: "shh-voice", volume: 0.6 }] },
 ];
 
 const sceneFrames = (sc: Scene) => (sc.shots ? sc.shots.reduce((n, x) => n + shotFrames(x), 0) : s(sc.dur!));
@@ -137,13 +137,18 @@ const starts = SCENES.reduce<number[]>(
   (acc, sc, i) => [...acc, i === 0 ? 0 : acc[i - 1] + sceneFrames(SCENES[i - 1]) - (enterOf(sc) === "cut" ? 0 : T)],
   [],
 );
-// No brainrot a música quebra (fita parando) e volta com as moedas, num bumbo que as duas faixas têm em
-// 16,05 s (tools/beats.py). O tapestop-*.wav é o trecho da faixa em (BREAK[0] - ENTER) / 30: se a conta
-// mudar, gere de novo com tools/tapestop.py e acerte a duração do brainrot.
+// No brainrot a música quebra (a fita para) e volta acelerando até as moedas, que entram num bumbo que as
+// duas faixas têm em 14,27 s (o próximo é 16,05 s; tools/beats.py). No fecho, ela corta no bumbo de
+// 34,27 s, quando o logo aparece, e esse golpe ecoa até o "shh". Os fx-*.wav saem de tools/musicfx.py
+// nos segundos da faixa (quadro - ENTER) / 30: se a conta mudar, gere de novo e acerte as durações.
 const idx = (id: string) => SCENES.findIndex((sc) => sc.id === id);
 const BREAK: [number, number] = [starts[idx("brainrot")], starts[idx("coins")]];
-const KICK = 16.05;
-if (Math.abs((BREAK[1] - ENTER) / 30 - KICK) > 0.04) throw new Error(`as moedas entram em ${(BREAK[1] - ENTER) / 30} s da música, fora do bumbo (${KICK} s)`);
+const END = starts[idx("outro")] + T + 4; // o logo do fecho já aparecendo
+const onKick = (frame: number, kick: number, what: string) => {
+  if (Math.abs((frame - ENTER) / 30 - kick) > 0.04) throw new Error(`${what} em ${(frame - ENTER) / 30} s da música, fora do bumbo (${kick} s)`);
+};
+onKick(BREAK[1], 14.27, "as moedas entram");
+onKick(END, 34.27, "o logo aparece");
 export const trailer2Duration = starts[starts.length - 1] + sceneFrames(SCENES[SCENES.length - 1]);
 
 // layout: selo e título em cima, a janela do app embaixo
@@ -238,8 +243,34 @@ const Head: React.FC<{ title: string }> = ({ title }) => {
   );
 };
 
-// O contador de moedas grande, à direita do feed (não existe no app): aparece com o saldo antigo, conta
-// até o novo e dá um pulinho no fim, com o "+43" subindo em cima.
+// Os dígitos grandes do app (bigText, internal/tui/ui.go): 3 colunas de meio-bloco, cada uma um pixel
+// quadrado de largura por dois de altura. Desenhados aqui como pixels.
+const DIGITS = [
+  ["█▀█", "█ █", "▀▀▀"], ["▀█ ", " █ ", "▀▀▀"], ["▀▀█", "█▀▀", "▀▀▀"], ["▀▀█", " ▀█", "▀▀▀"], ["█ █", "▀▀█", "  ▀"],
+  ["█▀▀", "▀▀█", "▀▀▀"], ["█▀▀", "█▀█", "▀▀▀"], ["▀▀█", "  █", "  ▀"], ["█▀█", "█▀█", "▀▀▀"], ["█▀█", "▀▀█", "▀▀▀"],
+];
+const PixelNumber: React.FC<{ n: number; px: number; color: string }> = ({ n, px, color }) => {
+  const cells: [number, number][] = [];
+  [...String(n)].forEach((d, i) =>
+    DIGITS[+d].forEach((row, r) =>
+      [...row].forEach((ch, c) => {
+        if (ch === "█" || ch === "▀") cells.push([i * 4 + c, r * 2]);
+        if (ch === "█" || ch === "▄") cells.push([i * 4 + c, r * 2 + 1]);
+      }),
+    ),
+  );
+  const w = String(n).length * 4 - 1;
+  return (
+    <div style={{ position: "relative", width: w * px, height: 5 * px }}>
+      {cells.map(([x, y], k) => (
+        <div key={k} style={{ position: "absolute", left: x * px, top: y * px, width: px, height: px, background: color }} />
+      ))}
+    </div>
+  );
+};
+
+// O contador de moedas grande, à direita do feed (não existe no app, mas usa a moeda e os dígitos dele):
+// aparece com o saldo antigo, conta até o novo e dá um pulinho no fim, com o "+43" subindo em cima.
 const COIN = { light: "#fff3a0", mid: "#ffd75f", dark: "#d9a400" };
 const Counter: React.FC<{ at: number; from: number; to: number }> = ({ at, from, to }) => {
   const f = useCurrentFrame();
@@ -249,15 +280,15 @@ const Counter: React.FC<{ at: number; from: number; to: number }> = ({ at, from,
   const end = t0 + 42;
   const bump = 1 + 0.08 * (ramp(f, end, end + 4) - ramp(f, end + 4, end + 12));
   const plus = ramp(f, t0 + 9, t0 + 18);
-  const px = 18; // um "pixel" da moeda
+  const px = 13; // um pixel do app, nesta escala (a moeda tem 2×2 e cada dígito 3×5)
   return (
-    <div style={{ position: "absolute", left: 980, top: 440, width: 400, display: "flex", flexDirection: "column", alignItems: "center", opacity: show, translate: `0px ${(1 - show) * 20}px` }}>
-      <div style={{ fontSize: 34, fontWeight: 700, color: C.green, opacity: plus, translate: `0px ${(1 - plus) * 24}px` }}>+{to - from}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 20, scale: `${bump}` }}>
-        <div style={{ display: "grid", gridTemplateColumns: `${px}px ${px}px`, gridTemplateRows: `${px}px ${px}px` }}>
+    <div style={{ position: "absolute", left: 980, top: 440, width: 400, display: "flex", flexDirection: "column", alignItems: "center", gap: 16, opacity: show, translate: `0px ${(1 - show) * 20}px` }}>
+      <div style={{ fontFamily: mono, fontSize: 32, fontWeight: 700, color: C.green, opacity: plus, translate: `0px ${(1 - plus) * 24}px` }}>+{to - from}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: px * 2, scale: `${bump}` }}>
+        <div style={{ display: "grid", gridTemplateColumns: `${px * 2}px ${px * 2}px`, gridTemplateRows: `${px * 2}px ${px * 2}px` }}>
           {[COIN.light, COIN.mid, COIN.mid, COIN.dark].map((c, i) => <div key={i} style={{ background: c }} />)}
         </div>
-        <div style={{ fontSize: 88, fontWeight: 700, color: COIN.mid, fontVariantNumeric: "tabular-nums" }}>{Math.round(from + (to - from) * p)}</div>
+        <PixelNumber n={Math.round(from + (to - from) * p)} px={px} color={COIN.mid} />
       </div>
     </div>
   );
@@ -397,7 +428,7 @@ export const Trailer2: React.FC<{ music: Music }> = ({ music }) => (
         return [<TransitionSeries.Transition key={`t-${sc.id}`} presentation={presentation(e)} timing={timing} />, seq];
       })}
     </TransitionSeries>
-    <Opening music={music} outroAt={starts[SCENES.length - 1]} pause={BREAK} />
+    <Opening music={music} outroAt={starts[SCENES.length - 1]} pause={BREAK} end={END} />
     {SCENES.map((sc, i) => {
       const x = i > 0 ? ENTER_SFX[enterOf(sc)] : undefined;
       return x ? <Sfx key={`e-${sc.id}`} from={starts[i]} src={x.src} volume={x.volume} /> : null;
