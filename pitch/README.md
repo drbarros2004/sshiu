@@ -2,6 +2,8 @@
 
 Pitch de 3 minutos para o Shark Tank simulado da aula de empreendedorismo.
 
+Online: <https://drbarros2004.github.io/sshiu/> (o `deck/` publicado no GitHub Pages pelo [`pages.yml`](../.github/workflows/pages.yml) a cada mudança no master).
+
 | Arquivo | O que é |
 |---|---|
 | [`deck/index.offline.html`](deck/index.offline.html) | **O deck para apresentar:** um arquivo só, com fontes, imagens e vídeo dentro. Abre sem internet. |
