@@ -3,7 +3,7 @@
 Trailer de 33 a 38 s do sshiu, em inglês, 1920×1080 a 30 fps, sem voz, montado em Remotion. Duas versões, cada uma com duas músicas:
 
 - `trailer` (`src/Trailer.tsx`): as telas do app numa janela grande do Terminal, com legenda embaixo.
-- `trailer2` (`src/Trailer2.tsx`, 37,7 s): um passo numerado e um título em cima de cada tela (como o vídeo do pitch). Começa com a maya digitando a tarefa "ship the trailer", que ela termina na cena das moedas e que aparece no perfil. A câmera (`cam`) só anda onde há algo específico para ver (a tarefa, as moedas); o perfil ganha molduras laranja (`rings`) em vez de zoom. As transições variam (`enter`: corte seco, janela abrindo, deslizar e fade no fecho). Ainda em ajuste.
+- `trailer2` (`src/Trailer2.tsx`, 37,7 s): um título em cima de cada tela, sem numerar. Começa com a maya digitando a tarefa "ship the trailer", que ela termina na cena das moedas e que aparece no perfil. A câmera (`cam`) só anda na tarefa; nas moedas o feed fica parado ao lado de um contador grande (`counter`, só do trailer), e o perfil ganha molduras laranja (`rings`) em vez de zoom. As transições variam (`enter`: corte seco, janela abrindo, deslizar e fade no fecho). Ainda em ajuste.
 
 As cenas, os trechos de cada clipe, os textos e os efeitos sonoros de cada versão ficam no `SCENES` do arquivo dela. A abertura, o fecho e a música são os mesmos (`Title`, `Outro`, `Opening`, no `Trailer.tsx`).
 
@@ -19,7 +19,7 @@ Uma versão só: `tools/render-chunks.sh trailer2-warm out/trailer2-warm.mp4`. E
 
 - `public/clips/`: os clipes gravados do app de verdade (modo demo, sem dev mode). Os do trailer2 vêm do `capture/scene/record-v2.sh`: `00-task`, `05-coins-v2`, `08-profile-v2` e `obra-<tema>-<0..3>` (trem, acampamento e orquestra, cada estágio da obra). `garden-0..3` são os trechos de 12,3, 16,3, 20,3 e 28,3 s do `02-garden-long`, cortados à parte para o grid do trailer2: `ffmpeg -ss <t> -i 02-garden-long.mp4 -t 5 -vf scale=1304:734 -c:v libx264 -crf 16 -g 15 -pix_fmt yuv420p -an garden-<i>.mp4`.
 - `public/sfx/`: efeitos gerados com o earshot pelo `sfx.sh` (livres, sem crédito). `shh-voice.wav` é o "shush" do começo de `sfx-shh/elevenlabs-shush-source.mp3` (ElevenLabs), de 0,32 s a 0,85 s.
-- `public/music/`: `bed-warm.wav` vem do `earshot make --sound bed/warm --dur 32`. `bed-warm-8bit.wav` é a mesma partitura tocada pelos canais de chip do earshot (`tools/warm8bit.py`). As duas são livres, sem crédito, e entram no enter da abertura, num tempo forte. `tools/beats.py` acha o andamento e os tempos fortes de uma faixa.
+- `public/music/`: `bed-warm.wav` vem do `earshot make --sound bed/warm --dur 40 --seed 0`. `bed-warm-8bit.wav` é a mesma partitura tocada pelos canais de chip do earshot (`tools/warm8bit.py`). As duas são livres, sem crédito, e entram no enter da abertura, num tempo forte. `tools/beats.py` acha o andamento e os tempos fortes de uma faixa.
 - `capture/`: como os clipes foram gravados (abaixo).
 
 Fora do git, porque se regeneram: `node_modules/`, `out/`, `.venv-earshot/`, as faixas brutas do earshot (`music/`) e as prévias em m4a (`listen/`).

@@ -21,6 +21,6 @@ for p in st["parts"]:
 st["room"], st["tape"] = "dry", 0.0
 music.STYLES["warm"] = st
 beds.KITS["warm"] = ()  # sem bateria acústica: as peças de chip são do próprio motor
-y, meta = registry.render("bed/warm", dur=32, check=False)
+y, meta = registry.render("bed/warm", dur=40, check=False)
 sf.write(sys.argv[1], y, 48000, subtype="PCM_16")
 print(meta.get("dur_s"), meta.get("lufs_max"), meta.get("peak_dbfs"))

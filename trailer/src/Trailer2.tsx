@@ -6,7 +6,7 @@ import { C, mono, ramp, s } from "./theme";
 import { Music, Opening, Outro, Sfx, Shot, shotFrames, T, timing, Title } from "./Trailer";
 import { Window } from "./Window";
 
-// trailer2: um passo numerado e um título em cima de cada tela. A câmera só anda quando há uma coisa
+// trailer2: um título em cima de cada tela (sem numerar, como um trailer). A câmera só anda quando há uma coisa
 // específica para mostrar (a tarefa sendo digitada, as moedas); timelapses, brainrot e perfil ficam
 // parados, e o perfil ganha molduras em vez de zoom.
 
@@ -23,14 +23,14 @@ type Strip = { obra: string; title: string; cx: number };
 type Scene = {
   id: string;
   enter?: Enter;
-  step?: string; // o passo, no selo: "01 · what's next?"
-  title?: string; // *palavra* fica laranja
+  title?: string; // em cima da tela; *palavra* fica laranja
   card?: "title" | "outro";
   shots?: Shot[];
   grid?: { titles: string[] };
   strips?: Strip[];
   cam?: Cam;
   rings?: Ring[];
+  counter?: { at: number; from: number; to: number }; // contador de moedas grande, só do trailer
   dur?: number;
   sfx?: { at: number; src: string; volume?: number }[];
 };
@@ -60,7 +60,6 @@ const SCENES: Scene[] = [
   {
     id: "task",
     enter: "window",
-    step: "01 · what's next?",
     title: "say the *one* thing you'll do next.",
     shots: TASK,
     cam: [FULL, [0.6, 1, 0.5, 0.5], at(PROMPT, 1.4)],
@@ -69,15 +68,13 @@ const SCENES: Scene[] = [
   {
     id: "room",
     enter: "cut",
-    step: "02 · focus",
     title: "then focus. *everyone* else already is.",
-    shots: [{ clip: "00-task", from: 7.9, to: 10.9 }],
-    cam: [PROMPT, at(PROMPT, 0.3), [1.6, 1, 0.5, 0.5]],
+    shots: [{ clip: "00-task", from: 7.9, to: 11.9 }],
+    cam: [PROMPT, at(PROMPT, 0.3), [1.5, 1, 0.5, 0.5]],
   },
   {
     id: "garden",
     enter: "slide",
-    step: "03 · zone out",
     title: "just a timer, your task and a *view*.",
     dur: 4.0,
     // garden-0..3: trechos do 02-garden-long (ver o README)
@@ -86,8 +83,7 @@ const SCENES: Scene[] = [
   },
   {
     id: "brainrot",
-    enter: "cut",
-    step: "03 · zone out, for real devs",
+    enter: "window",
     title: "or, if you insist, *brainrot*.",
     shots: [{ clip: "04-brainrot", from: 0, to: 3.2 }],
     sfx: [{ at: 0, src: "glitch", volume: 0.45 }],
@@ -95,30 +91,25 @@ const SCENES: Scene[] = [
   {
     id: "coins",
     enter: "window",
-    step: "04 · ship it",
     title: "done? earn your *coins*.",
-    // 05-coins-v2: a mesma "ship the trailer", quase no fim (TRAILER_FAST_TASK); f em 1,15 s
-    shots: [{ clip: "05-coins-v2", from: 0.3, to: 5.3 }],
-    cam: [FULL, [0.9, 1, 0.5, 0.5], [1.5, 1.9, 0.3, 0.74], [2.9, 1.9, 0.3, 0.74], [3.6, 2.2, 0.9, 0.1]],
-    rings: [
-      { from: 1.5, to: 2.9, box: [514, 789, 212, 30] },
-      { from: 3.6, to: 5.0, box: [1816, 93, 88, 30] },
-    ],
-    sfx: [{ at: 0.85, src: "coin", volume: 0.45 }],
+    // 05-coins-v2: a mesma "ship the trailer", quase no fim (TRAILER_FAST_TASK); f em 1,15 s. O feed fica
+    // parado e aproximado; o contador grande à direita não existe no app, é do trailer.
+    shots: [{ clip: "05-coins-v2", from: 0, to: 5.0 }],
+    cam: [[0, 1.35, 0.36, 0.72]],
+    counter: { at: 1.3, from: 240, to: 283 },
+    sfx: [{ at: 1.6, src: "coin", volume: 0.45 }],
   },
   {
     id: "dress",
     enter: "slide",
-    step: "05 · spend it",
-    title: "on hats, colors, a *whole new pet*.",
+    title: "spend them on hats. and pets. and *more hats*.",
     shots: DRESS.map((d, k) => ({ clip: `tl-room-${k}`, from: 0.6, to: 0.6 + d })),
     sfx: dressCuts.map((at) => ({ at, src: "toggle", volume: 0.35 })),
   },
   {
     id: "build",
     enter: "slideUp",
-    step: "06 · build",
-    title: "every focused minute grows the room's *mural*.",
+    title: "focus together. *build* together.",
     dur: STAGES.reduce((a, b) => a + b, 0),
     strips: [
       { obra: "trem", title: "train", cx: 828 },
@@ -130,7 +121,6 @@ const SCENES: Scene[] = [
   {
     id: "profile",
     enter: "window",
-    step: "07 · look back",
     title: "see where your hours *actually* went.",
     shots: [{ clip: "08-profile-v2", from: 0.2, to: 4.7 }],
     // a tarefa do trailer entre as últimas, o mês e a hora em que você foca, uma de cada vez
@@ -222,40 +212,47 @@ const Camera: React.FC<{ cam?: Cam; rings?: Ring[]; children: React.ReactNode }>
   );
 };
 
-// O selo do passo e o título, com as palavras entrando uma a uma.
-const Head: React.FC<{ step: string; title: string }> = ({ step, title }) => {
+// O título, com as palavras entrando uma a uma.
+const Head: React.FC<{ title: string }> = ({ title }) => {
   const f = useCurrentFrame();
-  const [n, ...rest] = step.split(" · ");
   const words = title.split(" ");
   let hl = false;
   return (
-    <div style={{ position: "absolute", left: LEFT, top: 44, fontFamily: mono }}>
-      <div
-        style={{
-          display: "inline-block",
-          fontSize: 26,
-          fontWeight: 700,
-          padding: "8px 14px",
-          borderRadius: 8,
-          background: "#1f1f22",
-          color: C.muted,
-          opacity: ramp(f, 4, 14),
-          translate: `${(1 - ramp(f, 4, 14)) * -16}px 0px`,
-        }}
-      >
-        <span style={{ color: C.accent }}>{n}</span> · {rest.join(" · ")}
-      </div>
-      <div style={{ marginTop: 18, fontSize: 50, fontWeight: 700, color: C.text, whiteSpace: "nowrap", letterSpacing: -1 }}>
-        {words.map((w, i) => {
-          const start = hl || w.startsWith("*");
-          hl = start && !w.replace(/^\*/, "").includes("*");
-          const a = ramp(f, 10 + i * 2, 20 + i * 2);
-          return (
-            <span key={i} style={{ display: "inline-block", marginRight: "0.6em", color: start ? C.accent : C.text, opacity: a, translate: `0px ${(1 - a) * 12}px` }}>
-              {w.replace(/\*/g, "")}
-            </span>
-          );
-        })}
+    <div style={{ position: "absolute", left: LEFT, top: 82, fontFamily: mono, fontSize: 54, fontWeight: 700, color: C.text, whiteSpace: "nowrap", letterSpacing: -1 }}>
+      {words.map((w, i) => {
+        const start = hl || w.startsWith("*");
+        hl = start && !w.replace(/^\*/, "").includes("*");
+        const a = ramp(f, 4 + i * 2, 14 + i * 2);
+        return (
+          <span key={i} style={{ display: "inline-block", marginRight: "0.6em", color: start ? C.accent : C.text, opacity: a, translate: `0px ${(1 - a) * 12}px` }}>
+            {w.replace(/\*/g, "")}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
+// O contador de moedas grande, à direita do feed (não existe no app): aparece com o saldo antigo, conta
+// até o novo e dá um pulinho no fim, com o "+43" subindo em cima.
+const COIN = { light: "#fff3a0", mid: "#ffd75f", dark: "#d9a400" };
+const Counter: React.FC<{ at: number; from: number; to: number }> = ({ at, from, to }) => {
+  const f = useCurrentFrame();
+  const t0 = s(at);
+  const show = ramp(f, t0, t0 + 8);
+  const p = interpolate(f, [t0 + 9, t0 + 42], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+  const end = t0 + 42;
+  const bump = 1 + 0.08 * (ramp(f, end, end + 4) - ramp(f, end + 4, end + 12));
+  const plus = ramp(f, t0 + 9, t0 + 18);
+  const px = 30; // um "pixel" da moeda
+  return (
+    <div style={{ position: "absolute", left: 960, top: 340, width: 440, display: "flex", flexDirection: "column", alignItems: "center", opacity: show, translate: `0px ${(1 - show) * 20}px` }}>
+      <div style={{ fontSize: 52, fontWeight: 700, color: C.green, opacity: plus, translate: `0px ${(1 - plus) * 24}px` }}>+{to - from}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 30, scale: `${bump}` }}>
+        <div style={{ display: "grid", gridTemplateColumns: `${px}px ${px}px`, gridTemplateRows: `${px}px ${px}px` }}>
+          {[COIN.light, COIN.mid, COIN.mid, COIN.dark].map((c, i) => <div key={i} style={{ background: c }} />)}
+        </div>
+        <div style={{ fontSize: 150, fontWeight: 700, color: COIN.mid, fontVariantNumeric: "tabular-nums" }}>{Math.round(from + (to - from) * p)}</div>
       </div>
     </div>
   );
@@ -344,7 +341,7 @@ const SceneView: React.FC<{ sc: Scene }> = ({ sc }) => {
     <AbsoluteFill style={{ background: C.page }}>
       {sc.card === "title" && <Title />}
       {sc.card === "outro" && <Outro />}
-      {sc.step && <Head step={sc.step} title={sc.title!} />}
+      {sc.title && <Head title={sc.title} />}
       {sc.grid && <Grid {...sc.grid} />}
       {sc.strips && <Strips strips={sc.strips} />}
       {sc.shots && (
@@ -367,6 +364,7 @@ const SceneView: React.FC<{ sc: Scene }> = ({ sc }) => {
               return el;
             })}
           </Camera>
+          {sc.counter && <Counter {...sc.counter} />}
         </Window>
       )}
     </AbsoluteFill>

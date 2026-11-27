@@ -288,8 +288,8 @@ export const Opening: React.FC<{ music: Music; outroAt: number }> = ({ music, ou
 // achado com tools/beats.py. volume: iguala a loudness das duas.
 export type Music = { src: string; from: number; volume: number };
 export const MUSICS: Record<string, Music> = {
-  warm: { src: "music/bed-warm.wav", from: 0, volume: 0.32 }, // earshot bed/warm
-  "8bit": { src: "music/bed-warm-8bit.wav", from: 0, volume: 0.29 }, // a mesma partitura em chip (tools/warm8bit.py)
+  warm: { src: "music/bed-warm.wav", from: 0, volume: 0.345 }, // earshot bed/warm
+  "8bit": { src: "music/bed-warm-8bit.wav", from: 0, volume: 0.307 }, // a mesma partitura em chip (tools/warm8bit.py)
 };
 
 export const timing = linearTiming({ durationInFrames: T, easing: Easing.bezier(0.45, 0, 0.2, 1) });
