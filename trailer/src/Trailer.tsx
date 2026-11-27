@@ -256,9 +256,12 @@ const SceneView: React.FC<{ sc: Scene }> = ({ sc }) => {
 
 // A música entra no enter da abertura, no primeiro tempo do loop (o bumbo em 0 s), e some devagar no
 // fecho, deixando o "shh" no silêncio. A abertura é sempre a primeira cena; outroAt: quadro do fecho.
+// pause: [de, até] em quadros, a música "quebra" (music.stop, tools/tapestop.py) e volta no "até".
 const MUSIC_FADE = s(2.4);
-export const Opening: React.FC<{ music: Music; outroAt: number }> = ({ music, outroAt }) => {
+export const Opening: React.FC<{ music: Music; outroAt: number; pause?: [number, number] }> = ({ music, outroAt, pause }) => {
   const len = outroAt + s(1.3) - ENTER;
+  const gate = (f: number) =>
+    pause ? 1 - interpolate(f + ENTER, [pause[0], pause[0] + 1, pause[1], pause[1] + 8], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
   return (
     <>
       <Sequence from={ENTER} durationInFrames={len} name={`música: ${music.src}`}>
@@ -267,6 +270,7 @@ export const Opening: React.FC<{ music: Music; outroAt: number }> = ({ music, ou
           trimBefore={Math.round(music.from * 30)}
           volume={(f) =>
             music.volume *
+            gate(f) *
             interpolate(f, [0, 3], [0, 1], { extrapolateRight: "clamp" }) *
             interpolate(f, [len - MUSIC_FADE, len], [1, 0], {
               extrapolateLeft: "clamp",
@@ -280,16 +284,21 @@ export const Opening: React.FC<{ music: Music; outroAt: number }> = ({ music, ou
         <Sfx key={k} from={TYPE_FROM + k * PER_KEY} src={`key${(k % 4) + 1}`} volume={0.14} />
       ))}
       <Sfx from={ENTER} src="enter" volume={0.22} />
+      {pause && music.stop && (
+        <Sequence from={pause[0]} layout="none" name="música quebrando">
+          <Audio src={staticFile(music.stop)} volume={music.volume} />
+        </Sequence>
+      )}
     </>
   );
 };
 
 // Cada versão do trailer tem uma música. from: o tempo forte (em segundos da faixa) que cai no enter,
 // achado com tools/beats.py. volume: iguala a loudness das duas.
-export type Music = { src: string; from: number; volume: number };
+export type Music = { src: string; from: number; volume: number; stop?: string };
 export const MUSICS: Record<string, Music> = {
-  warm: { src: "music/bed-warm.wav", from: 0, volume: 0.345 }, // earshot bed/warm
-  "8bit": { src: "music/bed-warm-8bit.wav", from: 0, volume: 0.307 }, // a mesma partitura em chip (tools/warm8bit.py)
+  warm: { src: "music/bed-warm.wav", from: 0, volume: 0.345, stop: "music/tapestop-warm.wav" }, // earshot bed/warm
+  "8bit": { src: "music/bed-warm-8bit.wav", from: 0, volume: 0.307, stop: "music/tapestop-8bit.wav" }, // a mesma partitura em chip (tools/warm8bit.py)
 };
 
 export const timing = linearTiming({ durationInFrames: T, easing: Easing.bezier(0.45, 0, 0.2, 1) });

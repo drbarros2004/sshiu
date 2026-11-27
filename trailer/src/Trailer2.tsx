@@ -40,7 +40,7 @@ const PROMPT: Cam[number] = [0, 2.6, 0.17, 0.17]; // a pergunta da tarefa e o re
 const at = (p: Cam[number], t: number): Cam[number] => [t, p[1], p[2], p[3]];
 
 // a obra: 4 estágios com corte seco; o primeiro passa metade na transição, o último segura
-const STAGES = [1.4, 1.0, 1.0, 1.8];
+const STAGES = [1.4, 1.0, 1.0, 2.3]; // o último segura o clipe inteiro (2,3 s): a obra pronta respira antes do perfil
 const stageCuts = STAGES.slice(0, 3).map((_, k) => STAGES.slice(0, k + 1).reduce((a, b) => a + b, 0));
 // timelapse das roupas (capture/scene/timelapse.sh)
 const DRESS = [1.4, 0.9, 0.9, 0.9, 1.5];
@@ -69,14 +69,14 @@ const SCENES: Scene[] = [
     id: "room",
     enter: "cut",
     title: "then focus. *everyone* else already is.",
-    shots: [{ clip: "00-task", from: 7.9, to: 11.9 }],
-    cam: [PROMPT, at(PROMPT, 0.3), [1.5, 1, 0.5, 0.5]],
+    shots: [{ clip: "00-task", from: 7.9, to: 11.5 }],
+    cam: [PROMPT, at(PROMPT, 0.3), [1.4, 1, 0.5, 0.5]],
   },
   {
     id: "garden",
     enter: "slide",
     title: "just a timer, your task and a *view*.",
-    dur: 4.0,
+    dur: 3.8,
     // garden-0..3: trechos do 02-garden-long (ver o README)
     grid: { titles: ["coffee", "tree", "night road", "sleeping cat"] },
     sfx: [0, 1, 2, 3].map((i) => ({ at: (T + 4 + i * 7) / 30, src: "dialog", volume: 0.18 })),
@@ -85,8 +85,7 @@ const SCENES: Scene[] = [
     id: "brainrot",
     enter: "window",
     title: "or, if you insist, *brainrot*.",
-    shots: [{ clip: "04-brainrot", from: 0, to: 3.2 }],
-    sfx: [{ at: 0, src: "glitch", volume: 0.45 }],
+    shots: [{ clip: "04-brainrot", from: 0, to: 3.0 }],
   },
   {
     id: "coins",
@@ -122,13 +121,10 @@ const SCENES: Scene[] = [
     id: "profile",
     enter: "window",
     title: "see where your hours *actually* went.",
-    shots: [{ clip: "08-profile-v2", from: 0.2, to: 4.7 }],
-    // a tarefa do trailer entre as últimas, o mês e a hora em que você foca, uma de cada vez
-    rings: [
-      { from: 1.0, to: 2.1, box: [535, 745, 790, 26] },
-      { from: 2.1, to: 3.2, box: [1008, 122, 440, 96] },
-      { from: 3.2, to: 4.4, box: [530, 392, 1356, 100] },
-    ],
+    shots: [{ clip: "08-profile-v2", from: 0.2, to: 5.6 }],
+    // a tela inteira primeiro, para situar; depois um movimento só, devagar, até a hora em que você foca, o
+    // que completa e as últimas tarefas (a "ship the trailer" no topo), e a tela fica parada antes do fecho
+    cam: [FULL, [1.4, 1, 0.5, 0.5], [3.0, 1.4, 0.628, 0.62]],
   },
   { id: "outro", enter: "fade", card: "outro", dur: 3.6, sfx: [{ at: 1.3, src: "shh-voice", volume: 0.6 }] },
 ];
@@ -139,6 +135,10 @@ const starts = SCENES.reduce<number[]>(
   (acc, sc, i) => [...acc, i === 0 ? 0 : acc[i - 1] + sceneFrames(SCENES[i - 1]) - (enterOf(sc) === "cut" ? 0 : T)],
   [],
 );
+// No brainrot a música quebra (fita parando) e só volta com as moedas. O tapestop-*.wav é o trecho da
+// faixa nesse instante: se BREAK mudar, gere de novo com tools/tapestop.py e (BREAK[0] - ENTER) / 30.
+const idx = (id: string) => SCENES.findIndex((sc) => sc.id === id);
+const BREAK: [number, number] = [starts[idx("brainrot")], starts[idx("coins")]];
 export const trailer2Duration = starts[starts.length - 1] + sceneFrames(SCENES[SCENES.length - 1]);
 
 // layout: selo e título em cima, a janela do app embaixo
@@ -244,15 +244,15 @@ const Counter: React.FC<{ at: number; from: number; to: number }> = ({ at, from,
   const end = t0 + 42;
   const bump = 1 + 0.08 * (ramp(f, end, end + 4) - ramp(f, end + 4, end + 12));
   const plus = ramp(f, t0 + 9, t0 + 18);
-  const px = 30; // um "pixel" da moeda
+  const px = 18; // um "pixel" da moeda
   return (
-    <div style={{ position: "absolute", left: 960, top: 340, width: 440, display: "flex", flexDirection: "column", alignItems: "center", opacity: show, translate: `0px ${(1 - show) * 20}px` }}>
-      <div style={{ fontSize: 52, fontWeight: 700, color: C.green, opacity: plus, translate: `0px ${(1 - plus) * 24}px` }}>+{to - from}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 30, scale: `${bump}` }}>
+    <div style={{ position: "absolute", left: 980, top: 440, width: 400, display: "flex", flexDirection: "column", alignItems: "center", opacity: show, translate: `0px ${(1 - show) * 20}px` }}>
+      <div style={{ fontSize: 34, fontWeight: 700, color: C.green, opacity: plus, translate: `0px ${(1 - plus) * 24}px` }}>+{to - from}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 20, scale: `${bump}` }}>
         <div style={{ display: "grid", gridTemplateColumns: `${px}px ${px}px`, gridTemplateRows: `${px}px ${px}px` }}>
           {[COIN.light, COIN.mid, COIN.mid, COIN.dark].map((c, i) => <div key={i} style={{ background: c }} />)}
         </div>
-        <div style={{ fontSize: 150, fontWeight: 700, color: COIN.mid, fontVariantNumeric: "tabular-nums" }}>{Math.round(from + (to - from) * p)}</div>
+        <div style={{ fontSize: 88, fontWeight: 700, color: COIN.mid, fontVariantNumeric: "tabular-nums" }}>{Math.round(from + (to - from) * p)}</div>
       </div>
     </div>
   );
@@ -312,7 +312,7 @@ const Strips: React.FC<{ strips: Strip[] }> = ({ strips }) => {
                 <Sequence key={k} from={s(from)} durationInFrames={s(d)} name={`${st.obra}-${k}`}>
                   <OffthreadVideo
                     src={staticFile(`clips/obra-${st.obra}-${k}.mp4`)}
-                    trimBefore={6}
+                    trimBefore={0}
                     muted
                     style={{
                       position: "absolute",
@@ -392,7 +392,7 @@ export const Trailer2: React.FC<{ music: Music }> = ({ music }) => (
         return [<TransitionSeries.Transition key={`t-${sc.id}`} presentation={presentation(e)} timing={timing} />, seq];
       })}
     </TransitionSeries>
-    <Opening music={music} outroAt={starts[SCENES.length - 1]} />
+    <Opening music={music} outroAt={starts[SCENES.length - 1]} pause={BREAK} />
     {SCENES.map((sc, i) => {
       const x = i > 0 ? ENTER_SFX[enterOf(sc)] : undefined;
       return x ? <Sfx key={`e-${sc.id}`} from={starts[i]} src={x.src} volume={x.volume} /> : null;
