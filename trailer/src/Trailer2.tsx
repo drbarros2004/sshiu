@@ -28,6 +28,7 @@ type Scene = {
   shots?: Shot[];
   grid?: { titles: string[] };
   strips?: Strip[];
+  stages?: number[]; // segundos de cada estágio da obra nas faixas
   cam?: Cam;
   rings?: Ring[];
   counter?: { at: number; from: number; to: number }; // contador de moedas grande, só do trailer
@@ -40,11 +41,22 @@ const PROMPT: Cam[number] = [0, 2.6, 0.17, 0.17]; // a pergunta da tarefa e o re
 const at = (p: Cam[number], t: number): Cam[number] => [t, p[1], p[2], p[3]];
 
 // a obra: 4 estágios com corte seco; o primeiro passa metade na transição, o último segura
-const STAGES = [1.4, 1.0, 1.0, 2.3]; // o último segura o clipe inteiro (2,3 s): a obra pronta respira antes do perfil
-const stageCuts = STAGES.slice(0, 3).map((_, k) => STAGES.slice(0, k + 1).reduce((a, b) => a + b, 0));
+// a obra em 4 estágios; o último segura o clipe inteiro (2,3 s): a obra pronta respira antes do perfil
+const buildStages = (sc: Scene, stages: number[]): Scene => ({
+  ...sc,
+  stages,
+  dur: stages.reduce((a, b) => a + b, 0),
+  sfx: stages.slice(0, 3).map((_, k) => ({ at: stages.slice(0, k + 1).reduce((a, b) => a + b, 0), src: "dialog", volume: 0.25 })),
+});
 // timelapse das roupas (capture/scene/timelapse.sh)
-const DRESS = [1.4, 0.8, 0.8, 0.8, 2.2]; // o último segura: a roupa nova respira antes da obra
-const dressCuts = DRESS.slice(0, 4).map((_, k) => DRESS.slice(0, k + 1).reduce((a, b) => a + b, 0));
+// os clipes têm 2,3 s; o último segura (a roupa nova respira antes da obra) e começa mais cedo para caber
+const dressScene = (title: string, d: number[], lastFrom: number): Scene => ({
+  id: "dress",
+  enter: "slide",
+  title,
+  shots: d.map((x, k) => ({ clip: `tl-room-${k}`, from: k === 4 ? lastFrom : 0.6, to: (k === 4 ? lastFrom : 0.6) + x })),
+  sfx: d.slice(0, 4).map((_, k) => ({ at: d.slice(0, k + 1).reduce((a, b) => a + b, 0), src: "toggle", volume: 0.35 })),
+});
 
 // 00-task: pede a tarefa em 1,45 s, digita de 2,8 a 4,2 s, "how long?" em 5,4 s e o relógio em 7,1 s.
 // Os trechos parados saem com cortes que não se veem (a tela não muda neles).
@@ -68,7 +80,7 @@ const SCENES: Scene[] = [
   {
     id: "room",
     enter: "cut",
-    title: "then focus. *everyone* else already is.",
+    title: "a room where everyone focuses *together*.",
     shots: [{ clip: "00-task", from: 7.9, to: 11.2 }],
     cam: [PROMPT, at(PROMPT, 0.3), [1.4, 1, 0.5, 0.5]],
   },
@@ -99,26 +111,20 @@ const SCENES: Scene[] = [
     counter: { at: 1.3, from: 240, to: 283 },
     sfx: [{ at: 1.6, src: "coin", volume: 0.45 }],
   },
+  dressScene("spend them on hats. and pets. and *more hats*.", [1.4, 0.8, 0.8, 0.8, 2.2], 0.1),
+  buildStages(
   {
-    id: "dress",
-    enter: "slide",
-    title: "spend them on hats. and pets. and *more hats*.",
-    // os clipes têm 2,3 s: o último começa mais cedo para caber
-    shots: DRESS.map((d, k) => ({ clip: `tl-room-${k}`, from: k === 4 ? 0.1 : 0.6, to: (k === 4 ? 0.1 : 0.6) + d })),
-    sfx: dressCuts.map((at) => ({ at, src: "toggle", volume: 0.35 })),
-  },
-  {
-    id: "build",
-    enter: "slideUp",
-    title: "focus together. *build* together.",
-    dur: STAGES.reduce((a, b) => a + b, 0),
-    strips: [
-      { obra: "trem", title: "train", cx: 828 },
-      { obra: "acampamento", title: "campsite", cx: 612 },
-      { obra: "orquestra", title: "orchestra", cx: 532 },
-    ],
-    sfx: stageCuts.map((at) => ({ at, src: "dialog", volume: 0.25 })),
-  },
+      id: "build",
+      enter: "slideUp",
+      title: "focus together. *build* together.",
+      strips: [
+        { obra: "trem", title: "train", cx: 828 },
+        { obra: "acampamento", title: "campsite", cx: 612 },
+        { obra: "orquestra", title: "orchestra", cx: 532 },
+      ],
+    },
+    [1.4, 1.0, 1.0, 2.3],
+  ),
   {
     id: "profile",
     enter: "window",
@@ -132,25 +138,61 @@ const SCENES: Scene[] = [
   { id: "outro", enter: "fade", card: "outro", dur: 4.4, sfx: [{ at: 1.9, src: "shh-voice", volume: 0.6 }] },
 ];
 
+// A versão flow é só o app: sem a tela das moedas (elas vão para o título das roupas) e sem o brainrot,
+// com a música direto, sem quebra. As outras telas ganham o tempo, e o fecho corta no bumbo de 33,19 s
+// (um antes do da versão principal), com o mesmo golpe ecoando (fx-*-ring, de 34,27 s).
+const FLOW_SCENES: Scene[] = SCENES.filter((sc) => sc.id !== "coins" && sc.id !== "brainrot").map((sc) => {
+  switch (sc.id) {
+    case "title":
+      return { ...sc, dur: 4.3 }; // mais respiro na frase da abertura
+    case "room":
+      return { ...sc, shots: [{ clip: "00-task", from: 7.9, to: 11.7 }] };
+    case "garden":
+      return { ...sc, dur: 5.2 };
+    case "dress":
+      return dressScene("earn your coins and spend them on *hats*.", [1.4, 1.1, 1.1, 1.1, 2.3], 0);
+    case "build":
+      return buildStages(sc, [1.4, 1.3, 1.3, 2.3]);
+    case "profile":
+      // o perfil é quase parado: tocado um pouco mais devagar, para o passeio da câmera ter mais tempo
+      return {
+        ...sc,
+        shots: [{ clip: "08-profile-v2", from: 0.2, to: 6.7, rate: 195 / 227 }],
+        cam: [FULL, [1.4, 1, 0.5, 0.5], [2.6, 1.45, 0.355, 0.34], [3.8, 1.45, 0.355, 0.34], [5.2, 1.4, 0.628, 0.62]],
+      };
+    default:
+      return sc;
+  }
+});
+
 const sceneFrames = (sc: Scene) => (sc.shots ? sc.shots.reduce((n, x) => n + shotFrames(x), 0) : s(sc.dur!));
 const enterOf = (sc: Scene) => sc.enter ?? "slide";
-const starts = SCENES.reduce<number[]>(
-  (acc, sc, i) => [...acc, i === 0 ? 0 : acc[i - 1] + sceneFrames(SCENES[i - 1]) - (enterOf(sc) === "cut" ? 0 : T)],
-  [],
-);
+
 // No brainrot a música quebra (a fita para) e volta acelerando até as moedas, que entram num bumbo que as
 // duas faixas têm em 14,27 s (o próximo é 16,05 s; tools/beats.py). No fecho, ela corta no bumbo de
 // 34,27 s, quando o logo aparece, e esse golpe ecoa até o "shh". Os fx-*.wav saem de tools/musicfx.py
-// nos segundos da faixa (quadro - ENTER) / 30: se a conta mudar, gere de novo e acerte as durações.
-const idx = (id: string) => SCENES.findIndex((sc) => sc.id === id);
-const BREAK: [number, number] = [starts[idx("brainrot")], starts[idx("coins")]];
-const END = starts[idx("outro")] + T + 4; // o logo do fecho já aparecendo
-const onKick = (frame: number, kick: number, what: string) => {
-  if (Math.abs((frame - ENTER) / 30 - kick) > 0.04) throw new Error(`${what} em ${(frame - ENTER) / 30} s da música, fora do bumbo (${kick} s)`);
+// nos segundos da faixa: se a conta mudar, gere de novo e acerte as durações. from: o segundo da faixa
+// no enter.
+const plan = (scenes: Scene[], from: number, withBreak: boolean, endKick: number) => {
+  const starts = scenes.reduce<number[]>(
+    (acc, sc, i) => [...acc, i === 0 ? 0 : acc[i - 1] + sceneFrames(scenes[i - 1]) - (enterOf(sc) === "cut" ? 0 : T)],
+    [],
+  );
+  const idx = (id: string) => scenes.findIndex((sc) => sc.id === id);
+  const onKick = (frame: number, kick: number, what: string) => {
+    const at = from + (frame - ENTER) / 30;
+    if (Math.abs(at - kick) > 0.04) throw new Error(`${what} em ${at} s da música, fora do bumbo (${kick} s)`);
+  };
+  const brk: [number, number] | undefined = withBreak ? [starts[idx("brainrot")], starts[idx("coins")]] : undefined;
+  const end = starts[idx("outro")] + T + 4; // o logo do fecho já aparecendo
+  if (brk) onKick(brk[1], 14.27, "as moedas entram");
+  onKick(end, endKick, "o logo aparece");
+  return { scenes, starts, from, brk, end, duration: starts[starts.length - 1] + sceneFrames(scenes[scenes.length - 1]) };
 };
-onKick(BREAK[1], 14.27, "as moedas entram");
-onKick(END, 34.27, "o logo aparece");
-export const trailer2Duration = starts[starts.length - 1] + sceneFrames(SCENES[SCENES.length - 1]);
+const MAIN = plan(SCENES, 0, true, 34.27);
+const FLOW = plan(FLOW_SCENES, 0, false, 33.19);
+export const trailer2Duration = MAIN.duration;
+export const trailer2FlowDuration = FLOW.duration;
 
 // layout: selo e título em cima, a janela do app embaixo
 const APP = { width: 1440, height: 810, bar: 36, top: 200 };
@@ -325,7 +367,7 @@ const Grid: React.FC<{ titles: string[] }> = ({ titles }) => {
 };
 
 // Faixas da obra: cada uma é o mural de uma sala com outra obra, crescendo nos 4 estágios com corte seco.
-const Strips: React.FC<{ strips: Strip[] }> = ({ strips }) => {
+const Strips: React.FC<{ strips: Strip[]; stages: number[] }> = ({ strips, stages }) => {
   const f = useCurrentFrame();
   const h = (STRIP.y1 - STRIP.y0) * STRIP.k;
   return (
@@ -344,7 +386,7 @@ const Strips: React.FC<{ strips: Strip[] }> = ({ strips }) => {
             bar={STRIP.bar}
             style={{ opacity: a, scale: `${0.94 + 0.06 * a}` }}
           >
-            {STAGES.map((d, k) => {
+            {stages.map((d, k) => {
               const el = (
                 <Sequence key={k} from={s(from)} durationInFrames={s(d)} name={`${st.obra}-${k}`}>
                   <OffthreadVideo
@@ -380,7 +422,7 @@ const SceneView: React.FC<{ sc: Scene }> = ({ sc }) => {
       {sc.card === "outro" && <Outro />}
       {sc.title && <Head title={sc.title} />}
       {sc.grid && <Grid {...sc.grid} />}
-      {sc.strips && <Strips strips={sc.strips} />}
+      {sc.strips && <Strips strips={sc.strips} stages={sc.stages!} />}
       {sc.shots && (
         <Window title="maya — ssh sshiu — 160×45" {...APP} left={LEFT}>
           <Camera cam={sc.cam} rings={sc.rings}>
@@ -415,10 +457,10 @@ const ENTER_SFX: Partial<Record<Enter, { src: string; volume: number }>> = {
   window: { src: "swish", volume: 0.1 },
 };
 
-export const Trailer2: React.FC<{ music: Music }> = ({ music }) => (
+const Cut: React.FC<{ music: Music; p: ReturnType<typeof plan> }> = ({ music, p }) => (
   <AbsoluteFill style={{ background: C.page }}>
     <TransitionSeries>
-      {SCENES.flatMap((sc, i) => {
+      {p.scenes.flatMap((sc, i) => {
         const e = enterOf(sc);
         const seq = (
           <TransitionSeries.Sequence key={sc.id} durationInFrames={sceneFrames(sc)} name={sc.id}>
@@ -429,11 +471,15 @@ export const Trailer2: React.FC<{ music: Music }> = ({ music }) => (
         return [<TransitionSeries.Transition key={`t-${sc.id}`} presentation={presentation(e)} timing={timing} />, seq];
       })}
     </TransitionSeries>
-    <Opening music={music} outroAt={starts[SCENES.length - 1]} pause={BREAK} end={END} />
-    {SCENES.map((sc, i) => {
+    <Opening music={{ ...music, from: p.from }} outroAt={p.starts[p.scenes.length - 1]} pause={p.brk} end={p.end} />
+    {p.scenes.map((sc, i) => {
       const x = i > 0 ? ENTER_SFX[enterOf(sc)] : undefined;
-      return x ? <Sfx key={`e-${sc.id}`} from={starts[i]} src={x.src} volume={x.volume} /> : null;
+      return x ? <Sfx key={`e-${sc.id}`} from={p.starts[i]} src={x.src} volume={x.volume} /> : null;
     })}
-    {SCENES.flatMap((sc, i) => (sc.sfx ?? []).map((x, k) => <Sfx key={`${sc.id}${k}`} from={starts[i] + s(x.at)} src={x.src} volume={x.volume} />))}
+    {p.scenes.flatMap((sc, i) => (sc.sfx ?? []).map((x, k) => <Sfx key={`${sc.id}${k}`} from={p.starts[i] + s(x.at)} src={x.src} volume={x.volume} />))}
   </AbsoluteFill>
 );
+
+export const Trailer2: React.FC<{ music: Music }> = ({ music }) => <Cut music={music} p={MAIN} />;
+// flow: a música não para no brainrot e não há a tela das moedas
+export const Trailer2Flow: React.FC<{ music: Music }> = ({ music }) => <Cut music={music} p={FLOW} />;

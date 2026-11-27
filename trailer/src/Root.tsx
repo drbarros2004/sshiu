@@ -1,11 +1,12 @@
 import { Composition } from "remotion";
 import { MUSICS, Trailer, trailerDuration } from "./Trailer";
-import { Trailer2, trailer2Duration } from "./Trailer2";
+import { Trailer2, Trailer2Flow, trailer2Duration, trailer2FlowDuration } from "./Trailer2";
 
-// Uma composição por música e por versão: trailer-warm, trailer-8bit, trailer2-warm, trailer2-8bit.
+// Uma composição por música e por versão: trailer-*, trailer2-* e trailer2-flow-* (a música não para no brainrot).
 const VERSIONS = [
   { id: "trailer", component: Trailer, duration: trailerDuration },
   { id: "trailer2", component: Trailer2, duration: trailer2Duration },
+  { id: "trailer2-flow", component: Trailer2Flow, duration: trailer2FlowDuration },
 ];
 
 export const RemotionRoot = () => (
