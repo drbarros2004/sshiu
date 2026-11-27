@@ -43,7 +43,7 @@ const at = (p: Cam[number], t: number): Cam[number] => [t, p[1], p[2], p[3]];
 const STAGES = [1.4, 1.0, 1.0, 2.3]; // o último segura o clipe inteiro (2,3 s): a obra pronta respira antes do perfil
 const stageCuts = STAGES.slice(0, 3).map((_, k) => STAGES.slice(0, k + 1).reduce((a, b) => a + b, 0));
 // timelapse das roupas (capture/scene/timelapse.sh)
-const DRESS = [1.4, 0.8, 0.8, 0.8, 1.5];
+const DRESS = [1.4, 0.8, 0.8, 0.8, 2.2]; // o último segura: a roupa nova respira antes da obra
 const dressCuts = DRESS.slice(0, 4).map((_, k) => DRESS.slice(0, k + 1).reduce((a, b) => a + b, 0));
 
 // 00-task: pede a tarefa em 1,45 s, digita de 2,8 a 4,2 s, "how long?" em 5,4 s e o relógio em 7,1 s.
@@ -76,7 +76,7 @@ const SCENES: Scene[] = [
     id: "garden",
     enter: "slide",
     title: "just a timer, your task and a *view*.",
-    dur: 4.1, // o grid inteiro fica um pouco na tela antes do brainrot
+    dur: 5.0, // o grid inteiro fica na tela antes do brainrot
     // garden-0..3: trechos do 02-garden-long (ver o README)
     grid: { titles: ["coffee", "tree", "night road", "sleeping cat"] },
     sfx: [0, 1, 2, 3].map((i) => ({ at: (T + 4 + i * 7) / 30, src: "dialog", volume: 0.18 })),
@@ -86,7 +86,7 @@ const SCENES: Scene[] = [
     enter: "window",
     title: "it's 2026. of course there's *brainrot*.",
     // a duração faz as moedas entrarem num bumbo da música (ver BREAK, mais abaixo)
-    shots: [{ clip: "04-brainrot", from: 0, to: 104 / 30 }],
+    shots: [{ clip: "04-brainrot", from: 0, to: 77 / 30 }],
   },
   {
     id: "coins",
@@ -103,7 +103,8 @@ const SCENES: Scene[] = [
     id: "dress",
     enter: "slide",
     title: "spend them on hats. and pets. and *more hats*.",
-    shots: DRESS.map((d, k) => ({ clip: `tl-room-${k}`, from: 0.6, to: 0.6 + d })),
+    // os clipes têm 2,3 s: o último começa mais cedo para caber
+    shots: DRESS.map((d, k) => ({ clip: `tl-room-${k}`, from: k === 4 ? 0.1 : 0.6, to: (k === 4 ? 0.1 : 0.6) + d })),
     sfx: dressCuts.map((at) => ({ at, src: "toggle", volume: 0.35 })),
   },
   {
@@ -139,7 +140,7 @@ const starts = SCENES.reduce<number[]>(
 );
 // No brainrot a música quebra (a fita para) e volta acelerando até as moedas, que entram num bumbo que as
 // duas faixas têm em 14,27 s (o próximo é 16,05 s; tools/beats.py). No fecho, ela corta no bumbo de
-// 34,27 s, quando o logo aparece, e esse golpe ecoa até o "shh". Os fx-*.wav saem de tools/musicfx.py
+// 34,97 s, quando o logo aparece, e esse golpe ecoa até o "shh". Os fx-*.wav saem de tools/musicfx.py
 // nos segundos da faixa (quadro - ENTER) / 30: se a conta mudar, gere de novo e acerte as durações.
 const idx = (id: string) => SCENES.findIndex((sc) => sc.id === id);
 const BREAK: [number, number] = [starts[idx("brainrot")], starts[idx("coins")]];
@@ -148,7 +149,7 @@ const onKick = (frame: number, kick: number, what: string) => {
   if (Math.abs((frame - ENTER) / 30 - kick) > 0.04) throw new Error(`${what} em ${(frame - ENTER) / 30} s da música, fora do bumbo (${kick} s)`);
 };
 onKick(BREAK[1], 14.27, "as moedas entram");
-onKick(END, 34.27, "o logo aparece");
+onKick(END, 34.97, "o logo aparece");
 export const trailer2Duration = starts[starts.length - 1] + sceneFrames(SCENES[SCENES.length - 1]);
 
 // layout: selo e título em cima, a janela do app embaixo
