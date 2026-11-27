@@ -3,7 +3,7 @@
 > Status: roteiro preparado; **ainda não cronometrado em voz alta**. Só o ensaio diz se cabe em 3 min.
 > Fonte única: as linhas `Fala:` dos cards do deck ([`deck/index.html`](deck/index.html)). Mudou lá, gere este arquivo de novo.
 
-Orçamento: 177 s de slides (2:57) para um limite de 3:00, com 3 s de folga. Falado: 356 palavras, a ~140 palavras/min ≈ 153 s, incluindo a narração por cima do vídeo.
+Orçamento: 177 s de slides (2:57) para um limite de 3:00, com 3 s de folga. Falado: 359 palavras, a ~140 palavras/min ≈ 154 s, incluindo a narração por cima do vídeo.
 
 | # | Bloco | Início | Tempo | Palavras |
 |---|---|---|---|---|
@@ -14,8 +14,8 @@ Orçamento: 177 s de slides (2:57) para um limite de 3:00, com 3 s de folga. Fal
 | 5 | Alternativas | 1:39 | 18 s | 40 |
 | 6 | Modelo de negócio | 1:57 | 27 s | 58 |
 | 7 | Onde estamos | 2:24 | 18 s | 38 |
-| 8 | O pedido | 2:42 | 15 s | 34 |
-| | **Total** | | **177 s** | **356** |
+| 8 | O pedido | 2:42 | 15 s | 37 |
+| | **Total** | | **177 s** | **359** |
 
 ## 1. Capa · 0:00 · 12 s
 
@@ -87,20 +87,21 @@ Orçamento: 177 s de slides (2:57) para um limite de 3:00, com 3 s de folga. Fal
 
 ## 7. Onde estamos · 2:24 · 18 s
 
-> Em quatro semanas, quatro pessoas fizeram 257 commits, 67 pull requests e 152 testes. O app funciona hoje.
+> Em quatro semanas, quatro pessoas fizeram 273 commits, 70 pull requests e 174 testes. O app funciona hoje.
 
 > Próximo passo: ssh sshiu no ar e um piloto com turmas. Depois, login pelo GitHub e as issues virando tarefas.
 
-- Conferido: medido em 25/11/2026 no master (commit b590406): git rev-list --count master (257 commits desde 28/10); 67 PRs mesclados (gh pr list --state merged); 152 funções de teste em Go. Medir de novo na véspera: o número pode subir até 27/11.
+- Conferido: medido em 27/11/2026 no master (commit 06b18c4): git rev-list --count master (273 commits desde 28/10); 70 PRs mesclados (gh pr list --state merged); 174 funções de teste em Go. Se entrar commit antes da apresentação, o número sobe.
 - Pergunta: 'e o custo para escalar?' → a sala manda ~90 KB/s por pessoa (medido em 30/10/2026); um servidor pequeno aguenta uma turma, e a passada de performance já está planejada.
 - Gancho: 'O que a gente pede.'
 
 ## 8. O pedido · 2:42 · 15 s
 
-> Pedimos [R$ 100 mil] por [10%] para colocar o sshiu no ar, pagar artistas para as skins e fazer o piloto com turmas e empresas.
+> Pedimos R$ 30 mil por 10% para, em dois meses, colocar o sshiu no ar, pagar artistas para as skins e fazer o piloto com turmas e empresas.
 
 > Foco de verdade, junto, sem sair do terminal. Obrigado.
 
-- A confirmar: o valor e a participação do pedido são uma proposta inicial; o time decide antes da apresentação.
-- Pergunta: 'como chegaram nesse valuation?' → [resposta do time].
+- Conferido: R$ 300 mil pós-investimento, ~7× a receita base de 12 meses (hipótese). Uso em 2 meses: ~R$ 12 mil artistas, ~R$ 10 mil ajuda de custo, ~R$ 6 mil piloto, ~R$ 2 mil servidor e domínio.
+- Pergunta: 'como chegaram nesse valuation?' → 'o dinheiro cobre exatamente os 2 meses até o piloto; 300 mil é umas 7 vezes a receita base de um ano, e o app já existe.'
+- Pergunta: 'por que só 2 meses?' → 'o app já funciona; falta servidor público, skins e o piloto. Em 2 meses a gente volta com usuários reais.'
 - Direção: os quatro pets da capa voltam radiantes: o foco em grupo deu certo.
