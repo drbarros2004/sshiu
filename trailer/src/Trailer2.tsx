@@ -139,25 +139,25 @@ const SCENES: Scene[] = [
 ];
 
 // A versão flow é só o app: sem a tela das moedas (elas vão para o título das roupas) e sem o brainrot,
-// com a música direto, sem quebra. As outras telas ganham o tempo, e o fecho corta no bumbo de 33,19 s
-// (um antes do da versão principal), com o mesmo golpe ecoando (fx-*-ring, de 34,27 s).
+// com a música direto, sem quebra. As outras telas ganham o tempo, com respiro no fim de cada uma, e o
+// fecho corta no mesmo bumbo da versão principal (34,27 s), com o mesmo golpe ecoando.
 const FLOW_SCENES: Scene[] = SCENES.filter((sc) => sc.id !== "coins" && sc.id !== "brainrot").map((sc) => {
   switch (sc.id) {
     case "title":
       return { ...sc, dur: 4.3 }; // mais respiro na frase da abertura
     case "room":
-      return { ...sc, shots: [{ clip: "00-task", from: 7.9, to: 11.7 }] };
+      return { ...sc, shots: [{ clip: "00-task", from: 7.9, to: 11.9 }] };
     case "garden":
-      return { ...sc, dur: 5.2 };
+      return { ...sc, dur: 5.5 };
     case "dress":
-      return dressScene("earn your coins and spend them on *hats*.", [1.4, 1.1, 1.1, 1.1, 2.3], 0);
+      return dressScene("finish tasks, earn coins, dress your *pet*.", [1.4, 1.1, 1.1, 1.1, 2.3], 0);
     case "build":
-      return buildStages(sc, [1.4, 1.3, 1.3, 2.3]);
+      return buildStages(sc, [1.4, 1.4, 1.4, 2.3]);
     case "profile":
       // o perfil é quase parado: tocado um pouco mais devagar, para o passeio da câmera ter mais tempo
       return {
         ...sc,
-        shots: [{ clip: "08-profile-v2", from: 0.2, to: 6.7, rate: 195 / 227 }],
+        shots: [{ clip: "08-profile-v2", from: 0.2, to: 6.7, rate: 195 / 239 }],
         cam: [FULL, [1.4, 1, 0.5, 0.5], [2.6, 1.45, 0.355, 0.34], [3.8, 1.45, 0.355, 0.34], [5.2, 1.4, 0.628, 0.62]],
       };
     default:
@@ -190,7 +190,7 @@ const plan = (scenes: Scene[], from: number, withBreak: boolean, endKick: number
   return { scenes, starts, from, brk, end, duration: starts[starts.length - 1] + sceneFrames(scenes[scenes.length - 1]) };
 };
 const MAIN = plan(SCENES, 0, true, 34.27);
-const FLOW = plan(FLOW_SCENES, 0, false, 33.19);
+const FLOW = plan(FLOW_SCENES, 0, false, 34.27);
 export const trailer2Duration = MAIN.duration;
 export const trailer2FlowDuration = FLOW.duration;
 
