@@ -56,7 +56,7 @@ const TASK: Shot[] = [
 const typing = Array.from({ length: 16 }, (_, k) => ({ at: 1.6 + k * 0.0875, src: `key${(k % 4) + 1}`, volume: 0.1 }));
 
 const SCENES: Scene[] = [
-  { id: "title", card: "title", dur: 3.4 },
+  { id: "title", card: "title", dur: 4.0 }, // a frase fica um pouco na tela antes da tarefa
   {
     id: "task",
     enter: "window",
@@ -69,14 +69,14 @@ const SCENES: Scene[] = [
     id: "room",
     enter: "cut",
     title: "then focus. *everyone* else already is.",
-    shots: [{ clip: "00-task", from: 7.9, to: 11.5 }],
+    shots: [{ clip: "00-task", from: 7.9, to: 11.2 }],
     cam: [PROMPT, at(PROMPT, 0.3), [1.4, 1, 0.5, 0.5]],
   },
   {
     id: "garden",
     enter: "slide",
     title: "just a timer, your task and a *view*.",
-    dur: 5.0, // o grid inteiro fica na tela antes do brainrot
+    dur: 4.6, // o grid inteiro fica na tela antes do brainrot
     // garden-0..3: trechos do 02-garden-long (ver o README)
     grid: { titles: ["coffee", "tree", "night road", "sleeping cat"] },
     sfx: [0, 1, 2, 3].map((i) => ({ at: (T + 4 + i * 7) / 30, src: "dialog", volume: 0.18 })),
@@ -86,7 +86,7 @@ const SCENES: Scene[] = [
     enter: "window",
     title: "it's 2026. of course there's *brainrot*.",
     // a duração faz as moedas entrarem num bumbo da música (ver BREAK, mais abaixo)
-    shots: [{ clip: "04-brainrot", from: 0, to: 77 / 30 }],
+    shots: [{ clip: "04-brainrot", from: 0, to: 80 / 30 }],
   },
   {
     id: "coins",
@@ -94,7 +94,7 @@ const SCENES: Scene[] = [
     title: "done? earn your *coins*.",
     // 05-coins-v2: a mesma "ship the trailer", quase no fim (TRAILER_FAST_TASK); f em 1,15 s. O feed fica
     // parado e aproximado; o contador grande à direita não existe no app, é do trailer.
-    shots: [{ clip: "05-coins-v2", from: 0, to: 5.0 }],
+    shots: [{ clip: "05-coins-v2", from: 0, to: 4.6 }],
     cam: [[0, 1.35, 0.36, 0.72]],
     counter: { at: 1.3, from: 240, to: 283 },
     sfx: [{ at: 1.6, src: "coin", volume: 0.45 }],
@@ -123,13 +123,13 @@ const SCENES: Scene[] = [
     id: "profile",
     enter: "window",
     title: "see where your hours *actually* went.",
-    shots: [{ clip: "08-profile-v2", from: 0.2, to: 6.2 + 8 / 30 }], // o fim acerta o logo num bumbo (END)
+    shots: [{ clip: "08-profile-v2", from: 0.2, to: 0.2 + 179 / 30 }], // o fim acerta o logo num bumbo (END)
     // a tela inteira para situar; depois passa devagar pelo alto (o pet, o calendário e o mês) e desce
     // até a hora em que você foca, o que completa e as últimas tarefas (a "ship the trailer" no topo),
     // e a tela fica parada antes do fecho
     cam: [FULL, [1.2, 1, 0.5, 0.5], [2.2, 1.45, 0.355, 0.34], [3.1, 1.45, 0.355, 0.34], [4.2, 1.4, 0.628, 0.62]],
   },
-  { id: "outro", enter: "fade", card: "outro", dur: 3.8, sfx: [{ at: 1.9, src: "shh-voice", volume: 0.6 }] },
+  { id: "outro", enter: "fade", card: "outro", dur: 4.4, sfx: [{ at: 1.9, src: "shh-voice", volume: 0.6 }] },
 ];
 
 const sceneFrames = (sc: Scene) => (sc.shots ? sc.shots.reduce((n, x) => n + shotFrames(x), 0) : s(sc.dur!));
@@ -140,7 +140,7 @@ const starts = SCENES.reduce<number[]>(
 );
 // No brainrot a música quebra (a fita para) e volta acelerando até as moedas, que entram num bumbo que as
 // duas faixas têm em 14,27 s (o próximo é 16,05 s; tools/beats.py). No fecho, ela corta no bumbo de
-// 34,97 s, quando o logo aparece, e esse golpe ecoa até o "shh". Os fx-*.wav saem de tools/musicfx.py
+// 34,27 s, quando o logo aparece, e esse golpe ecoa até o "shh". Os fx-*.wav saem de tools/musicfx.py
 // nos segundos da faixa (quadro - ENTER) / 30: se a conta mudar, gere de novo e acerte as durações.
 const idx = (id: string) => SCENES.findIndex((sc) => sc.id === id);
 const BREAK: [number, number] = [starts[idx("brainrot")], starts[idx("coins")]];
@@ -149,7 +149,7 @@ const onKick = (frame: number, kick: number, what: string) => {
   if (Math.abs((frame - ENTER) / 30 - kick) > 0.04) throw new Error(`${what} em ${(frame - ENTER) / 30} s da música, fora do bumbo (${kick} s)`);
 };
 onKick(BREAK[1], 14.27, "as moedas entram");
-onKick(END, 34.97, "o logo aparece");
+onKick(END, 34.27, "o logo aparece");
 export const trailer2Duration = starts[starts.length - 1] + sceneFrames(SCENES[SCENES.length - 1]);
 
 // layout: selo e título em cima, a janela do app embaixo
