@@ -3,7 +3,7 @@ import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
 import { AbsoluteFill, Easing, interpolate, OffthreadVideo, Sequence, staticFile, useCurrentFrame } from "remotion";
 import { C, mono, ramp, s } from "./theme";
-import { Music, Opening, Outro, Sfx, Shot, shotFrames, T, timing, Title } from "./Trailer";
+import { ENTER, Music, Opening, Outro, Sfx, Shot, shotFrames, T, timing, Title } from "./Trailer";
 import { Window } from "./Window";
 
 // trailer2: um título em cima de cada tela (sem numerar, como um trailer). A câmera só anda quando há uma coisa
@@ -43,7 +43,7 @@ const at = (p: Cam[number], t: number): Cam[number] => [t, p[1], p[2], p[3]];
 const STAGES = [1.4, 1.0, 1.0, 2.3]; // o último segura o clipe inteiro (2,3 s): a obra pronta respira antes do perfil
 const stageCuts = STAGES.slice(0, 3).map((_, k) => STAGES.slice(0, k + 1).reduce((a, b) => a + b, 0));
 // timelapse das roupas (capture/scene/timelapse.sh)
-const DRESS = [1.4, 0.9, 0.9, 0.9, 1.5];
+const DRESS = [1.4, 0.8, 0.8, 0.8, 1.5];
 const dressCuts = DRESS.slice(0, 4).map((_, k) => DRESS.slice(0, k + 1).reduce((a, b) => a + b, 0));
 
 // 00-task: pede a tarefa em 1,45 s, digita de 2,8 a 4,2 s, "how long?" em 5,4 s e o relógio em 7,1 s.
@@ -56,7 +56,7 @@ const TASK: Shot[] = [
 const typing = Array.from({ length: 16 }, (_, k) => ({ at: 1.8 + k * 0.0875, src: `key${(k % 4) + 1}`, volume: 0.1 }));
 
 const SCENES: Scene[] = [
-  { id: "title", card: "title", dur: 4.0 },
+  { id: "title", card: "title", dur: 3.6 },
   {
     id: "task",
     enter: "window",
@@ -76,7 +76,7 @@ const SCENES: Scene[] = [
     id: "garden",
     enter: "slide",
     title: "just a timer, your task and a *view*.",
-    dur: 3.8,
+    dur: 4.3, // o grid inteiro fica um pouco na tela antes do brainrot
     // garden-0..3: trechos do 02-garden-long (ver o README)
     grid: { titles: ["coffee", "tree", "night road", "sleeping cat"] },
     sfx: [0, 1, 2, 3].map((i) => ({ at: (T + 4 + i * 7) / 30, src: "dialog", volume: 0.18 })),
@@ -84,8 +84,9 @@ const SCENES: Scene[] = [
   {
     id: "brainrot",
     enter: "window",
-    title: "or, if you insist, *brainrot*.",
-    shots: [{ clip: "04-brainrot", from: 0, to: 3.0 }],
+    title: "it's 2026. of course there's *brainrot*.",
+    // a duração faz as moedas entrarem num bumbo da música (ver BREAK, mais abaixo)
+    shots: [{ clip: "04-brainrot", from: 0, to: 137 / 30 }],
   },
   {
     id: "coins",
@@ -121,10 +122,11 @@ const SCENES: Scene[] = [
     id: "profile",
     enter: "window",
     title: "see where your hours *actually* went.",
-    shots: [{ clip: "08-profile-v2", from: 0.2, to: 5.6 }],
-    // a tela inteira primeiro, para situar; depois um movimento só, devagar, até a hora em que você foca, o
-    // que completa e as últimas tarefas (a "ship the trailer" no topo), e a tela fica parada antes do fecho
-    cam: [FULL, [1.4, 1, 0.5, 0.5], [3.0, 1.4, 0.628, 0.62]],
+    shots: [{ clip: "08-profile-v2", from: 0.2, to: 6.2 }],
+    // a tela inteira para situar; depois passa devagar pelo alto (o pet, o calendário e o mês) e desce
+    // até a hora em que você foca, o que completa e as últimas tarefas (a "ship the trailer" no topo),
+    // e a tela fica parada antes do fecho
+    cam: [FULL, [1.2, 1, 0.5, 0.5], [2.2, 1.45, 0.355, 0.34], [3.1, 1.45, 0.355, 0.34], [4.2, 1.4, 0.628, 0.62]],
   },
   { id: "outro", enter: "fade", card: "outro", dur: 3.6, sfx: [{ at: 1.3, src: "shh-voice", volume: 0.6 }] },
 ];
@@ -135,10 +137,13 @@ const starts = SCENES.reduce<number[]>(
   (acc, sc, i) => [...acc, i === 0 ? 0 : acc[i - 1] + sceneFrames(SCENES[i - 1]) - (enterOf(sc) === "cut" ? 0 : T)],
   [],
 );
-// No brainrot a música quebra (fita parando) e só volta com as moedas. O tapestop-*.wav é o trecho da
-// faixa nesse instante: se BREAK mudar, gere de novo com tools/tapestop.py e (BREAK[0] - ENTER) / 30.
+// No brainrot a música quebra (fita parando) e volta com as moedas, num bumbo que as duas faixas têm em
+// 16,05 s (tools/beats.py). O tapestop-*.wav é o trecho da faixa em (BREAK[0] - ENTER) / 30: se a conta
+// mudar, gere de novo com tools/tapestop.py e acerte a duração do brainrot.
 const idx = (id: string) => SCENES.findIndex((sc) => sc.id === id);
 const BREAK: [number, number] = [starts[idx("brainrot")], starts[idx("coins")]];
+const KICK = 16.05;
+if (Math.abs((BREAK[1] - ENTER) / 30 - KICK) > 0.04) throw new Error(`as moedas entram em ${(BREAK[1] - ENTER) / 30} s da música, fora do bumbo (${KICK} s)`);
 export const trailer2Duration = starts[starts.length - 1] + sceneFrames(SCENES[SCENES.length - 1]);
 
 // layout: selo e título em cima, a janela do app embaixo

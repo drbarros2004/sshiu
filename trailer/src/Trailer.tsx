@@ -261,7 +261,7 @@ const MUSIC_FADE = s(2.4);
 export const Opening: React.FC<{ music: Music; outroAt: number; pause?: [number, number] }> = ({ music, outroAt, pause }) => {
   const len = outroAt + s(1.3) - ENTER;
   const gate = (f: number) =>
-    pause ? 1 - interpolate(f + ENTER, [pause[0], pause[0] + 1, pause[1], pause[1] + 8], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
+    pause ? 1 - interpolate(f + ENTER, [pause[0], pause[0] + 1, pause[1], pause[1] + 2], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
   return (
     <>
       <Sequence from={ENTER} durationInFrames={len} name={`música: ${music.src}`}>

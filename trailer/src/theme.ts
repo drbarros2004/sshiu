@@ -7,7 +7,7 @@ export const mono = loadFont("normal", { weights: ["400", "700"], subsets: ["lat
 // Cores do tema "sshiu" do app (internal/tui/ui.go) e da janela do Terminal do macOS.
 export const C = {
   page: "#0a0a0b",
-  term: "#121214", // fundo do terminal nos clipes (defBg do harness)
+  term: "#111113", // o fundo dos clipes como sai no vídeo final (o defBg do harness, #121214, muda um pouco no h264)
   text: "#d8d8d8",
   accent: "#ff8700",
   muted: "#7a7a7a",

@@ -23,7 +23,8 @@ stop() { P=$(lsof -tnP -iTCP:23235 -sTCP:LISTEN || true); [ -n "$P" ] && kill $P
 case $1 in
 task)
   serve "" X=1
-  (cd $H && rm -rf clips/00-task && ./harness -user maya wait:"demo room" enter wait:"/10" sleep:2.5 \
+  # em dobro (3840×2160): o trailer dá zoom de 2,6× nesta tela
+  (cd $H && rm -rf clips/00-task && ./harness -user maya -cw 24 -ch 48 wait:"demo room" enter wait:"/10" sleep:2.5 \
     rec:clips/00-task sleep:1.2 enter wait:concrete sleep:0.8 type:"ship the trailer" sleep:0.9 enter wait:"how long" \
     sleep:1.2 enter sleep:6 stop) ;;
 coins)
