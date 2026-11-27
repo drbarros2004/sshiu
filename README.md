@@ -4,6 +4,8 @@
 
 **a quiet focus room in your terminal, over ssh.**
 
+[pitch deck and trailer](https://drbarros2004.github.io/sshiu/)
+
 ![the demo room with pets, member tasks and focus timers](docs/screens/sala.webp)
 
 </div>
